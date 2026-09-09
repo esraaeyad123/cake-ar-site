@@ -318,9 +318,6 @@
             <div class="tier-option" data-tier="2">دورين</div>
             <div class="tier-option" data-tier="3">3 أدوار</div>
         </div>
-        <div class="tier-note" id="tier-note" style="display:none;">
-            * هذا الخيار قيد التجهيز حاليًا — العرض هنا للتصميم فقط
-        </div>
     </div>
 
     <div id="panel-size" class="options-panel">
@@ -362,12 +359,17 @@
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
         let currentLayers = 2;
 
-        // المدى المسموح بعدد الطبقات لكل مقاس (دور واحد) — حاليًا نكتفي بـ 2-3 لكل المقاسات
+        // المدى المسموح بعدد الطبقات لكل مقاس/كومبو — حاليًا نكتفي بـ 2-3 لكل الخيارات
         const layerLimits = {
             "4in":  [2, 3],
             "6in":  [2, 3],
             "8in":  [2, 3],
             "10in": [2, 3],
+            "tier2_6-4":     [2, 3],
+            "tier2_8-6":     [2, 3],
+            "tier2_10-8":    [2, 3],
+            "tier3_8-6-4":   [2, 3],
+            "tier3_10-8-6":  [2, 3],
         };
 
         const layerColors = ['#F4C0D1','#ED93B1','#D4537E','#993556','#72243E','#4B1528','#2C1018'];
@@ -417,7 +419,6 @@
         }
 
         // بيانات المقاسات لكل خيار "دور" — دور واحد شغال بالكامل (نماذج حقيقية)
-        // دورين و3 أدوار حاليًا للعرض التصميمي فقط، بانتظار النماذج من المصمم
         const sizesData = {
             1: [
                 @foreach($variants as $v)
@@ -430,13 +431,13 @@
                 @endforeach
             ],
             2: [
-                { label: "10/8", sizeKey: null, serves: "قيد التحديد", badge: false },
-                { label: "8/6",  sizeKey: null, serves: "قيد التحديد", badge: false },
-                { label: "6/4",  sizeKey: null, serves: "قيد التحديد", badge: false },
+                { label: "6/4",  sizeKey: "tier2_6-4",  serves: "6 أشخاص",  badge: false },
+                { label: "8/6",  sizeKey: "tier2_8-6",  serves: "14 شخص",  badge: false },
+                { label: "10/8", sizeKey: "tier2_10-8", serves: "23 شخص",  badge: false },
             ],
             3: [
-                { label: "10/8/6", sizeKey: null, serves: "قيد التحديد", badge: false },
-                { label: "8/6/4",  sizeKey: null, serves: "قيد التحديد", badge: false },
+                { label: "8/6/4",  sizeKey: "tier3_8-6-4",  serves: "15 شخص", badge: false },
+                { label: "10/8/6", sizeKey: "tier3_10-8-6", serves: "28 شخص", badge: false },
             ],
         };
 
@@ -444,7 +445,7 @@
             const container = document.getElementById('size-cards');
             container.innerHTML = '';
             sizesData[tier].forEach((s, i) => {
-                const isActive = tier === 1 && s.sizeKey === currentSizeKey;
+                const isActive = s.sizeKey === currentSizeKey;
                 const card = document.createElement('div');
                 card.className = 'size-card' + (isActive ? ' active' : '');
                 card.dataset.sizeKey = s.sizeKey || '';
@@ -464,13 +465,11 @@
                     container.querySelectorAll('.size-card').forEach(c => c.classList.remove('active'));
                     card.classList.add('active');
 
-                    if (s.sizeKey) {
-                        currentSizeKey = s.sizeKey;
-                        renderLayerChips(currentSizeKey);
-                        updateModel();
-                        document.querySelectorAll('.spec-label')[2].textContent =
-                            currentLayers + (currentLayers == 1 ? ' طبقة' : ' طبقات');
-                    }
+                    currentSizeKey = s.sizeKey;
+                    renderLayerChips(currentSizeKey);
+                    updateModel();
+                    document.querySelectorAll('.spec-label')[2].textContent =
+                        currentLayers + (currentLayers == 1 ? ' طبقة' : ' طبقات');
 
                     document.querySelectorAll('.spec-label')[1].textContent = s.label + ' إنش';
                     document.getElementById('serves-text').textContent = s.serves;
@@ -486,13 +485,21 @@
                 opt.classList.add('active');
 
                 const tier = parseInt(opt.dataset.tier);
-                renderSizeCards(tier);
 
-                const note = document.getElementById('tier-note');
-                note.style.display = tier === 1 ? 'none' : 'block';
+                // اختيار أول مقاس افتراضيًا من هذا الدور
+                const firstOption = sizesData[tier][0];
+                currentSizeKey = firstOption.sizeKey;
+
+                renderSizeCards(tier);
+                renderLayerChips(currentSizeKey);
+                updateModel();
 
                 const tierLabel = tier === 1 ? 'دور واحد' : (tier === 2 ? 'دورين' : '3 أدوار');
                 document.querySelectorAll('.spec-label')[0].textContent = tierLabel;
+                document.querySelectorAll('.spec-label')[1].textContent = firstOption.label + ' إنش';
+                document.getElementById('serves-text').textContent = firstOption.serves;
+                document.querySelectorAll('.spec-label')[2].textContent =
+                    currentLayers + (currentLayers == 1 ? ' طبقة' : ' طبقات');
             });
         });
 
