@@ -279,8 +279,8 @@
     <div class="viewer-wrap">
         <model-viewer
             id="viewer"
-            src="{{ asset('storage/models/cake_4in_layers2.glb') }}?v7"
-            ios-src="{{ asset('storage/models/cake_4in_layers2.usdz') }}?v7"
+            src="{{ asset('storage/models/cake_4in_layers2_v11.glb') }}"
+            ios-src="{{ asset('storage/models/cake_4in_layers2_v11.usdz') }}"
             alt="{{ $cake->name }}"
             ar
             ar-modes="webxr scene-viewer quick-look"
@@ -354,7 +354,7 @@
 
         const viewer = document.getElementById('viewer');
         const modelsBaseUrl = "{{ asset('storage/models') }}";
-        const MODEL_VERSION = "v7"; // غيّر هذا الرقم كل مرة تحدّث ملفات النماذج لكسر الكاش تلقائيًا
+        const MODEL_VERSION = "v11"; // غيّر هذا الرقم كل مرة تحدّث ملفات النماذج — الآن جزء من اسم الملف نفسه لضمان كسر الكاش
 
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
         let currentLayers = 2;
@@ -413,9 +413,9 @@
         }
 
         function updateModel() {
-            const path = `${modelsBaseUrl}/cake_${currentSizeKey}_layers${currentLayers}`;
-            viewer.src = path + '.glb?' + MODEL_VERSION;
-            viewer.iosSrc = path + '.usdz?' + MODEL_VERSION;
+            const path = `${modelsBaseUrl}/cake_${currentSizeKey}_layers${currentLayers}_${MODEL_VERSION}`;
+            viewer.src = path + '.glb';
+            viewer.iosSrc = path + '.usdz';
         }
 
         // بيانات المقاسات لكل خيار "دور" — دور واحد شغال بالكامل (نماذج حقيقية)
