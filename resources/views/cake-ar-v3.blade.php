@@ -279,8 +279,8 @@
     <div class="viewer-wrap">
         <model-viewer
             id="viewer"
-            src="{{ asset('storage/models/cake_4in_layers2_v33.glb') }}"
-            ios-src="{{ asset('storage/models/cake_4in_layers2_v33.usdz') }}"
+            src="{{ asset('storage/models/cake_4in_layers2_v34.glb') }}"
+            ios-src="{{ asset('storage/models/cake_4in_layers2_v34.usdz') }}"
             alt="{{ $cake->name }}"
             ar
             ar-modes="webxr scene-viewer quick-look"
@@ -291,7 +291,7 @@
             camera-orbit="0deg 78deg 105%"
             min-camera-orbit="auto 65deg auto"
             max-camera-orbit="auto 85deg auto"
-            shadow-intensity="1"
+            shadow-intensity="0.4"
             exposure="1"
             environment-image="neutral"
         >
@@ -354,7 +354,7 @@
 
         const viewer = document.getElementById('viewer');
         const modelsBaseUrl = "{{ asset('storage/models') }}";
-        const MODEL_VERSION = "v33"; // غيّر هذا الرقم كل مرة تحدّث ملفات النماذج — جزء من اسم الملف نفسه
+        const MODEL_VERSION = "v34"; // غيّر هذا الرقم كل مرة تحدّث ملفات النماذج — جزء من اسم الملف نفسه
 
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
         let currentLayers = 2;
