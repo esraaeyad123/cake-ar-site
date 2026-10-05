@@ -279,8 +279,8 @@
     <div class="viewer-wrap">
         <model-viewer
             id="viewer"
-            src="{{ asset('storage/models/cake_4in_layers2_v39.glb') }}"
-            ios-src="{{ asset('storage/models/cake_4in_layers2_v39.usdz') }}"
+            src="{{ asset('storage/models/cake_4in_layers2_v45.glb') }}"
+            ios-src="{{ asset('storage/models/cake_4in_layers2_v45.usdz') }}"
             alt="{{ $cake->name }}"
             ar
             ar-modes="webxr scene-viewer quick-look"
@@ -329,7 +329,7 @@
     </div>
 
     <div id="panel-layers" class="options-panel">
-        <div class="section-title">عدد طبقات الحشو الداخلي</div>
+        <div class="section-title">عدد طبقات الكيك</div>
         <div class="layers-row" id="layers-row">
             {{-- يتم تعبيتها بالجافاسكريبت حسب الحجم المختار (لكل مقاس مدى مختلف مسموح) --}}
         </div>
@@ -352,10 +352,17 @@
                 }
             });
         });
+                // فتح لوحة "عدد الأدوار" افتراضيًا عند تحميل الصفحة
+        (function openTierPanelByDefault() {
+            const defaultPanel = document.getElementById('panel-tier');
+            const defaultBadge = document.querySelector('.spec-badge.clickable[data-target="panel-tier"]');
+            if (defaultPanel) defaultPanel.classList.add('open');
+            if (defaultBadge) defaultBadge.classList.add('open');
+        })();
 
         const viewer = document.getElementById('viewer');
         const modelsBaseUrl = "{{ asset('storage/models') }}";
-        const MODEL_VERSION = "v39"; // غيّر هذا الرقم كل مرة تحدّث ملفات النماذج — جزء من اسم الملف نفسه
+        const MODEL_VERSION = "v45"; // غيّر هذا الرقم كل مرة تحدّث ملفات النماذج — جزء من اسم الملف نفسه
 
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
         let currentLayers = 2;
