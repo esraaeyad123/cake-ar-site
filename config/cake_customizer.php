@@ -38,15 +38,16 @@ return [
         ['key' => 'tier3_10-8-6', 'tier' => 3, 'label' => '10/8/6', 'diameters' => [10, 8, 6], 'serves' => '28 شخص',      'price' => 465],
     ],
 
-    // sponge/crumb = ألوان رسمة قطعة الكيك
+    // image = صورة حقيقية للقطعة داخل public/ (مثل images/flavors/vanilla.webp) — إذا null تُستخدم رسمة بديلة
+    // sponge/crumb = ألوان الرسمة البديلة
     'flavors' => [
-        ['key' => 'vanilla',   'name' => 'فانيلا',   'price' => 0, 'sponge' => '#F3D98B', 'crumb' => '#E6C36A'],
-        ['key' => 'chocolate', 'name' => 'شوكولاتة', 'price' => 0, 'sponge' => '#6B3A22', 'crumb' => '#4E2715'],
+        ['key' => 'vanilla',   'name' => 'فانيلا',   'price' => 0, 'image' => null, 'sponge' => '#F3D98B', 'crumb' => '#E6C36A'],
+        ['key' => 'chocolate', 'name' => 'شوكولاتة', 'price' => 0, 'image' => null, 'sponge' => '#6B3A22', 'crumb' => '#4E2715'],
     ],
 
     'fillings' => [
-        ['key' => 'plain',      'name' => 'ويب كريم ساده',       'price' => 0,  'cream' => '#FFFDF7', 'fruit' => null],
-        ['key' => 'strawberry', 'name' => 'ويب كريم مع فراوله', 'price' => 10, 'cream' => '#FBD3DC', 'fruit' => '#D7263D'],
+        ['key' => 'plain',      'name' => 'ويب كريم ساده',       'price' => 0,  'image' => null, 'cream' => '#FFFDF7', 'fruit' => null],
+        ['key' => 'strawberry', 'name' => 'ويب كريم مع فراوله', 'price' => 10, 'image' => null, 'cream' => '#FBD3DC', 'fruit' => '#D7263D'],
     ],
 
     'layers' => [
@@ -59,6 +60,15 @@ return [
         ['key' => 'cream', 'name' => 'كريمي', 'hex' => '#F5EFBC', 'price' => 0, 'usdz_suffix' => null],
         ['key' => 'blue',  'name' => 'أزرق',  'hex' => '#1F4A8C', 'price' => 0, 'usdz_suffix' => 'blue'],
         ['key' => 'red',   'name' => 'أحمر',  'hex' => '#C21E2E', 'price' => 0, 'usdz_suffix' => 'red'],
+    ],
+
+    // الكتابة على البورد أو الكيكة + صورة للطباعة (تُطبع كما هي)
+    'writing' => [
+        'max_length' => 40,
+        'targets' => ['board' => 'على البورد', 'cake' => 'على الكيكة'],
+        'text_price' => 0,
+        'print_image_price' => 0,
+        'print_image_max_kb' => 10240,
     ],
 
 ];

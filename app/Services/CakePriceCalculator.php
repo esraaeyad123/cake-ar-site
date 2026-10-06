@@ -11,10 +11,11 @@ use Illuminate\Validation\ValidationException;
 class CakePriceCalculator
 {
     /**
-     * @param  array{size?: string, flavor?: string, filling?: string, layers?: int|string, color?: string}  $selection
+     * @param  array{size?: string, flavor?: string, filling?: string, layers?: int|string, color?: string, text?: ?string, text_target?: ?string}  $selection
+     * @param  bool  $hasPrintImage  يحدده السيرفر من الملف المرفوع فعليًا عند الإضافة للسلة
      * @return array{items: list<array{group: string, label: string, price: int}>, total: int}
      */
-    public function quote(array $selection): array
+    public function quote(array $selection, bool $hasPrintImage = false): array
     {
         $size = $this->find('sizes', 'key', $selection['size'] ?? null, 'size');
         $flavor = $this->find('flavors', 'key', $selection['flavor'] ?? null, 'flavor');
@@ -29,6 +30,23 @@ class CakePriceCalculator
             ['group' => 'الطبقات', 'label' => $layers['count'] === 2 ? 'طبقتين' : $layers['count'].' طبقات', 'price' => $layers['price']],
             ['group' => 'اللون', 'label' => $color['name'], 'price' => $color['price']],
         ];
+
+        $writing = config('cake_customizer.writing');
+        $text = trim((string) ($selection['text'] ?? ''));
+
+        if ($text !== '') {
+            $target = $writing['targets'][$selection['text_target'] ?? ''] ?? null;
+
+            if ($target === null) {
+                throw ValidationException::withMessages(['text_target' => 'اختيار غير صالح']);
+            }
+
+            $items[] = ['group' => 'الكتابة', 'label' => "«{$text}» {$target}", 'price' => $writing['text_price']];
+        }
+
+        if ($hasPrintImage) {
+            $items[] = ['group' => 'صورة للطباعة', 'label' => 'مرفقة', 'price' => $writing['print_image_price']];
+        }
 
         return [
             'items' => $items,

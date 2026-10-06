@@ -128,6 +128,38 @@
         .swatch.active .dot { box-shadow: 0 0 0 3px var(--pink); }
         .swatch .name { font-size: 13px; font-weight: 700; color: var(--ink); }
 
+        /* ===== صور حقيقية للقطع ===== */
+        .card img.photo { width: 100%; max-width: 150px; aspect-ratio: 150 / 116; object-fit: contain; display: block; margin: 0 auto; }
+
+        /* ===== منظر علوي (خطوة الكتابة) ===== */
+        .topview { display: none; height: 38vh; min-height: 250px; max-height: 420px; align-items: center; justify-content: center; }
+        .topview svg { height: 92%; width: auto; max-width: 92%; filter: drop-shadow(0 8px 18px rgba(75,21,40,.18)); }
+        .stage.top-mode model-viewer, .stage.top-mode .inside-card { display: none; }
+        .stage.top-mode .topview { display: flex; }
+
+        /* ===== الكتابة ورفع الصورة ===== */
+        .write-box { border: 1px solid var(--pink-line); border-radius: 14px; padding: 10px; position: relative; }
+        .write-box legend { font-size: 13px; color: var(--pink-dark); font-weight: 700; padding: 0 6px; display: flex; align-items: center; gap: 4px; }
+        .write-box legend svg { width: 16px; height: 16px; }
+        .target-switch { display: flex; background: var(--pink-soft); border-radius: 10px; padding: 3px; margin-bottom: 8px; }
+        .target-switch button { flex: 1; border: 0; background: transparent; padding: 7px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--pink-dark); cursor: pointer; }
+        .target-switch button.active { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(75,21,40,.12); }
+        .write-input { width: 100%; border: 0; outline: 0; font-family: inherit; font-size: 17px; padding: 6px 2px; color: var(--ink); background: transparent; }
+        .counter { text-align: left; font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .drop {
+            margin-top: 14px; border: 2px dashed #E5C4D0; border-radius: 14px; padding: 18px 10px;
+            display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+            color: var(--muted); font-size: 14px; font-weight: 700; background: #FFFBFC; text-align: center;
+        }
+        .drop svg { width: 32px; height: 32px; color: var(--pink); }
+        .drop small { font-weight: 400; font-size: 12px; }
+        .picked { margin-top: 14px; display: none; align-items: center; gap: 10px; border: 1px solid var(--pink-line); border-radius: 14px; padding: 8px; }
+        .picked.show { display: flex; }
+        .picked img { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; }
+        .picked .info { flex: 1; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .picked .info b { display: block; color: var(--ink); font-size: 14px; }
+        .picked button { border: 0; background: var(--pink-soft); color: var(--pink-dark); border-radius: 10px; padding: 8px 12px; font-weight: 700; cursor: pointer; }
+
         /* ===== الفوتر ===== */
         .footer {
             position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
@@ -221,6 +253,7 @@
                 <div class="lbl">من الداخل</div>
                 <div id="inside-art"></div>
             </div>
+            <div class="topview" id="topview"></div>
             <div class="loading-pill">جاري تجهيز الكيكة…</div>
         </div>
 
@@ -231,6 +264,7 @@
                 <button class="step-btn" data-step="2"><x-mdi-spoon-sugar class="ico" /><span>الحشوة</span><span class="done"><x-mdi-check-bold /></span></button>
                 <button class="step-btn" data-step="3"><x-mdi-layers-triple-outline class="ico" /><span>الطبقات</span><span class="done"><x-mdi-check-bold /></span></button>
                 <button class="step-btn" data-step="4"><x-mdi-palette-outline class="ico" /><span>اللون</span><span class="done"><x-mdi-check-bold /></span></button>
+                <button class="step-btn" data-step="5"><x-mdi-pencil-outline class="ico" /><span>الكتابة</span><span class="done"><x-mdi-check-bold /></span></button>
             </nav>
 
             <main class="panel">
@@ -260,6 +294,31 @@
                     <div class="step-sub">يتغير اللون مباشرة على المجسم وفي الواقع المعزز</div>
                     <div class="swatches" id="color-swatches"></div>
                 </section>
+
+                <section class="step" data-step="5">
+                    <div class="step-title">الكتابة والصورة</div>
+                    <div class="step-sub">اختياري — الصورة تُطبع كما هي بدون أي تعديل</div>
+
+                    <fieldset class="write-box">
+                        <legend><x-mdi-pencil /> اكتب على الكيكة</legend>
+                        <div class="target-switch" id="target-switch"></div>
+                        <input class="write-input" id="write-input" type="text" placeholder="مثال: كل عام وأنت بخير"
+                               maxlength="{{ $options['writing']['max_length'] }}" autocomplete="off">
+                    </fieldset>
+                    <div class="counter" dir="ltr"><span id="write-count">0</span> / {{ $options['writing']['max_length'] }}</div>
+
+                    <label class="drop" id="drop">
+                        <input type="file" id="print-input" accept="image/*" hidden>
+                        <x-mdi-image-plus-outline />
+                        ارفع صورة للطباعة على الكيكة
+                        <small>JPG أو PNG — حتى {{ intdiv($options['writing']['print_image_max_kb'], 1024) }}MB</small>
+                    </label>
+                    <div class="picked" id="picked">
+                        <img id="picked-img" alt="">
+                        <div class="info"><b>صورة الطباعة</b><span id="picked-name"></span></div>
+                        <button type="button" id="picked-remove">حذف</button>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
@@ -287,6 +346,7 @@
         const OPTIONS = @json($options);
         const URLS = {
             models: "{{ asset('storage/models') }}",
+            public: "{{ rtrim(asset(''), '/') }}",
             price: "{{ route('cake.customize.price', $cake->slug) }}",
             cart: "{{ route('cake.customize.cart', $cake->slug) }}",
         };
@@ -303,8 +363,12 @@
             filling: OPTIONS.fillings[0].key,
             layers: OPTIONS.layers[0].count,
             color: OPTIONS.colors[0].key,
+            text: '',
+            textTarget: Object.keys(OPTIONS.writing.targets)[0],
         };
-        const STEPS = 5;
+        let printFile = null, printUrl = null;
+        const STEPS = 6;
+        const WRITING_STEP = 5;
         let currentStep = 0;
         const completed = new Set();
 
@@ -385,7 +449,108 @@
             return `<svg class="art" viewBox="0 0 150 116" xmlns="http://www.w3.org/2000/svg">${out}</svg>`;
         }
 
+        // ================= منظر علوي: الكتابة والصورة المطبوعة =================
+        const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const isDark = hex => {
+            const n = parseInt(hex.slice(1), 16);
+            return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 150;
+        };
+
+        function topViewArt() {
+            const id = 't' + (++gid);
+            const size = byKey('sizes', 'key', state.size);
+            const hex = byKey('colors', 'key', state.color).hex;
+            const maxD = Math.max(...size.diameters), cx = 150, cy = 132;
+            const text = state.text.trim();
+            let out = `<defs><radialGradient id="${id}r" cx=".42" cy=".38" r=".7">
+                <stop offset="0" stop-color="${shade(hex, 0.12)}"/><stop offset="1" stop-color="${shade(hex, -0.12)}"/></radialGradient></defs>`;
+            out += `<rect x="6" y="6" width="288" height="288" rx="4" fill="#FFFFFF" stroke="#EADDE2"/>`;
+            out += `<text x="284" y="286" font-size="9" font-weight="700" fill="#D4537E" direction="ltr" text-anchor="end" font-family="Georgia, serif" letter-spacing="1">JOMACAKE</text>`;
+
+            let r = 0;
+            size.diameters.forEach((d, i) => {
+                r = d / maxD * 104;
+                out += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}r)" stroke="${shade(hex, -0.22)}" stroke-width="${i ? 1.2 : 2}"/>`;
+            });
+
+            if (printUrl) {
+                out += `<clipPath id="${id}c"><circle cx="${cx}" cy="${cy}" r="${r * 0.86}"/></clipPath>`;
+                out += `<image href="${printUrl}" x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id}c)"/>`;
+            }
+
+            if (text) {
+                const onCake = state.textTarget === 'cake';
+                const width = onCake ? r * 1.6 : 270;
+                const fs = Math.min(onCake ? 24 : 20, width / (text.length * 0.5));
+                const y = onCake ? (printUrl ? cy + r * 0.62 : cy + fs * 0.35) : 262;
+                const fill = onCake ? (isDark(hex) && !printUrl ? '#FFFFFF' : '#4B1528') : '#4B1528';
+                const halo = onCake && printUrl ? `stroke="#FFFFFF" stroke-width="4" paint-order="stroke"` : '';
+                out += `<text x="${cx}" y="${y}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${fill}" ${halo}
+                    text-anchor="middle" direction="rtl" font-family="Tajawal, sans-serif">${esc(text)}</text>`;
+            }
+            return `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">${out}</svg>`;
+        }
+
+        function renderWriting() {
+            document.getElementById('topview').innerHTML = topViewArt();
+        }
+
+        function renderTargets() {
+            const box = document.getElementById('target-switch');
+            box.innerHTML = '';
+            Object.entries(OPTIONS.writing.targets).forEach(([key, label]) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = label;
+                b.className = key === state.textTarget ? 'active' : '';
+                b.addEventListener('click', () => { state.textTarget = key; renderTargets(); refreshWriting(); });
+                box.appendChild(b);
+            });
+        }
+
+        function refreshWriting() {
+            renderWriting();
+            showPrice(localQuote());
+            confirmPrice();
+        }
+
+        const writeInput = document.getElementById('write-input');
+        writeInput.addEventListener('input', () => {
+            state.text = writeInput.value;
+            document.getElementById('write-count').textContent = writeInput.value.length;
+            refreshWriting();
+        });
+
+        const printInput = document.getElementById('print-input');
+        printInput.addEventListener('change', () => {
+            const file = printInput.files[0];
+            if (!file) return;
+            if (file.size > OPTIONS.writing.print_image_max_kb * 1024) {
+                alert('حجم الصورة كبير، الحد الأقصى ' + Math.floor(OPTIONS.writing.print_image_max_kb / 1024) + 'MB');
+                printInput.value = '';
+                return;
+            }
+            if (printUrl) URL.revokeObjectURL(printUrl);
+            printFile = file;
+            printUrl = URL.createObjectURL(file);
+            document.getElementById('picked-img').src = printUrl;
+            document.getElementById('picked-name').textContent = file.name;
+            document.getElementById('picked').classList.add('show');
+            document.getElementById('drop').style.display = 'none';
+            refreshWriting();
+        });
+        document.getElementById('picked-remove').addEventListener('click', () => {
+            if (printUrl) URL.revokeObjectURL(printUrl);
+            printFile = null; printUrl = null; printInput.value = '';
+            document.getElementById('picked').classList.remove('show');
+            document.getElementById('drop').style.display = '';
+            refreshWriting();
+        });
+
         // ================= عرض الخيارات =================
+        function photo(option) {
+            return `<img class="photo" src="${URLS.public}/${option.image}" alt="${option.name}" loading="lazy">`;
+        }
         function layersLabel(n) { return n === 2 ? 'طبقتين' : `${n} طبقات`; }
         function money(n) { return `${n} <small>ر.س</small>`; }
         function plus(n) { return n > 0 ? `+${n} ر.س` : 'بدون إضافة'; }
@@ -436,7 +601,7 @@
             grid.innerHTML = '';
             OPTIONS.flavors.forEach(f => grid.appendChild(card({
                 active: f.key === state.flavor,
-                art: sliceArt({ ...state, flavor: f.key }),
+                art: f.image ? photo(f) : sliceArt({ ...state, flavor: f.key }),
                 name: f.name, price: plus(f.price),
                 onClick: () => { state.flavor = f.key; update(); },
             })));
@@ -447,7 +612,7 @@
             grid.innerHTML = '';
             OPTIONS.fillings.forEach(f => grid.appendChild(card({
                 active: f.key === state.filling,
-                art: sliceArt({ ...state, filling: f.key }),
+                art: f.image ? photo(f) : sliceArt({ ...state, filling: f.key }),
                 name: f.name, price: plus(f.price),
                 onClick: () => { state.filling = f.key; update(); },
             })));
@@ -487,6 +652,8 @@
                 { group: 'الطبقات', price: byKey('layers', 'count', state.layers).price },
                 { group: 'اللون', price: byKey('colors', 'key', state.color).price },
             ];
+            if (state.text.trim()) items.push({ group: 'الكتابة', price: OPTIONS.writing.text_price });
+            if (printFile) items.push({ group: 'صورة للطباعة', price: OPTIONS.writing.print_image_price });
             return { items, total: items.reduce((a, i) => a + i.price, 0) };
         }
 
@@ -504,17 +671,28 @@
         }
 
         function selection() {
-            return { size: state.size, flavor: state.flavor, filling: state.filling, layers: state.layers, color: state.color };
+            const sel = { size: state.size, flavor: state.flavor, filling: state.filling, layers: state.layers, color: state.color };
+            if (state.text.trim()) Object.assign(sel, { text: state.text.trim(), text_target: state.textTarget });
+            return sel;
         }
 
-        async function post(url) {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                body: JSON.stringify(selection()),
-            });
+        async function send(url, body, json) {
+            const headers = { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF };
+            if (json) headers['Content-Type'] = 'application/json';
+            const res = await fetch(url, { method: 'POST', headers, body });
             if (!res.ok) throw new Error(res.status);
             return res.json();
+        }
+
+        // السعر: الاختيارات فقط (+ هل في صورة)
+        const postPrice = () => send(URLS.price, JSON.stringify({ ...selection(), has_print_image: !!printFile }), true);
+
+        // السلة: multipart عشان الصورة تنرفع كما هي
+        function postCart() {
+            const form = new FormData();
+            Object.entries(selection()).forEach(([k, v]) => form.append(k, v));
+            if (printFile) form.append('print_image', printFile);
+            return send(URLS.cart, form, false);
         }
 
         let priceTimer, priceSeq = 0;
@@ -523,7 +701,7 @@
             const seq = ++priceSeq;
             priceTimer = setTimeout(async () => {
                 try {
-                    const quote = await post(URLS.price);
+                    const quote = await postPrice();
                     if (seq === priceSeq) showPrice(quote);
                 } catch (e) { /* يبقى العرض المحلي */ }
             }, 250);
@@ -576,6 +754,8 @@
                 b.classList.toggle('active', n === step);
                 b.classList.toggle('completed', completed.has(n));
             });
+            stage.classList.toggle('top-mode', step === WRITING_STEP);
+            if (step === WRITING_STEP) renderWriting();
             const last = step === STEPS - 1;
             nextBtn.innerHTML = last ? `${CART_ICON} أضف للسلة` : 'التالي';
         }
@@ -592,9 +772,9 @@
             goTo(currentStep);
             nextBtn.disabled = true;
             try {
-                const { item } = await post(URLS.cart);
+                const { item } = await postCart();
                 showPrice(item);
-                document.getElementById('sheet-art').innerHTML = sliceArt(state);
+                document.getElementById('sheet-art').innerHTML = (state.text.trim() || printUrl) ? topViewArt() : sliceArt(state);
                 document.getElementById('sheet-lines').innerHTML = item.items
                     .map(i => `<div><span>${i.group}</span><span>${i.label}${i.price ? ` (${i.price})` : ''}</span></div>`).join('')
                     + `<div class="sum"><span>الإجمالي</span><span>${item.total} ر.س</span></div>`;
@@ -616,11 +796,13 @@
             renderLayers();
             renderColors();
             document.getElementById('inside-art').innerHTML = sliceArt(state);
+            renderWriting();
             showPrice(localQuote());
             confirmPrice();
             updateModel();
         }
 
+        renderTargets();
         update();
         goTo(0);
     </script>

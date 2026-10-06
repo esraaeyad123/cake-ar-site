@@ -26,7 +26,10 @@ class CakeCustomizerController extends Controller
     {
         $this->findCake($slug);
 
-        return response()->json($calculator->quote($this->selection($request)));
+        return response()->json($calculator->quote(
+            $this->selection($request),
+            $request->boolean('has_print_image')
+        ));
     }
 
     /**
@@ -36,11 +39,20 @@ class CakeCustomizerController extends Controller
     {
         $cake = $this->findCake($slug);
         $selection = $this->selection($request);
-        $quote = $calculator->quote($selection);
+
+        $request->validate([
+            'print_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif', 'max:'.config('cake_customizer.writing.print_image_max_kb')],
+        ]);
+
+        $quote = $calculator->quote($selection, $request->hasFile('print_image'));
+
+        // الصورة تُحفظ كما هي بدون أي تعديل (خاصة، غير متاحة للعامة)
+        $printImage = $request->file('print_image')?->store('prints');
 
         $item = [
             'cake' => $cake->name,
             'selection' => $selection,
+            'print_image' => $printImage,
             'items' => $quote['items'],
             'total' => $quote['total'],
         ];
@@ -66,6 +78,8 @@ class CakeCustomizerController extends Controller
             'filling' => ['required', 'string'],
             'layers' => ['required', 'integer'],
             'color' => ['required', 'string'],
+            'text' => ['nullable', 'string', 'max:'.config('cake_customizer.writing.max_length')],
+            'text_target' => ['nullable', 'string'],
         ]);
     }
 }

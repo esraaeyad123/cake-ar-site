@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Cake;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CakeCustomizerTest extends TestCase
@@ -60,5 +62,32 @@ class CakeCustomizerTest extends TestCase
         $this->postJson('/cake/signature-cake/customize/price', ['size' => '12in'] + self::SELECTION)
             ->assertUnprocessable()
             ->assertJsonValidationErrors('size');
+    }
+
+    public function test_cart_stores_text_and_print_image_as_is(): void
+    {
+        Storage::fake('local');
+        $image = UploadedFile::fake()->image('photo.jpg', 800, 800);
+
+        $response = $this->post('/cake/signature-cake/customize/cart', self::SELECTION + [
+            'text' => 'كل عام وأنت بخير',
+            'text_target' => 'cake',
+            'print_image' => $image,
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('item.total', 130)
+            ->assertJsonPath('item.selection.text', 'كل عام وأنت بخير');
+
+        $path = $response->json('item.print_image');
+        Storage::disk('local')->assertExists($path);
+        $this->assertSame($image->getSize(), Storage::disk('local')->size($path));
+    }
+
+    public function test_text_longer_than_limit_is_rejected(): void
+    {
+        $this->postJson('/cake/signature-cake/customize/price', self::SELECTION + [
+            'text' => str_repeat('ا', 41),
+            'text_target' => 'board',
+        ])->assertJsonValidationErrors('text');
     }
 }
