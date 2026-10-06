@@ -178,6 +178,24 @@ const TOPPINGS = {
         addMerged(group, 'Piping', geos, mat('CreamMaterial', '#FFF8EC', 0.75));
     },
 
+    // حبات كريمة دائرية على حافة السطح (مثل كيكة Tony)
+    beads(tiers, group) {
+        const geos = [];
+        tiers.forEach(t => {
+            const s = Math.max(0.0042, Math.min(0.0058, t.r * 0.07));
+            const r = t.r - s * 0.75;
+            const n = Math.round((2 * Math.PI * r) / (s * 2.05));
+            for (let i = 0; i < n; i++) {
+                const a = (i / n) * Math.PI * 2;
+                const g = new THREE.SphereGeometry(s, 12, 9);
+                g.scale(1, 0.82, 1);
+                g.translate(Math.cos(a) * r, t.y1 + s * 0.55, Math.sin(a) * r);
+                geos.push(g);
+            }
+        });
+        addMerged(group, 'Beads', geos, mat('CreamMaterial', '#FFFCF5', 0.7));
+    },
+
     // كرز فوق دولوب كريمة على الدور العلوي
     cherries(tiers, group) {
         const t = tiers[tiers.length - 1];
@@ -227,14 +245,67 @@ const TOPPINGS = {
     },
 };
 
+// ---------- صور على السطح (رسمة التصميم + الكتابة + الصورة المطبوعة) ----------
+
+function decalMaterial(name, canvas) {
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return new THREE.MeshStandardMaterial({
+        name, map: tex, transparent: true, depthWrite: false, roughness: 0.75,
+        polygonOffset: true, polygonOffsetFactor: -2,
+    });
+}
+
+// قرص على سطح الدور العلوي — الصورة المربعة تغطي قطر الكيكة كاملًا
+function topDecal(tier, canvas) {
+    const e = Math.min(0.009, (tier.y1 - tier.y0) * 0.14, tier.r * 0.12);
+    const g = new THREE.CircleGeometry(tier.r - e * 0.5, 96);
+    const pos = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.5 + pos.getX(i) / (2 * tier.r), 0.5 + pos.getY(i) / (2 * tier.r));
+    g.rotateX(-Math.PI / 2);
+    g.translate(0, tier.y1 + 0.0006, 0);
+    const mesh = new THREE.Mesh(g, decalMaterial('TopDecalMaterial', canvas));
+    mesh.name = 'TopDecal';
+    return mesh;
+}
+
+// شريط على البورد أمام الكيكة للكتابة (يبدأ بعد اللوجو حتى لا يغطيه)
+function boardStrip(base) {
+    if (!base.board) return null;
+    const box = base.board.box;
+    const x0 = base.logo ? base.logo.box.max.x + 0.005 : box.min.x + 0.006;
+    const x1 = box.max.x - 0.006;
+    const z0 = base.tiers[0].r + 0.004, z1 = box.max.z - 0.004;
+    if (z1 - z0 < 0.008 || x1 - x0 < 0.04) return null;
+    return { x0, x1, z0, z1 };
+}
+
+function boardDecal(base, canvas) {
+    const st = boardStrip(base);
+    if (!st) return null;
+    const g = new THREE.PlaneGeometry(st.x1 - st.x0, st.z1 - st.z0);
+    g.rotateX(-Math.PI / 2);
+    g.translate((st.x0 + st.x1) / 2, base.board.box.max.y + 0.0005, (st.z0 + st.z1) / 2);
+    const mesh = new THREE.Mesh(g, decalMaterial('BoardTextMaterial', canvas));
+    mesh.name = 'BoardText';
+    return mesh;
+}
+
+/** نسبة عرض/ارتفاع شريط الكتابة على البورد، أو 0 إذا البورد ما فيه مساحة */
+export async function boardTextAspect(baseUrl) {
+    const st = boardStrip(await loadBase(baseUrl));
+    return st ? (st.x1 - st.x0) / (st.z1 - st.z0) : 0;
+}
+
 // ---------- التركيب ----------
 
 /**
  * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات)
- * @param {{color: string, toppings: string[]}} options
+ * @param {{color: string, toppings: string[], topCanvas?: HTMLCanvasElement, boardCanvas?: HTMLCanvasElement}} options
  * @returns {Promise<string>} blob URL لملف glb المركّب
  */
-export async function composeCake(baseUrl, { color, toppings = [] }) {
+export async function composeCake(baseUrl, { color, toppings = [], topCanvas = null, boardCanvas = null }) {
     const base = await loadBase(baseUrl);
     const root = new THREE.Group();
     root.name = 'JOMACAKE';
@@ -267,6 +338,10 @@ export async function composeCake(baseUrl, { color, toppings = [] }) {
 
     const cakeMat = mat('CakeMaterial', color, 0.62);
     base.tiers.forEach(t => root.add(cakeBody(t, cakeMat)));
+
+    if (topCanvas) root.add(topDecal(base.tiers[base.tiers.length - 1], topCanvas));
+    const boardText = boardCanvas && boardDecal(base, boardCanvas);
+    if (boardText) root.add(boardText);
 
     const seed = Math.round(base.tiers.reduce((a, t) => a + t.r * 1e4 + t.y1 * 1e3, 0));
     toppings.forEach(key => TOPPINGS[key]?.(base.tiers, root, seed));

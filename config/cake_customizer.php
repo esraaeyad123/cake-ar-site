@@ -56,6 +56,8 @@ return [
     'colors' => [
         ['key' => 'cream', 'name' => 'كريمي', 'hex' => '#F5EFBC', 'price' => 0],
         ['key' => 'white', 'name' => 'أبيض',  'hex' => '#FBF8F2', 'price' => 0],
+        ['key' => 'ivory', 'name' => 'عاجي',  'hex' => '#F1EBDA', 'price' => 0],
+        ['key' => 'rose',  'name' => 'وردي غامق', 'hex' => '#DE7F88', 'price' => 0],
         ['key' => 'pink',  'name' => 'وردي',  'hex' => '#F2A9B9', 'price' => 0],
         ['key' => 'blue',  'name' => 'أزرق',  'hex' => '#1F4A8C', 'price' => 0],
         ['key' => 'red',   'name' => 'أحمر',  'hex' => '#C21E2E', 'price' => 0],
@@ -69,6 +71,7 @@ return [
     ],
 
     'toppings' => [
+        ['key' => 'beads',     'name' => 'حبات كريمة', 'category' => 'borders', 'price' => 15, 'image' => 'images/toppings/beads.png'],
         ['key' => 'piping',    'name' => 'حواف كريمة', 'category' => 'borders', 'price' => 18, 'image' => 'images/toppings/piping.png'],
         ['key' => 'pearls',    'name' => 'لؤلؤ',       'category' => 'sides',   'price' => 24, 'image' => 'images/toppings/pearls.png'],
         ['key' => 'cherries',  'name' => 'كرز',        'category' => 'top',     'price' => 20, 'image' => 'images/toppings/cherries.png'],
@@ -76,7 +79,23 @@ return [
     ],
 
     // تصاميم جاهزة (الكولكشن): مجرد اختيارات محفوظة تفتح صفحة التخصيص معبأة
+    // photo = صورة حقيقية للكيكة، decal = الرسمة المستخرجة منها (تُلصق على سطح المجسم)، drawing_price = سعر الرسمة (تجريبي)
     'designs' => [
+        [
+            'key' => 'tony', 'name' => 'عيد ميلاد سعيد', 'image' => 'images/designs/photos/tony.jpg',
+            'photo' => 'images/designs/photos/tony.jpg', 'decal' => 'images/designs/decals/tony.png', 'drawing_price' => 40,
+            'selection' => ['size' => '6in', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 3, 'color' => 'rose', 'toppings' => ['beads'], 'design' => 'tony'],
+        ],
+        [
+            'key' => 'mama', 'name' => 'ماما حامل', 'image' => 'images/designs/photos/mama.jpg',
+            'photo' => 'images/designs/photos/mama.jpg', 'decal' => 'images/designs/decals/mama.png', 'drawing_price' => 0,
+            'selection' => ['size' => '4in', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 2, 'color' => 'ivory', 'toppings' => [], 'design' => 'mama'],
+        ],
+        [
+            'key' => 'he-or-she', 'name' => 'He or She', 'image' => 'images/designs/photos/he-or-she.jpg',
+            'photo' => 'images/designs/photos/he-or-she.jpg', 'decal' => 'images/designs/decals/he-or-she.png', 'drawing_price' => 30,
+            'selection' => ['size' => '8in', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 2, 'color' => 'ivory', 'toppings' => [], 'design' => 'he-or-she'],
+        ],
         [
             'key' => 'pink-pearls', 'name' => 'لؤلؤ وردي', 'image' => 'images/designs/pink-pearls.png',
             'selection' => ['size' => 'tier2_8-6', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 2, 'color' => 'pink', 'toppings' => ['pearls']],

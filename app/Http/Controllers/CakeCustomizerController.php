@@ -96,6 +96,7 @@ class CakeCustomizerController extends Controller
             'color' => ['required', 'string'],
             'toppings' => ['nullable', 'array', 'max:10'],
             'toppings.*' => ['string'],
+            'design' => ['nullable', 'string'],
             'text' => ['nullable', 'string', 'max:'.config('cake_customizer.writing.max_length')],
             'text_target' => ['nullable', 'string'],
         ]);

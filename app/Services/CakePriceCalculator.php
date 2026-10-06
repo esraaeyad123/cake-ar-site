@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 class CakePriceCalculator
 {
     /**
-     * @param  array{size?: string, flavor?: string, filling?: string, layers?: int|string, color?: string, toppings?: list<string>, text?: ?string, text_target?: ?string}  $selection
+     * @param  array{size?: string, flavor?: string, filling?: string, layers?: int|string, color?: string, toppings?: list<string>, design?: ?string, text?: ?string, text_target?: ?string}  $selection
      * @param  bool  $hasPrintImage  يحدده السيرفر من الملف المرفوع فعليًا عند الإضافة للسلة
      * @return array{items: list<array{group: string, label: string, price: int}>, total: int}
      */
@@ -30,6 +30,16 @@ class CakePriceCalculator
             ['group' => 'الطبقات', 'label' => $layers['count'] === 2 ? 'طبقتين' : $layers['count'].' طبقات', 'price' => $layers['price']],
             ['group' => 'اللون', 'label' => $color['name'], 'price' => $color['price']],
         ];
+
+        if (! empty($selection['design'])) {
+            $design = $this->find('designs', 'key', $selection['design'], 'design');
+
+            if (empty($design['decal'])) {
+                throw ValidationException::withMessages(['design' => 'اختيار غير صالح']);
+            }
+
+            $items[] = ['group' => 'الرسمة', 'label' => $design['name'], 'price' => $design['drawing_price']];
+        }
 
         foreach (array_unique($selection['toppings'] ?? []) as $key) {
             $topping = $this->find('toppings', 'key', $key, 'toppings');

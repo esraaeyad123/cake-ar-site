@@ -155,10 +155,18 @@
         .card img.photo { width: 100%; max-width: 150px; aspect-ratio: 150 / 116; object-fit: contain; display: block; margin: 0 auto; }
 
         /* ===== منظر علوي (خطوة الكتابة) ===== */
-        .topview { display: none; height: 38vh; min-height: 250px; max-height: 420px; align-items: center; justify-content: center; }
-        .topview svg { height: 92%; width: auto; max-width: 92%; filter: drop-shadow(0 8px 18px rgba(75,21,40,.18)); }
-        .stage.top-mode model-viewer, .stage.top-mode .inside-card { display: none; }
-        .stage.top-mode .topview { display: flex; }
+        .view-toggle {
+            position: absolute; top: 6px; right: 12px; z-index: 2; display: none; gap: 2px;
+            background: rgba(255,255,255,.94); border: 1px solid var(--pink-line); border-radius: 999px; padding: 3px;
+        }
+        .stage.has-photo .view-toggle { display: flex; }
+        .view-toggle button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--pink-dark); cursor: pointer; }
+        .view-toggle button.active { background: var(--pink-dark); color: #fff; }
+        .photo-view { display: none; height: 38vh; min-height: 250px; max-height: 420px; align-items: center; justify-content: center; }
+        .photo-view img { height: 94%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 18px; box-shadow: 0 6px 18px rgba(75,21,40,.15); }
+        .stage.photo-mode model-viewer, .stage.photo-mode .inside-card { display: none; }
+        .stage.photo-mode .photo-view { display: flex; }
+        #sheet-art img { width: 96px; height: 96px; object-fit: contain; display: block; }
 
         /* ===== الكتابة ورفع الصورة ===== */
         .write-box { border: 1px solid var(--pink-line); border-radius: 14px; padding: 10px; position: relative; }
@@ -229,7 +237,7 @@
 
         @media (min-width: 900px) {
             .wrap { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: start; }
-            model-viewer { height: 62vh; max-height: 620px; }
+            model-viewer, .photo-view { height: 62vh; max-height: 620px; }
             .stage { position: sticky; top: 0; }
             .footer-inner { max-width: 1100px; margin: 0 auto; }
             .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -276,7 +284,11 @@
                 <div class="lbl">من الداخل</div>
                 <div id="inside-art"></div>
             </div>
-            <div class="topview" id="topview"></div>
+            <div class="view-toggle" id="view-toggle">
+                <button type="button" data-view="photo">الصورة الأصلية</button>
+                <button type="button" data-view="3d" class="active">تصميمك 3D</button>
+            </div>
+            <div class="photo-view"><img id="photo-view-img" alt="الصورة الأصلية"></div>
             <div class="loading-pill">جاري تجهيز الكيكة…</div>
         </div>
 
@@ -374,7 +386,7 @@
     </div>
 
     <script type="module">
-        import { composeCake } from "{{ asset('js/cake-composer.js') }}";
+        import { composeCake, boardTextAspect } from "{{ asset('js/cake-composer.js') }}";
 
         const OPTIONS = @json($options);
         const URLS = {
@@ -398,10 +410,12 @@
             layers: OPTIONS.layers[0].count,
             color: OPTIONS.colors[0].key,
             toppings: [],
+            design: null,
             text: '',
             textTarget: Object.keys(OPTIONS.writing.targets)[0],
         };
         // تصميم جاهز من الكولكشن (?design=...) يعبّي الاختيارات
+        const ORIGINAL_DESIGN = INITIAL?.design ? byKey('designs', 'key', INITIAL.design) : null;
         if (INITIAL) {
             Object.assign(state, INITIAL, { toppings: [...(INITIAL.toppings || [])] });
             state.tier = byKey('sizes', 'key', state.size).tier;
@@ -497,43 +511,82 @@
             return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 150;
         };
 
-        function topViewArt() {
-            const id = 't' + (++gid);
-            const size = byKey('sizes', 'key', state.size);
-            const hex = byKey('colors', 'key', state.color).hex;
-            const maxD = Math.max(...size.diameters), cx = 150, cy = 132;
-            const text = state.text.trim();
-            let out = `<defs><radialGradient id="${id}r" cx=".42" cy=".38" r=".7">
-                <stop offset="0" stop-color="${shade(hex, 0.12)}"/><stop offset="1" stop-color="${shade(hex, -0.12)}"/></radialGradient></defs>`;
-            out += `<rect x="6" y="6" width="288" height="288" rx="4" fill="#FFFFFF" stroke="#EADDE2"/>`;
-            out += `<text x="284" y="286" font-size="9" font-weight="700" fill="#D4537E" direction="ltr" text-anchor="end" font-family="Georgia, serif" letter-spacing="1">JOMACAKE</text>`;
-
-            let r = 0;
-            size.diameters.forEach((d, i) => {
-                r = d / maxD * 104;
-                out += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}r)" stroke="${shade(hex, -0.22)}" stroke-width="${i ? 1.2 : 2}"/>`;
-            });
-
-            if (printUrl) {
-                out += `<clipPath id="${id}c"><circle cx="${cx}" cy="${cy}" r="${r * 0.86}"/></clipPath>`;
-                out += `<image href="${printUrl}" x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id}c)"/>`;
+        // ================= صور السطح: رسمة التصميم + الكتابة + الصورة المطبوعة =================
+        const imgCache = new Map();
+        function loadImg(src) {
+            if (!imgCache.has(src)) {
+                imgCache.set(src, new Promise((resolve, reject) => {
+                    const im = new Image();
+                    im.onload = () => resolve(im);
+                    im.onerror = reject;
+                    im.src = src;
+                }));
             }
+            return imgCache.get(src);
+        }
+        const fontReady = document.fonts ? document.fonts.load('800 80px Tajawal').catch(() => {}) : Promise.resolve();
 
-            if (text) {
-                const onCake = state.textTarget === 'cake';
-                const width = onCake ? r * 1.6 : 270;
-                const fs = Math.min(onCake ? 24 : 20, width / (text.length * 0.5));
-                const y = onCake ? (printUrl ? cy + r * 0.62 : cy + fs * 0.35) : 262;
-                const fill = onCake ? (isDark(hex) && !printUrl ? '#FFFFFF' : '#4B1528') : '#4B1528';
-                const halo = onCake && printUrl ? `stroke="#FFFFFF" stroke-width="4" paint-order="stroke"` : '';
-                out += `<text x="${cx}" y="${y}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${fill}" ${halo}
-                    text-anchor="middle" direction="rtl" font-family="Tajawal, sans-serif">${esc(text)}</text>`;
+        function drawText(ctx, text, x, y, maxW, maxFs, fill, halo) {
+            const fs = Math.min(maxFs, maxW / (text.length * 0.5));
+            ctx.font = `800 ${fs}px Tajawal, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.direction = 'rtl';
+            if (halo) {
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = fs * 0.2;
+                ctx.strokeStyle = halo;
+                ctx.strokeText(text, x, y);
             }
-            return `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">${out}</svg>`;
+            ctx.fillStyle = fill;
+            ctx.fillText(text, x, y);
         }
 
-        function renderWriting() {
-            document.getElementById('topview').innerHTML = topViewArt();
+        // صورة مربعة تغطي سطح الدور العلوي كاملًا
+        async function buildTopCanvas() {
+            const design = state.design ? byKey('designs', 'key', state.design) : null;
+            const text = state.text.trim();
+            const onCake = text && state.textTarget === 'cake';
+            if (!design && !printUrl && !onCake) return null;
+
+            const N = 1024, c = document.createElement('canvas');
+            c.width = c.height = N;
+            const ctx = c.getContext('2d');
+
+            if (printUrl) {
+                const im = await loadImg(printUrl);
+                const r = N * 0.42, k = Math.max((2 * r) / im.width, (2 * r) / im.height);
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(N / 2, N / 2, r, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(im, N / 2 - im.width * k / 2, N / 2 - im.height * k / 2, im.width * k, im.height * k);
+                ctx.restore();
+            }
+            if (design) ctx.drawImage(await loadImg(`${URLS.public}/${design.decal}`), 0, 0, N, N);
+            if (onCake) {
+                await fontReady;
+                const busy = design || printUrl;
+                const dark = isDark(byKey('colors', 'key', state.color).hex);
+                // مع رسمة أو صورة: الكتابة أسفل السطح داخل حدود الحواف
+                drawText(ctx, text, N / 2, busy ? N * 0.73 : N / 2, busy ? N * 0.58 : N * 0.7, busy ? 92 : 120,
+                    busy ? '#4B1528' : (dark ? '#FFFFFF' : '#4B1528'), busy ? '#FFFFFF' : null);
+            }
+            return c;
+        }
+
+        // شريط الكتابة على البورد أمام الكيكة
+        async function buildBoardCanvas(baseUrl) {
+            const text = state.text.trim();
+            if (!text || state.textTarget !== 'board') return null;
+            const aspect = await boardTextAspect(baseUrl);
+            if (!aspect) return null;
+            await fontReady;
+            const H = 160, W = Math.min(2048, Math.round(H * aspect));
+            const c = document.createElement('canvas');
+            c.width = W; c.height = H;
+            drawText(c.getContext('2d'), text, W / 2, H / 2, W * 0.92, H * 0.62, '#4B1528', null);
+            return c;
         }
 
         function renderTargets() {
@@ -549,10 +602,12 @@
             });
         }
 
+        let modelTimer;
         function refreshWriting() {
-            renderWriting();
             showPrice(localQuote());
             confirmPrice();
+            clearTimeout(modelTimer);
+            modelTimer = setTimeout(updateModel, 350);
         }
 
         const writeInput = document.getElementById('write-input');
@@ -689,6 +744,16 @@
                 name: 'بدون', price: '',
                 onClick: () => { state.toppings = []; update(); },
             }));
+            if (ORIGINAL_DESIGN && toppingCat === 'all') {
+                const el = card({
+                    active: state.design === ORIGINAL_DESIGN.key,
+                    art: `<img class="photo" src="${URLS.public}/${ORIGINAL_DESIGN.photo}" alt="" style="border-radius:12px;object-fit:cover">`,
+                    name: 'رسمة التصميم', price: plus(ORIGINAL_DESIGN.drawing_price),
+                    onClick: () => { state.design = state.design ? null : ORIGINAL_DESIGN.key; update(); },
+                });
+                el.insertAdjacentHTML('afterbegin', '<div class="tick">✓</div>');
+                grid.appendChild(el);
+            }
             OPTIONS.toppings.filter(t => toppingCat === 'all' || t.category === toppingCat).forEach(t => {
                 const el = card({
                     active: state.toppings.includes(t.key),
@@ -729,6 +794,10 @@
                 { group: 'الطبقات', price: byKey('layers', 'count', state.layers).price },
                 { group: 'اللون', price: byKey('colors', 'key', state.color).price },
             ];
+            if (state.design) {
+                const d = byKey('designs', 'key', state.design);
+                items.push({ group: 'الرسمة', label: d.name, price: d.drawing_price });
+            }
             state.toppings.forEach(k => {
                 const t = byKey('toppings', 'key', k);
                 items.push({ group: 'إضافة', label: t.name, price: t.price });
@@ -748,11 +817,12 @@
             lastTotal = quote.total;
             document.getElementById('chips').innerHTML = quote.items
                 .filter(i => i.price > 0)
-                .map(i => `<span class="chip">${i.group === 'إضافة' ? esc(i.label) : i.group}<b>${i.price} ر.س</b></span>`).join('');
+                .map(i => `<span class="chip">${i.group === 'إضافة' || i.group === 'الرسمة' ? esc(i.label) : i.group}<b>${i.price} ر.س</b></span>`).join('');
         }
 
         function selection() {
             const sel = { size: state.size, flavor: state.flavor, filling: state.filling, layers: state.layers, color: state.color, toppings: state.toppings };
+            if (state.design) sel.design = state.design;
             if (state.text.trim()) Object.assign(sel, { text: state.text.trim(), text_target: state.textTarget });
             return sel;
         }
@@ -801,9 +871,13 @@
             stage.classList.add('loading');
             const baseUrl = `${URLS.models}/cake_${state.size}_layers${state.layers}_${OPTIONS.model_version}.glb`;
             try {
+                const [topCanvas, boardCanvas] = await Promise.all([buildTopCanvas(), buildBoardCanvas(baseUrl)]);
+                if (seq !== composeSeq) return;
                 const url = await composeCake(baseUrl, {
                     color: byKey('colors', 'key', state.color).hex,
                     toppings: state.toppings,
+                    topCanvas,
+                    boardCanvas,
                 });
                 if (seq !== composeSeq) { URL.revokeObjectURL(url); return; }
                 const old = currentBlob;
@@ -817,6 +891,19 @@
         }
         viewer.addEventListener('load', () => stage.classList.remove('loading'));
 
+        // الصورة الأصلية ↔ المجسم (للتصاميم المأخوذة من صور حقيقية)
+        function setView(view) {
+            stage.classList.toggle('photo-mode', view === 'photo');
+            document.querySelectorAll('#view-toggle button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+        }
+        document.querySelectorAll('#view-toggle button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+        if (ORIGINAL_DESIGN?.photo) {
+            stage.classList.add('has-photo');
+            document.getElementById('photo-view-img').src = `${URLS.public}/${ORIGINAL_DESIGN.photo}`;
+        }
+
+        const DEFAULT_ORBIT = viewer.getAttribute('camera-orbit');
+
         // ================= الخطوات =================
         const nextBtn = document.getElementById('next-btn');
 
@@ -828,8 +915,10 @@
                 b.classList.toggle('active', n === step);
                 b.classList.toggle('completed', completed.has(n));
             });
-            stage.classList.toggle('top-mode', step === WRITING_STEP);
-            if (step === WRITING_STEP) renderWriting();
+            // في خطوة الكتابة نرفع الكاميرا لنشوف سطح الكيكة والبورد
+            viewer.cameraOrbit = step === WRITING_STEP ? '0deg 32deg auto' : DEFAULT_ORBIT;
+            viewer.autoRotate = step !== WRITING_STEP;
+            if (step === WRITING_STEP) setView('3d');
             const last = step === STEPS - 1;
             nextBtn.innerHTML = last ? `${CART_ICON} أضف للسلة` : 'التالي';
         }
@@ -848,7 +937,9 @@
             try {
                 const { item } = await postCart();
                 showPrice(item);
-                document.getElementById('sheet-art').innerHTML = (state.text.trim() || printUrl) ? topViewArt() : sliceArt(state);
+                let snap = '';
+                try { snap = stage.classList.contains('photo-mode') ? '' : viewer.toDataURL('image/png'); } catch (e) { /* */ }
+                document.getElementById('sheet-art').innerHTML = snap ? `<img src="${snap}" alt="">` : sliceArt(state);
                 document.getElementById('sheet-lines').innerHTML = item.items
                     .map(i => `<div><span>${i.group}</span><span>${esc(i.label)}${i.price ? ` (${i.price})` : ''}</span></div>`).join('')
                     + `<div class="sum"><span>الإجمالي</span><span>${item.total} ر.س</span></div>`;
@@ -871,7 +962,6 @@
             renderColors();
             renderToppings();
             document.getElementById('inside-art').innerHTML = sliceArt(state);
-            renderWriting();
             showPrice(localQuote());
             confirmPrice();
             updateModel();

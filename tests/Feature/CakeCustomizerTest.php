@@ -112,7 +112,9 @@ class CakeCustomizerTest extends TestCase
             ->assertOk()
             ->assertSee('لؤلؤ وردي')
             ->assertSee('289 ر.س')
-            ->assertSee('design=pink-pearls', false);
+            ->assertSee('design=pink-pearls', false)
+            // Tony: 6 إنش 110 + 3 طبقات 10 + الرسمة 40 + حبات كريمة 15
+            ->assertSee('175 ر.س');
     }
 
     public function test_design_preset_prefills_customizer(): void
@@ -120,5 +122,20 @@ class CakeCustomizerTest extends TestCase
         $this->get('/cake/signature-cake/customize?design=pink-pearls')
             ->assertOk()
             ->assertSee('"toppings":["pearls"]', false);
+    }
+
+    public function test_photo_design_adds_its_drawing_price(): void
+    {
+        // Tony: 6 إنش 110 + 3 طبقات 10 + الرسمة 40 + حبات كريمة 15
+        $this->postJson('/cake/signature-cake/customize/price', [
+            'size' => '6in', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 3,
+            'color' => 'rose', 'toppings' => ['beads'], 'design' => 'tony',
+        ])->assertOk()->assertJsonPath('total', 175);
+    }
+
+    public function test_design_without_drawing_is_rejected(): void
+    {
+        $this->postJson('/cake/signature-cake/customize/price', self::SELECTION + ['design' => 'pink-pearls'])
+            ->assertJsonValidationErrors('design');
     }
 }
