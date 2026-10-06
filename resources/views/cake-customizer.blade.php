@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>صمّم كيكتك - جوماكيك</title>
+    <script type="importmap">
+        { "imports": {
+            "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+        } }
+    </script>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -128,6 +134,23 @@
         .swatch.active .dot { box-shadow: 0 0 0 3px var(--pink); }
         .swatch .name { font-size: 13px; font-weight: 700; color: var(--ink); }
 
+        /* ===== الإضافات ===== */
+        .cat-chips { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; scrollbar-width: none; }
+        .cat-chips::-webkit-scrollbar { display: none; }
+        .cat-chips button {
+            flex: 0 0 auto; border: 0; background: #F4EEF0; color: var(--ink); border-radius: 999px;
+            padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+        }
+        .cat-chips button.active { background: var(--pink-dark); color: #fff; }
+        .card .tick {
+            position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%;
+            background: var(--pink); color: #fff; font-size: 12px; display: none; align-items: center; justify-content: center;
+        }
+        .card.active .tick { display: flex; }
+        .card .none-art { aspect-ratio: 150 / 116; display: flex; align-items: center; justify-content: center; }
+        .card .none-art svg { width: 54px; height: 54px; color: #D9C7CE; }
+        .topbar a.back-link { display: flex; color: inherit; }
+
         /* ===== صور حقيقية للقطع ===== */
         .card img.photo { width: 100%; max-width: 150px; aspect-ratio: 150 / 116; object-fit: contain; display: block; margin: 0 auto; }
 
@@ -217,7 +240,7 @@
 
     <header class="topbar">
         <div class="title">
-            <x-mdi-chevron-right class="back" />
+            <a class="back-link" href="{{ route('cake.designs', $cake->slug) }}" aria-label="التصاميم"><x-mdi-chevron-right class="back" /></a>
             <h1>صمّم كيكتك</h1>
         </div>
         <div class="total" id="total-top">0 <small>ر.س</small></div>
@@ -264,7 +287,8 @@
                 <button class="step-btn" data-step="2"><x-mdi-spoon-sugar class="ico" /><span>الحشوة</span><span class="done"><x-mdi-check-bold /></span></button>
                 <button class="step-btn" data-step="3"><x-mdi-layers-triple-outline class="ico" /><span>الطبقات</span><span class="done"><x-mdi-check-bold /></span></button>
                 <button class="step-btn" data-step="4"><x-mdi-palette-outline class="ico" /><span>اللون</span><span class="done"><x-mdi-check-bold /></span></button>
-                <button class="step-btn" data-step="5"><x-mdi-pencil-outline class="ico" /><span>الكتابة</span><span class="done"><x-mdi-check-bold /></span></button>
+                <button class="step-btn" data-step="5"><x-mdi-cupcake class="ico" /><span>الإضافات</span><span class="done"><x-mdi-check-bold /></span></button>
+                <button class="step-btn" data-step="6"><x-mdi-pencil-outline class="ico" /><span>الكتابة</span><span class="done"><x-mdi-check-bold /></span></button>
             </nav>
 
             <main class="panel">
@@ -296,6 +320,13 @@
                 </section>
 
                 <section class="step" data-step="5">
+                    <div class="step-title">الإضافات</div>
+                    <div class="step-sub">تقدر تختار أكثر من إضافة — تظهر مباشرة على المجسم</div>
+                    <div class="cat-chips" id="cat-chips"></div>
+                    <div class="grid" id="topping-grid"></div>
+                </section>
+
+                <section class="step" data-step="6">
                     <div class="step-title">الكتابة والصورة</div>
                     <div class="step-sub">اختياري — الصورة تُطبع كما هي بدون أي تعديل</div>
 
@@ -342,7 +373,9 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { composeCake } from "{{ asset('js/cake-composer.js') }}";
+
         const OPTIONS = @json($options);
         const URLS = {
             models: "{{ asset('storage/models') }}",
@@ -356,6 +389,7 @@
         const byKey = (list, field, value) => OPTIONS[list].find(o => o[field] === value);
         const popularSize = OPTIONS.sizes.find(s => s.popular) || OPTIONS.sizes[0];
 
+        const INITIAL = @json($initial);
         const state = {
             tier: popularSize.tier,
             size: popularSize.key,
@@ -363,12 +397,19 @@
             filling: OPTIONS.fillings[0].key,
             layers: OPTIONS.layers[0].count,
             color: OPTIONS.colors[0].key,
+            toppings: [],
             text: '',
             textTarget: Object.keys(OPTIONS.writing.targets)[0],
         };
+        // تصميم جاهز من الكولكشن (?design=...) يعبّي الاختيارات
+        if (INITIAL) {
+            Object.assign(state, INITIAL, { toppings: [...(INITIAL.toppings || [])] });
+            state.tier = byKey('sizes', 'key', state.size).tier;
+        }
         let printFile = null, printUrl = null;
-        const STEPS = 6;
-        const WRITING_STEP = 5;
+        let toppingCat = 'all';
+        const STEPS = 7;
+        const WRITING_STEP = 6;
         let currentStep = 0;
         const completed = new Set();
 
@@ -629,6 +670,42 @@
             })));
         }
 
+        function renderToppings() {
+            const chips = document.getElementById('cat-chips');
+            chips.innerHTML = '';
+            Object.entries({ all: 'الكل', ...OPTIONS.topping_categories }).forEach(([key, label]) => {
+                const b = document.createElement('button');
+                b.textContent = label;
+                b.className = key === toppingCat ? 'active' : '';
+                b.addEventListener('click', () => { toppingCat = key; renderToppings(); });
+                chips.appendChild(b);
+            });
+
+            const grid = document.getElementById('topping-grid');
+            grid.innerHTML = '';
+            grid.appendChild(card({
+                active: state.toppings.length === 0,
+                art: `<div class="none-art">{!! str_replace('`', '', svg('mdi-cancel')->toHtml()) !!}</div>`,
+                name: 'بدون', price: '',
+                onClick: () => { state.toppings = []; update(); },
+            }));
+            OPTIONS.toppings.filter(t => toppingCat === 'all' || t.category === toppingCat).forEach(t => {
+                const el = card({
+                    active: state.toppings.includes(t.key),
+                    art: photo(t),
+                    name: t.name, price: plus(t.price),
+                    onClick: () => {
+                        state.toppings = state.toppings.includes(t.key)
+                            ? state.toppings.filter(k => k !== t.key)
+                            : [...state.toppings, t.key];
+                        update();
+                    },
+                });
+                el.insertAdjacentHTML('afterbegin', '<div class="tick">✓</div>');
+                grid.appendChild(el);
+            });
+        }
+
         function renderColors() {
             const box = document.getElementById('color-swatches');
             box.innerHTML = '';
@@ -652,6 +729,10 @@
                 { group: 'الطبقات', price: byKey('layers', 'count', state.layers).price },
                 { group: 'اللون', price: byKey('colors', 'key', state.color).price },
             ];
+            state.toppings.forEach(k => {
+                const t = byKey('toppings', 'key', k);
+                items.push({ group: 'إضافة', label: t.name, price: t.price });
+            });
             if (state.text.trim()) items.push({ group: 'الكتابة', price: OPTIONS.writing.text_price });
             if (printFile) items.push({ group: 'صورة للطباعة', price: OPTIONS.writing.print_image_price });
             return { items, total: items.reduce((a, i) => a + i.price, 0) };
@@ -667,11 +748,11 @@
             lastTotal = quote.total;
             document.getElementById('chips').innerHTML = quote.items
                 .filter(i => i.price > 0)
-                .map(i => `<span class="chip">${i.group}<b>${i.price} ر.س</b></span>`).join('');
+                .map(i => `<span class="chip">${i.group === 'إضافة' ? esc(i.label) : i.group}<b>${i.price} ر.س</b></span>`).join('');
         }
 
         function selection() {
-            const sel = { size: state.size, flavor: state.flavor, filling: state.filling, layers: state.layers, color: state.color };
+            const sel = { size: state.size, flavor: state.flavor, filling: state.filling, layers: state.layers, color: state.color, toppings: state.toppings };
             if (state.text.trim()) Object.assign(sel, { text: state.text.trim(), text_target: state.textTarget });
             return sel;
         }
@@ -690,7 +771,8 @@
         // السلة: multipart عشان الصورة تنرفع كما هي
         function postCart() {
             const form = new FormData();
-            Object.entries(selection()).forEach(([k, v]) => form.append(k, v));
+            Object.entries(selection()).forEach(([k, v]) =>
+                Array.isArray(v) ? v.forEach(x => form.append(k + '[]', x)) : form.append(k, v));
             if (printFile) form.append('print_image', printFile);
             return send(URLS.cart, form, false);
         }
@@ -710,38 +792,30 @@
         // ================= المجسم واللون =================
         const viewer = document.getElementById('viewer');
         const stage = document.getElementById('stage');
-        const srgbToLinear = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 
-        // لون الكيكة محفوظ كـ vertex color داخل النموذج، واللون النهائي = vertex × baseColorFactor
-        // فنقسم على اللون الأصلي حتى يطلع اللون المختار بالضبط
-        function colorFactor(hex) {
-            const base = OPTIONS.base_vertex_color.map(v => v / 255);
-            const target = [1, 3, 5].map(i => srgbToLinear(parseInt(hex.substr(i, 2), 16) / 255));
-            return target.map((v, i) => Math.min(1, v / base[i])).concat(1);
-        }
-
-        function applyColor() {
-            if (!viewer.model) return;
-            const c = byKey('colors', 'key', state.color);
-            const factor = c.usdz_suffix ? colorFactor(c.hex) : [1, 1, 1, 1];
-            viewer.model.materials
-                .filter(m => m.name.startsWith('CakeMaterial'))
-                .forEach(m => m.pbrMetallicRoughness.setBaseColorFactor(factor));
-        }
-
-        function updateModel() {
-            const base = `${URLS.models}/cake_${state.size}_layers${state.layers}_${OPTIONS.model_version}`;
-            const suffix = byKey('colors', 'key', state.color).usdz_suffix;
-            const glb = base + '.glb';
-            viewer.iosSrc = base + (suffix ? `_${suffix}` : '') + '.usdz';
-            if (viewer.src !== glb) {
-                stage.classList.add('loading');
-                viewer.src = glb;
-            } else {
-                applyColor();
+        // نركّب الكيكة (جسم بحواف دائرية + اللون + الإضافات) في المتصفح ونعرضها كملف واحد.
+        // الآيفون: model-viewer يولّد ملف usdz من نفس المشهد عند الضغط على زر الواقع المعزز.
+        let composeSeq = 0, currentBlob = null;
+        async function updateModel() {
+            const seq = ++composeSeq;
+            stage.classList.add('loading');
+            const baseUrl = `${URLS.models}/cake_${state.size}_layers${state.layers}_${OPTIONS.model_version}.glb`;
+            try {
+                const url = await composeCake(baseUrl, {
+                    color: byKey('colors', 'key', state.color).hex,
+                    toppings: state.toppings,
+                });
+                if (seq !== composeSeq) { URL.revokeObjectURL(url); return; }
+                const old = currentBlob;
+                currentBlob = url;
+                viewer.src = url;
+                if (old) setTimeout(() => URL.revokeObjectURL(old), 2000);
+            } catch (e) {
+                console.error(e);
+                if (seq === composeSeq) stage.classList.remove('loading');
             }
         }
-        viewer.addEventListener('load', () => { applyColor(); stage.classList.remove('loading'); });
+        viewer.addEventListener('load', () => stage.classList.remove('loading'));
 
         // ================= الخطوات =================
         const nextBtn = document.getElementById('next-btn');
@@ -776,7 +850,7 @@
                 showPrice(item);
                 document.getElementById('sheet-art').innerHTML = (state.text.trim() || printUrl) ? topViewArt() : sliceArt(state);
                 document.getElementById('sheet-lines').innerHTML = item.items
-                    .map(i => `<div><span>${i.group}</span><span>${i.label}${i.price ? ` (${i.price})` : ''}</span></div>`).join('')
+                    .map(i => `<div><span>${i.group}</span><span>${esc(i.label)}${i.price ? ` (${i.price})` : ''}</span></div>`).join('')
                     + `<div class="sum"><span>الإجمالي</span><span>${item.total} ر.س</span></div>`;
                 document.getElementById('sheet').classList.add('open');
             } catch (e) {
@@ -795,6 +869,7 @@
             renderFillings();
             renderLayers();
             renderColors();
+            renderToppings();
             document.getElementById('inside-art').innerHTML = sliceArt(state);
             renderWriting();
             showPrice(localQuote());

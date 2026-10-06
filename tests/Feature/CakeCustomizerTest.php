@@ -90,4 +90,35 @@ class CakeCustomizerTest extends TestCase
             'text_target' => 'board',
         ])->assertJsonValidationErrors('text');
     }
+
+    public function test_toppings_are_priced_by_server(): void
+    {
+        // 130 + لؤلؤ 24 + كرز 20
+        $this->postJson('/cake/signature-cake/customize/price', self::SELECTION + ['toppings' => ['pearls', 'cherries']])
+            ->assertOk()
+            ->assertJsonPath('total', 174);
+    }
+
+    public function test_unknown_topping_is_rejected(): void
+    {
+        $this->postJson('/cake/signature-cake/customize/price', self::SELECTION + ['toppings' => ['gold']])
+            ->assertJsonValidationErrors('toppings');
+    }
+
+    public function test_designs_page_lists_presets_with_server_price(): void
+    {
+        // لؤلؤ وردي: 8/6 = 265 + لؤلؤ 24
+        $this->get('/cake/signature-cake/designs')
+            ->assertOk()
+            ->assertSee('لؤلؤ وردي')
+            ->assertSee('289 ر.س')
+            ->assertSee('design=pink-pearls', false);
+    }
+
+    public function test_design_preset_prefills_customizer(): void
+    {
+        $this->get('/cake/signature-cake/customize?design=pink-pearls')
+            ->assertOk()
+            ->assertSee('"toppings":["pearls"]', false);
+    }
 }

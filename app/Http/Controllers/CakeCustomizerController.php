@@ -9,14 +9,30 @@ use Illuminate\Http\Request;
 
 class CakeCustomizerController extends Controller
 {
-    public function show(string $slug)
+    public function show(Request $request, string $slug)
     {
         $cake = $this->findCake($slug);
+        $design = collect(config('cake_customizer.designs'))->firstWhere('key', $request->query('design'));
 
         return view('cake-customizer', [
             'cake' => $cake,
             'options' => config('cake_customizer'),
+            'initial' => $design['selection'] ?? null,
         ]);
+    }
+
+    /**
+     * الكولكشن: تصاميم جاهزة بسعرها المحسوب من السيرفر.
+     */
+    public function designs(string $slug, CakePriceCalculator $calculator)
+    {
+        $cake = $this->findCake($slug);
+
+        $designs = collect(config('cake_customizer.designs'))->map(fn (array $design) => $design + [
+            'price' => $calculator->quote($design['selection'])['total'],
+        ]);
+
+        return view('cake-designs', compact('cake', 'designs'));
     }
 
     /**
@@ -78,6 +94,8 @@ class CakeCustomizerController extends Controller
             'filling' => ['required', 'string'],
             'layers' => ['required', 'integer'],
             'color' => ['required', 'string'],
+            'toppings' => ['nullable', 'array', 'max:10'],
+            'toppings.*' => ['string'],
             'text' => ['nullable', 'string', 'max:'.config('cake_customizer.writing.max_length')],
             'text_target' => ['nullable', 'string'],
         ]);

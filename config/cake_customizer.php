@@ -15,9 +15,6 @@ return [
 
     'model_version' => 'v45',
 
-    // لون الكيكة الأصلي المحفوظ داخل ملفات glb (vertex color) — نحتاجه لتعويض اللون بدقة
-    'base_vertex_color' => [245, 239, 188],
-
     'tiers' => [
         1 => 'دور واحد',
         2 => 'دورين',
@@ -55,11 +52,43 @@ return [
         ['count' => 3, 'price' => 10],
     ],
 
-    // key = لاحقة ملف usdz الملوّن (null = الملف الأصلي). لازم تطابق tools/generate_color_usdz.py
+    // اللون يُطبق مباشرة على جسم الكيكة المركّب (public/js/cake-composer.js)
     'colors' => [
-        ['key' => 'cream', 'name' => 'كريمي', 'hex' => '#F5EFBC', 'price' => 0, 'usdz_suffix' => null],
-        ['key' => 'blue',  'name' => 'أزرق',  'hex' => '#1F4A8C', 'price' => 0, 'usdz_suffix' => 'blue'],
-        ['key' => 'red',   'name' => 'أحمر',  'hex' => '#C21E2E', 'price' => 0, 'usdz_suffix' => 'red'],
+        ['key' => 'cream', 'name' => 'كريمي', 'hex' => '#F5EFBC', 'price' => 0],
+        ['key' => 'white', 'name' => 'أبيض',  'hex' => '#FBF8F2', 'price' => 0],
+        ['key' => 'pink',  'name' => 'وردي',  'hex' => '#F2A9B9', 'price' => 0],
+        ['key' => 'blue',  'name' => 'أزرق',  'hex' => '#1F4A8C', 'price' => 0],
+        ['key' => 'red',   'name' => 'أحمر',  'hex' => '#C21E2E', 'price' => 0],
+    ],
+
+    // الإضافات: key = اسم الدالة في cake-composer.js — الأسعار تجريبية
+    'topping_categories' => [
+        'borders' => 'الحواف',
+        'sides' => 'الجوانب',
+        'top' => 'فوق الكيكة',
+    ],
+
+    'toppings' => [
+        ['key' => 'piping',    'name' => 'حواف كريمة', 'category' => 'borders', 'price' => 18, 'image' => 'images/toppings/piping.png'],
+        ['key' => 'pearls',    'name' => 'لؤلؤ',       'category' => 'sides',   'price' => 24, 'image' => 'images/toppings/pearls.png'],
+        ['key' => 'cherries',  'name' => 'كرز',        'category' => 'top',     'price' => 20, 'image' => 'images/toppings/cherries.png'],
+        ['key' => 'sprinkles', 'name' => 'سبرنكلز',    'category' => 'top',     'price' => 12, 'image' => 'images/toppings/sprinkles.png'],
+    ],
+
+    // تصاميم جاهزة (الكولكشن): مجرد اختيارات محفوظة تفتح صفحة التخصيص معبأة
+    'designs' => [
+        [
+            'key' => 'pink-pearls', 'name' => 'لؤلؤ وردي', 'image' => 'images/designs/pink-pearls.png',
+            'selection' => ['size' => 'tier2_8-6', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 2, 'color' => 'pink', 'toppings' => ['pearls']],
+        ],
+        [
+            'key' => 'cherry-classic', 'name' => 'كرز كلاسيك', 'image' => 'images/designs/cherry-classic.png',
+            'selection' => ['size' => '6in', 'flavor' => 'chocolate', 'filling' => 'strawberry', 'layers' => 3, 'color' => 'white', 'toppings' => ['piping', 'cherries']],
+        ],
+        [
+            'key' => 'blue-party', 'name' => 'احتفال أزرق', 'image' => 'images/designs/blue-party.png',
+            'selection' => ['size' => '8in', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 2, 'color' => 'blue', 'toppings' => ['piping', 'sprinkles']],
+        ],
     ],
 
     // الكتابة على البورد أو الكيكة + صورة للطباعة (تُطبع كما هي)

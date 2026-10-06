@@ -11,6 +11,8 @@ use App\Http\Controllers\CakeCustomizerController;
 Route::get('/cake/{slug}/ar', [CakeArController::class, 'show'])
     ->name('cake.ar.show');
 
+Route::get('/cake/{slug}/designs', [CakeCustomizerController::class, 'designs'])
+    ->name('cake.designs');
 Route::get('/cake/{slug}/customize', [CakeCustomizerController::class, 'show'])
     ->name('cake.customize.show');
 Route::post('/cake/{slug}/customize/price', [CakeCustomizerController::class, 'price'])

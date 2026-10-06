@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 class CakePriceCalculator
 {
     /**
-     * @param  array{size?: string, flavor?: string, filling?: string, layers?: int|string, color?: string, text?: ?string, text_target?: ?string}  $selection
+     * @param  array{size?: string, flavor?: string, filling?: string, layers?: int|string, color?: string, toppings?: list<string>, text?: ?string, text_target?: ?string}  $selection
      * @param  bool  $hasPrintImage  يحدده السيرفر من الملف المرفوع فعليًا عند الإضافة للسلة
      * @return array{items: list<array{group: string, label: string, price: int}>, total: int}
      */
@@ -30,6 +30,11 @@ class CakePriceCalculator
             ['group' => 'الطبقات', 'label' => $layers['count'] === 2 ? 'طبقتين' : $layers['count'].' طبقات', 'price' => $layers['price']],
             ['group' => 'اللون', 'label' => $color['name'], 'price' => $color['price']],
         ];
+
+        foreach (array_unique($selection['toppings'] ?? []) as $key) {
+            $topping = $this->find('toppings', 'key', $key, 'toppings');
+            $items[] = ['group' => 'إضافة', 'label' => $topping['name'], 'price' => $topping['price']];
+        }
 
         $writing = config('cake_customizer.writing');
         $text = trim((string) ($selection['text'] ?? ''));
