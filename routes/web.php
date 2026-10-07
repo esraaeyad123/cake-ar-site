@@ -19,3 +19,11 @@ Route::post('/cake/{slug}/customize/price', [CakeCustomizerController::class, 'p
     ->name('cake.customize.price');
 Route::post('/cake/{slug}/customize/cart', [CakeCustomizerController::class, 'addToCart'])
     ->name('cake.customize.cart');
+
+// صفحة تجربة داخلية: توليد صور الكيك بالذكاء الاصطناعي (تحتاج OPENAI_API_KEY في .env)
+use App\Http\Controllers\AiImageController;
+
+Route::get('/ai-images', [AiImageController::class, 'index'])->name('ai-images.index');
+Route::post('/ai-images', [AiImageController::class, 'generate'])
+    ->middleware('throttle:5,1')
+    ->name('ai-images.generate');

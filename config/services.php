@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // تجربة توليد صور الكيك بالذكاء الاصطناعي (صفحة /ai-images)
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'image_model' => env('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
+    ],
+
 ];
