@@ -39,6 +39,16 @@
         .meta .prompt { font-size: 13px; direction: ltr; text-align: left; color: var(--ink); overflow-wrap: anywhere; }
         .tags { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
         .tags span { background: var(--pink-soft); color: var(--pink-dark); border-radius: 999px; padding: 2px 8px; font-weight: 700; }
+        .upload { margin-top: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 2px dashed #E5C4D0; border-radius: 14px; padding: 12px; background: #FFFBFC; }
+        .upload input { font: inherit; font-size: 14px; max-width: 100%; }
+        .upload img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; display: none; }
+        .upload img.show { display: block; }
+        .upload .txt { flex: 1; min-width: 200px; font-size: 13px; color: var(--muted); }
+        .upload .txt b { display: block; color: var(--ink); font-size: 14px; }
+        .examples .lbl { font-size: 12px; color: var(--muted); align-self: center; margin-inline-end: 4px; }
+        .pair { display: grid; grid-template-columns: 1fr 1fr; }
+        .pair figure { margin: 0; position: relative; }
+        .pair figcaption { position: absolute; top: 6px; right: 6px; background: rgba(75,21,40,.75); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
         .empty { color: var(--muted); border: 1px dashed var(--pink-line); border-radius: 16px; padding: 24px; text-align: center; }
     </style>
 </head>
@@ -53,14 +63,28 @@
         <div class="alert warn">لا يوجد مفتاح OpenAI بعد. أضيفي <code>OPENAI_API_KEY</code> في ملف <code>.env</code> ثم شغّلي <code>php artisan config:clear</code>.</div>
     @endunless
 
-    <form class="panel" method="POST" action="{{ route('ai-images.generate') }}" id="ai-form">
+    <form class="panel" method="POST" action="{{ route('ai-images.generate') }}" id="ai-form" enctype="multipart/form-data">
         @csrf
         <label for="prompt">وصف الكيكة (Prompt)</label>
         <textarea id="prompt" name="prompt" maxlength="1000" required
                   placeholder="A round white cake with red beads around the top edge...">{{ old('prompt') }}</textarea>
         <p class="hint">الوصف بالإنجليزي يعطي غالباً نتائج أدق. جربي الأمثلة:</p>
 
+        <label class="upload" for="base_image">
+            <img id="base-preview" alt="الصورة المرفوعة">
+            <span class="txt"><b>اختياري: صورة كيكة للتعديل عليها</b>إذا رفعتِ صورة، يعدّل عليها حسب الوصف. بدون صورة يولّد صورة جديدة من الصفر.</span>
+            <input type="file" id="base_image" name="base_image" accept="image/png,image/jpeg,image/webp">
+        </label>
+
         <div class="examples">
+            <span class="lbl">أمثلة تعديل (مع صورة):</span>
+            <button type="button" data-prompt="Change the number 60 on the cake to 25, using the same green piped cream style. Keep everything else in the photo exactly the same.">غيّري الرقم إلى 25</button>
+            <button type="button" data-prompt="Change the cake frosting color to soft pink. Keep the drawing, the text, the board and the background exactly the same.">لوّني الكيكة وردي</button>
+            <button type="button" data-prompt="Add a ring of small white cream beads around the top edge of the cake. Keep everything else exactly the same.">أضيفي حبات على الحافة</button>
+        </div>
+
+        <div class="examples">
+            <span class="lbl">أمثلة توليد (بدون صورة):</span>
             <button type="button" data-prompt="A round 6-inch pink buttercream cake with small white cream beads around the top edge, 'Happy Birthday Sara' piped in white on top, on a white square cake board, studio photo, soft light, plain light background">وردية بحبات وكتابة</button>
             <button type="button" data-prompt="A round ivory buttercream bento cake with a simple black line drawing on top of a Saudi man wearing a red and white checkered shemagh, 'Congratulations Bassam' written in gold, on a white square cake board, realistic photo, top-down angle">تخرج بشماغ أحمر</button>
             <button type="button" data-prompt="A two-tier white wedding cake covered with small pearls, pink roses on the side, on a white cake board, elegant realistic photo, soft natural light">زواج بلؤلؤ</button>
@@ -91,10 +115,18 @@
         <div class="grid">
             @foreach ($history as $item)
                 <figure class="item {{ session('latest') === $item['id'] ? 'latest' : '' }}" style="margin:0">
-                    <a href="{{ $item['url'] }}" target="_blank" rel="noopener"><img src="{{ $item['url'] }}" alt="صورة مولّدة" loading="lazy"></a>
+                    @if (! empty($item['base_url']))
+                        <div class="pair">
+                            <figure><a href="{{ $item['base_url'] }}" target="_blank" rel="noopener"><img src="{{ $item['base_url'] }}" alt="الصورة الأصلية" loading="lazy"></a><figcaption>قبل</figcaption></figure>
+                            <figure><a href="{{ $item['url'] }}" target="_blank" rel="noopener"><img src="{{ $item['url'] }}" alt="الصورة المعدّلة" loading="lazy"></a><figcaption>بعد</figcaption></figure>
+                        </div>
+                    @else
+                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener"><img src="{{ $item['url'] }}" alt="صورة مولّدة" loading="lazy"></a>
+                    @endif
                     <figcaption class="meta">
                         <div class="prompt">{{ $item['prompt'] }}</div>
                         <div class="tags">
+                            <span>{{ ($item['mode'] ?? 'generate') === 'edit' ? 'تعديل' : 'توليد' }}</span>
                             <span>{{ $item['quality'] }}</span>
                             <span>{{ $item['seconds'] }} ثانية</span>
                             <span>{{ $item['created_at'] }}</span>
@@ -111,6 +143,13 @@
 <script>
     document.querySelectorAll('.examples button').forEach(function (b) {
         b.addEventListener('click', function () { document.getElementById('prompt').value = b.dataset.prompt; });
+    });
+    document.getElementById('base_image').addEventListener('change', function (e) {
+        const img = document.getElementById('base-preview');
+        const file = e.target.files[0];
+        if (img.src) URL.revokeObjectURL(img.src);
+        img.classList.toggle('show', !!file);
+        if (file) img.src = URL.createObjectURL(file);
     });
     document.getElementById('ai-form').addEventListener('submit', function () {
         const go = document.getElementById('go');
