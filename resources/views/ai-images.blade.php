@@ -41,14 +41,16 @@
         .tags span { background: var(--pink-soft); color: var(--pink-dark); border-radius: 999px; padding: 2px 8px; font-weight: 700; }
         .upload { margin-top: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 2px dashed #E5C4D0; border-radius: 14px; padding: 12px; background: #FFFBFC; }
         .upload input { font: inherit; font-size: 14px; max-width: 100%; }
-        .upload img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; display: none; }
-        .upload img.show { display: block; }
+        .thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .thumbs figure { margin: 0; position: relative; }
+        .thumbs img { width: 76px; height: 76px; object-fit: cover; border-radius: 10px; display: block; border: 1px solid var(--pink-line); }
+        .thumbs figcaption, .strip figcaption { position: absolute; top: 4px; right: 4px; background: rgba(75,21,40,.8); color: #fff; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+        .strip { display: flex; gap: 4px; padding: 4px; background: #f7f2f4; overflow-x: auto; }
+        .strip figure { margin: 0; position: relative; flex: 0 0 56px; }
+        .strip img { width: 56px; height: 56px; aspect-ratio: auto; object-fit: cover; border-radius: 8px; }
         .upload .txt { flex: 1; min-width: 200px; font-size: 13px; color: var(--muted); }
         .upload .txt b { display: block; color: var(--ink); font-size: 14px; }
         .examples .lbl { font-size: 12px; color: var(--muted); align-self: center; margin-inline-end: 4px; }
-        .pair { display: grid; grid-template-columns: 1fr 1fr; }
-        .pair figure { margin: 0; position: relative; }
-        .pair figcaption { position: absolute; top: 6px; right: 6px; background: rgba(75,21,40,.75); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
         .empty { color: var(--muted); border: 1px dashed var(--pink-line); border-radius: 16px; padding: 24px; text-align: center; }
     </style>
 </head>
@@ -70,17 +72,18 @@
                   placeholder="A round white cake with red beads around the top edge...">{{ old('prompt') }}</textarea>
         <p class="hint">الوصف بالإنجليزي يعطي غالباً نتائج أدق. جربي الأمثلة:</p>
 
-        <label class="upload" for="base_image">
-            <img id="base-preview" alt="الصورة المرفوعة">
-            <span class="txt"><b>اختياري: صورة كيكة للتعديل عليها</b>إذا رفعتِ صورة، يعدّل عليها حسب الوصف. بدون صورة يولّد صورة جديدة من الصفر.</span>
-            <input type="file" id="base_image" name="base_image" accept="image/png,image/jpeg,image/webp">
+        <label class="upload" for="base_images">
+            <span class="txt"><b>اختياري: صور للتعديل عليها (حتى 5)</b>الصورة <b style="display:inline">1</b> = الكيكة التي يعدّل عليها. الصور 2 و3... = مراجع مثل الشخصيات، واذكريها في الوصف بأرقامها. بدون صور يولّد صورة جديدة من الصفر.</span>
+            <input type="file" id="base_images" name="base_images[]" accept="image/png,image/jpeg,image/webp" multiple>
         </label>
+        <div class="thumbs" id="thumbs"></div>
 
         <div class="examples">
             <span class="lbl">أمثلة تعديل (مع صورة):</span>
             <button type="button" data-prompt="Change the number 60 on the cake to 25, using the same green piped cream style. Keep everything else in the photo exactly the same.">غيّري الرقم إلى 25</button>
             <button type="button" data-prompt="Change the cake frosting color to soft pink. Keep the drawing, the text, the board and the background exactly the same.">لوّني الكيكة وردي</button>
             <button type="button" data-prompt="Add a ring of small white cream beads around the top edge of the cake. Keep everything else exactly the same.">أضيفي حبات على الحافة</button>
+            <button type="button" data-prompt="Image 1 is the cake. Replace the two characters drawn on the cake with the characters shown in image 2 and image 3, drawn in the same hand-piped buttercream cartoon style, same size and position. Keep the cake, the number, the board and the background exactly the same.">استبدلي الشخصيات (صور 2 و3)</button>
         </div>
 
         <div class="examples">
@@ -115,13 +118,14 @@
         <div class="grid">
             @foreach ($history as $item)
                 <figure class="item {{ session('latest') === $item['id'] ? 'latest' : '' }}" style="margin:0">
-                    @if (! empty($item['base_url']))
-                        <div class="pair">
-                            <figure><a href="{{ $item['base_url'] }}" target="_blank" rel="noopener"><img src="{{ $item['base_url'] }}" alt="الصورة الأصلية" loading="lazy"></a><figcaption>قبل</figcaption></figure>
-                            <figure><a href="{{ $item['url'] }}" target="_blank" rel="noopener"><img src="{{ $item['url'] }}" alt="الصورة المعدّلة" loading="lazy"></a><figcaption>بعد</figcaption></figure>
+                    <a href="{{ $item['url'] }}" target="_blank" rel="noopener"><img src="{{ $item['url'] }}" alt="الصورة الناتجة" loading="lazy"></a>
+                    @if (count($item['base_urls']))
+                        {{-- الصور المرفوعة بالترتيب: 1 = الكيكة، والباقي مراجع --}}
+                        <div class="strip">
+                            @foreach ($item['base_urls'] as $i => $baseUrl)
+                                <figure><a href="{{ $baseUrl }}" target="_blank" rel="noopener"><img src="{{ $baseUrl }}" alt="صورة مرفوعة {{ $i + 1 }}" loading="lazy"></a><figcaption>{{ $i + 1 }}</figcaption></figure>
+                            @endforeach
                         </div>
-                    @else
-                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener"><img src="{{ $item['url'] }}" alt="صورة مولّدة" loading="lazy"></a>
                     @endif
                     <figcaption class="meta">
                         <div class="prompt">{{ $item['prompt'] }}</div>
@@ -144,12 +148,22 @@
     document.querySelectorAll('.examples button').forEach(function (b) {
         b.addEventListener('click', function () { document.getElementById('prompt').value = b.dataset.prompt; });
     });
-    document.getElementById('base_image').addEventListener('change', function (e) {
-        const img = document.getElementById('base-preview');
-        const file = e.target.files[0];
-        if (img.src) URL.revokeObjectURL(img.src);
-        img.classList.toggle('show', !!file);
-        if (file) img.src = URL.createObjectURL(file);
+    // معاينة الصور المرفوعة مع رقم كل صورة (نفس الرقم الذي تكتبينه في الوصف)
+    document.getElementById('base_images').addEventListener('change', function (e) {
+        const box = document.getElementById('thumbs');
+        box.querySelectorAll('img').forEach(img => URL.revokeObjectURL(img.src));
+        box.innerHTML = '';
+        Array.from(e.target.files).slice(0, 5).forEach(function (file, i) {
+            const fig = document.createElement('figure');
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.alt = 'صورة ' + (i + 1);
+            const cap = document.createElement('figcaption');
+            cap.textContent = i === 0 ? '1 · الكيكة' : String(i + 1);
+            fig.append(img, cap);
+            box.appendChild(fig);
+        });
+        if (e.target.files.length > 5) alert('الحد الأقصى 5 صور');
     });
     document.getElementById('ai-form').addEventListener('submit', function () {
         const go = document.getElementById('go');

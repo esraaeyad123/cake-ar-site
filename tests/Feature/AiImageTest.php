@@ -72,9 +72,10 @@ class AiImageTest extends TestCase
     public function test_uploaded_photo_is_sent_to_edit_endpoint(): void
     {
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => self::PNG]]])]);
-        $photo = UploadedFile::fake()->image('cake.png', 600, 600);
+        $cake = UploadedFile::fake()->image('cake.png', 600, 600);
+        $character = UploadedFile::fake()->image('character.png', 300, 300);
 
-        $this->post('/ai-images', ['prompt' => 'Change 60 to 25', 'quality' => 'low', 'base_image' => $photo])
+        $this->post('/ai-images', ['prompt' => 'Use image 2', 'quality' => 'low', 'base_images' => [$cake, $character]])
             ->assertRedirect('/ai-images');
 
         Http::assertSent(function (Request $r) {
@@ -82,13 +83,23 @@ class AiImageTest extends TestCase
 
             return $r->url() === 'https://api.openai.com/v1/images/edits'
                 && $r->isMultipart()
-                && $names->contains('image[]')
+                && $names->filter(fn ($n) => $n === 'image[]')->count() === 2
                 && $names->contains('prompt');
         });
 
         $files = Storage::disk('public')->files('ai-images');
-        $this->assertTrue(collect($files)->contains(fn ($f) => str_contains($f, '-original.')));
+        $this->assertCount(2, collect($files)->filter(fn ($f) => str_contains($f, '-original-')));
 
-        $this->get('/ai-images')->assertSee('قبل')->assertSee('بعد')->assertSee('تعديل');
+        $this->get('/ai-images')->assertSee('صورة مرفوعة 2')->assertSee('تعديل');
+    }
+
+    public function test_more_than_five_images_is_rejected(): void
+    {
+        Http::fake();
+        $images = collect(range(1, 6))->map(fn ($i) => UploadedFile::fake()->image("p{$i}.png"))->all();
+
+        $this->post('/ai-images', ['prompt' => 'x', 'quality' => 'low', 'base_images' => $images])
+            ->assertSessionHasErrors('base_images');
+        Http::assertNothingSent();
     }
 }

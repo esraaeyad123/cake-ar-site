@@ -18,6 +18,8 @@ class AiImageController extends Controller
 
     private const QUALITIES = ['low', 'medium', 'high'];
 
+    private const MAX_IMAGES = 5;
+
     public function index()
     {
         return view('ai-images', [
@@ -32,8 +34,10 @@ class AiImageController extends Controller
         $validated = $request->validate([
             'prompt' => ['required', 'string', 'max:1000'],
             'quality' => ['required', 'in:'.implode(',', self::QUALITIES)],
-            // اختياري: صورة كيكة حقيقية للتعديل عليها بدل التوليد من الصفر
-            'base_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:20480'],
+            // اختياري: صور للتعديل عليها بدل التوليد من الصفر.
+            // الأولى = الكيكة، والباقي صور مرجعية (شخصيات، رسومات...) يُشار لها في الوصف.
+            'base_images' => ['nullable', 'array', 'max:'.self::MAX_IMAGES],
+            'base_images.*' => ['image', 'mimes:png,jpg,jpeg,webp', 'max:20480'],
         ]);
 
         if (blank(config('services.openai.key'))) {
@@ -51,15 +55,18 @@ class AiImageController extends Controller
             'quality' => $validated['quality'],
             'n' => 1,
         ];
-        $base = $request->file('base_image');
+        $images = $request->file('base_images', []);
 
         try {
             $client = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(170);
 
-            // مع صورة: نرسلها كملف (multipart) إلى عنوان التعديل. بدون صورة: توليد من الصفر.
-            $response = $base
-                ? $client->attach('image[]', file_get_contents($base->getRealPath()), $base->getClientOriginalName(), ['Content-Type' => $base->getMimeType()])
-                    ->post('https://api.openai.com/v1/images/edits', $fields)
+            // مع صور: نرسلها كملفات (multipart) إلى عنوان التعديل بنفس الترتيب. بدون صور: توليد من الصفر.
+            foreach ($images as $image) {
+                $client->attach('image[]', file_get_contents($image->getRealPath()), $image->getClientOriginalName(), ['Content-Type' => $image->getMimeType()]);
+            }
+
+            $response = $images
+                ? $client->post('https://api.openai.com/v1/images/edits', $fields)
                 : $client->post('https://api.openai.com/v1/images/generations', $fields);
         } catch (ConnectionException) {
             return back()->withInput()->withErrors(['prompt' => 'تعذر الوصول إلى OpenAI (انتهت المهلة أو مشكلة في الشبكة). جربي مرة ثانية.']);
@@ -80,10 +87,12 @@ class AiImageController extends Controller
         $name = self::DIR.'/'.now()->format('Ymd-His').'-'.Str::random(6);
         $disk = Storage::disk('public');
         $disk->put("{$name}.png", base64_decode($base64Image));
-        $basePath = $base ? $base->storeAs(self::DIR, basename($name).'-original.'.$base->extension(), 'public') : null;
+        $bases = collect($images)->values()->map(fn ($image, $i) => $image->storeAs(
+            self::DIR, basename($name).'-original-'.($i + 1).'.'.$image->extension(), 'public'
+        ))->all();
         $disk->put("{$name}.json", json_encode([
-            'mode' => $base ? 'edit' : 'generate',
-            'base' => $basePath,
+            'mode' => $images ? 'edit' : 'generate',
+            'bases' => $bases,
             'prompt' => $validated['prompt'],
             'quality' => $validated['quality'],
             'model' => config('services.openai.image_model'),
@@ -118,7 +127,9 @@ class AiImageController extends Controller
                 return $meta + [
                     'id' => basename($file, '.json'),
                     'url' => $disk->url($png),
-                    'base_url' => ! empty($meta['base']) ? $disk->url($meta['base']) : null,
+                    // 'base' = صيغة قديمة (صورة واحدة)
+                    'base_urls' => collect($meta['bases'] ?? array_filter([$meta['base'] ?? null]))
+                        ->map(fn (string $path) => $disk->url($path))->all(),
                 ];
             })
             ->filter()
