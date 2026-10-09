@@ -138,4 +138,18 @@ class CakeCustomizerTest extends TestCase
         $this->postJson('/cake/signature-cake/customize/price', self::SELECTION + ['design' => 'pink-pearls'])
             ->assertJsonValidationErrors('design');
     }
+
+    public function test_vintage_design_is_listed_and_priced(): void
+    {
+        // فنتج 6 إنش: 110 + فنتج 35
+        $this->get('/cake/signature-cake/designs')
+            ->assertOk()
+            ->assertSee('فنتج 6 إنش')
+            ->assertSee('145 ر.س')
+            ->assertSee('design=vintage-6', false);
+
+        $this->get('/cake/signature-cake/customize?design=vintage-6')
+            ->assertOk()
+            ->assertSee('"toppings":["vintage"]', false);
+    }
 }

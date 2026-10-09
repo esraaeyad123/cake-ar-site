@@ -72,6 +72,7 @@ return [
 
     'toppings' => [
         ['key' => 'beads',     'name' => 'حبات كريمة', 'category' => 'borders', 'price' => 15, 'image' => 'images/toppings/beads.png'],
+        ['key' => 'vintage',   'name' => 'فنتج',       'category' => 'borders', 'price' => 35, 'image' => 'images/toppings/vintage.png'],
         ['key' => 'piping',    'name' => 'حواف كريمة', 'category' => 'borders', 'price' => 18, 'image' => 'images/toppings/piping.png'],
         ['key' => 'pearls',    'name' => 'لؤلؤ',       'category' => 'sides',   'price' => 24, 'image' => 'images/toppings/pearls.png'],
         ['key' => 'cherries',  'name' => 'كرز',        'category' => 'top',     'price' => 20, 'image' => 'images/toppings/cherries.png'],
@@ -81,6 +82,10 @@ return [
     // تصاميم جاهزة (الكولكشن): مجرد اختيارات محفوظة تفتح صفحة التخصيص معبأة
     // photo = صورة حقيقية للكيكة، decal = الرسمة المستخرجة منها (تُلصق على سطح المجسم)، drawing_price = سعر الرسمة (تجريبي)
     'designs' => [
+        [
+            'key' => 'vintage-6', 'name' => 'فنتج 6 إنش', 'image' => 'images/designs/vintage-6.png',
+            'selection' => ['size' => '6in', 'flavor' => 'vanilla', 'filling' => 'plain', 'layers' => 2, 'color' => 'white', 'toppings' => ['vintage']],
+        ],
         [
             'key' => 'tony', 'name' => 'عيد ميلاد سعيد', 'image' => 'images/designs/photos/tony.jpg',
             'photo' => 'images/designs/photos/tony.jpg', 'decal' => 'images/designs/decals/tony.png', 'drawing_price' => 40,

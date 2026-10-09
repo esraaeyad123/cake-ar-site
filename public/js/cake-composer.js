@@ -178,6 +178,76 @@ const TOPPINGS = {
         addMerged(group, 'Piping', geos, mat('CreamMaterial', '#FFF8EC', 0.75));
     },
 
+    // فنتج (Lambeth): صدف كريمة أعلى وأسفل + أكاليل متدلية بكشكش + حبات تحتها + وردة صغيرة عند كل التقاء
+    vintage(tiers, group) {
+        const shells = [], ruffles = [], beads = [], rosettes = [];
+
+        // يوجّه شكلًا محليًا: x على طول الكيكة (المماس)، z نحو مركزها
+        const place = (g, a, r, y) => {
+            g.rotateY(-(a + Math.PI / 2));
+            g.translate(Math.cos(a) * r, y, Math.sin(a) * r);
+            return g;
+        };
+
+        tiers.forEach(t => {
+            const h = t.y1 - t.y0;
+
+            // صدف مائل متداخل (C-shells) على الحافة العلوية والسفلية
+            const shellRing = (r, y, s) => {
+                const n = Math.round((2 * Math.PI * r) / (s * 2.35));
+                for (let i = 0; i < n; i++) {
+                    // رأس منتفخ + ذيل رفيع = شكل صدفة، ومسافة صغيرة بين كل صدفة والثانية
+                    const head = new THREE.SphereGeometry(s, 12, 8);
+                    head.scale(1.05, 1, 1.1);
+                    const tail = new THREE.SphereGeometry(s * 0.55, 10, 6);
+                    tail.scale(1.6, 0.8, 1);
+                    tail.translate(s * 1.05, -s * 0.15, 0);
+                    const a = (i / n) * Math.PI * 2;
+                    shells.push(place(head, a, r, y), place(tail, a, r, y));
+                }
+            };
+            shellRing(t.r - 0.003, t.y1 + 0.0025, Math.max(0.0045, t.r * 0.08));
+            shellRing(t.r + 0.002, t.y0 + 0.006, Math.max(0.005, t.r * 0.085));
+
+            // أكاليل: كل إكليل منحنى يتدلى بين نقطتين على الجانب
+            const swags = Math.max(6, Math.round((2 * Math.PI * t.r) / 0.06));
+            const yTop = t.y1 - h * 0.14, depth = h * 0.3, rr = t.r + 0.0015;
+            for (let i = 0; i < swags; i++) {
+                const a0 = (i / swags) * Math.PI * 2, span = (Math.PI * 2) / swags;
+
+                // كشكش: أقراص رفيعة متقاربة مائلة بالتناوب
+                const m = 22;
+                for (let k = 0; k <= m; k++) {
+                    const u = k / m, y = yTop - depth * Math.sin(Math.PI * u);
+                    const g = new THREE.SphereGeometry(0.0034, 10, 6);
+                    g.scale(0.6, 1.5, 0.45);
+                    g.rotateZ(k % 2 ? 0.25 : -0.25);
+                    ruffles.push(place(g, a0 + span * u, rr + 0.001, y));
+                }
+
+                // صف حبات صغيرة تحت الإكليل
+                const b = 14;
+                for (let k = 1; k < b; k++) {
+                    const u = k / b, y = yTop - depth * Math.sin(Math.PI * u) - 0.008;
+                    const g = new THREE.SphereGeometry(0.0021, 8, 6);
+                    beads.push(place(g, a0 + span * u, rr + 0.0012, y));
+                }
+
+                // وردة صغيرة + لؤلؤة عند نقطة التقاء الإكليلين
+                const d = new THREE.SphereGeometry(0.0055, 12, 8);
+                d.scale(1, 0.95, 0.75);
+                rosettes.push(place(d, a0, rr + 0.002, yTop + 0.001));
+                beads.push(place(new THREE.SphereGeometry(0.0022, 8, 6), a0, rr + 0.006, yTop + 0.001));
+            }
+        });
+
+        const cream = mat('CreamMaterial', '#FFFCF5', 0.7);
+        addMerged(group, 'VintageShells', shells, cream);
+        addMerged(group, 'VintageRuffles', ruffles, cream);
+        addMerged(group, 'VintageRosettes', rosettes, cream);
+        addMerged(group, 'VintageBeads', beads, mat('PearlMaterial', '#FFFDF8', 0.35, 0.1));
+    },
+
     // حبات كريمة دائرية على حافة السطح (مثل كيكة Tony)
     beads(tiers, group) {
         const geos = [];
