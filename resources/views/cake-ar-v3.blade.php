@@ -5,14 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ $cake->name }} - جوماكيك</title>
 
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+        }
+    }
+    </script>
 
     <style>
         * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif;
-            background: #fffafb;
+            background: #FFFFFF;
             text-align: center;
         }
 
@@ -22,7 +30,7 @@
         model-viewer {
             width: 100%;
             height: 46vh;
-            background-color: #F1EFE8;
+            background-color: #FFFFFF;
         }
 
         .viewer-wrap { position: relative; }
@@ -47,6 +55,58 @@
             color: #4B1528;
             white-space: nowrap;
         }
+
+        /* السعر المبدئي */
+        .price-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #fff;
+            border: 1.5px solid #F4C0D1;
+            border-radius: 14px;
+            padding: 8px 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        .price-badge[hidden] { display: none; }
+        .price-badge .amount { font-size: 18px; font-weight: 800; color: #4B1528; white-space: nowrap; }
+        .price-badge .caption { font-size: 11px; font-weight: 700; color: #993556; }
+
+        /* سادة / فنتج */
+        .style-switch {
+            position: absolute;
+            right: 12px;
+            bottom: 74px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .style-option {
+            background: #fff;
+            border: 1.5px solid #F4C0D1;
+            border-radius: 12px;
+            padding: 7px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #993556;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+        }
+        .style-option.active { background: #D4537E; border-color: #D4537E; color: #fff; }
+        .style-option:active { transform: scale(0.95); }
+
+        .viewer-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #993556;
+            pointer-events: none;
+        }
+        .viewer-loading[hidden] { display: none; }
 
         #ar-button-el {
             background: #D4537E;
@@ -279,8 +339,6 @@
     <div class="viewer-wrap">
         <model-viewer
             id="viewer"
-            src="{{ asset('storage/models/cake_4in_layers2_v45.glb') }}"
-            ios-src="{{ asset('storage/models/cake_4in_layers2_v45.usdz') }}"
             alt="{{ $cake->name }}"
             ar
             ar-modes="webxr scene-viewer quick-look"
@@ -298,6 +356,18 @@
         >
             <button id="ar-button-el" slot="ar-button">شاهدها على طاولتك</button>
         </model-viewer>
+
+        <div class="viewer-loading" id="viewer-loading">جاري تجهيز الكيكة…</div>
+
+        <div class="price-badge" id="price-badge" hidden>
+            <div class="amount" id="price-amount"></div>
+            <div class="caption">السعر المبدئي</div>
+        </div>
+
+        <div class="style-switch" id="style-switch">
+            <div class="style-option" data-style="vintage">فنتج</div>
+            <div class="style-option active" data-style="plain">سادة</div>
+        </div>
 
         <div class="serves-badge" id="serves-badge">
             <x-mdi-account-group class="serves-icon" />
@@ -335,7 +405,9 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { composeCake } from "{{ asset('js/cake-composer.js') }}";
+
         // فتح/قفل لوحة الخيارات حسب البادج المضغوط (وحدة مفتوحة بنفس الوقت)
         document.querySelectorAll('.spec-badge.clickable').forEach(badge => {
             badge.addEventListener('click', () => {
@@ -366,19 +438,16 @@
 
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
         let currentLayers = 2;
+        let currentStyle = "plain";  // plain = سادة، vintage = فنتج
 
-        // المدى المسموح بعدد الطبقات لكل مقاس/كومبو — حاليًا نكتفي بـ 2-3 لكل الخيارات
-        const layerLimits = {
-            "4in":  [2, 3],
-            "6in":  [2, 3],
-            "8in":  [2, 3],
-            "10in": [2, 3],
-            "tier2_6-4":     [2, 3],
-            "tier2_8-6":     [2, 3],
-            "tier2_10-8":    [2, 3],
-            "tier3_8-6-4":   [2, 3],
-            "tier3_10-8-6":  [2, 3],
-        };
+        // المدى المسموح بعدد الطبقات لكل مقاس/كومبو (من config/cake_ar.php)
+        const layerLimits = @json($layerLimits);
+        // السعر المبدئي لكل مقاس وعدد طبقات (دور واحد فقط حاليًا)
+        const prices = @json((object) $prices);
+        const CAKE_COLOR = @json(config('cake_ar.cake_color'));
+        const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
+        // النماذج الجاهزة فيها طبقتين و3 طبقات — أكثر من ذلك يُبنى من نموذج 3 طبقات + ارتفاع إضافي
+        const MAX_MODEL_LAYERS = 3;
 
         const layerColors = ['#F4C0D1','#ED93B1','#D4537E','#993556','#72243E','#4B1528','#2C1018'];
 
@@ -420,11 +489,54 @@
             });
         }
 
-        function updateModel() {
-            const path = `${modelsBaseUrl}/cake_${currentSizeKey}_layers${currentLayers}_${MODEL_VERSION}`;
-            viewer.src = path + '.glb';
-            viewer.iosSrc = path + '.usdz';
+        // كل تغيير يركّب الكيكة من جديد؛ نتجاهل النتيجة إذا اختار الزبون شي ثاني قبل ما تخلص
+        let composeToken = 0;
+        let currentBlob = null;
+        const loadingEl = document.getElementById('viewer-loading');
+
+        async function updateModel() {
+            updatePrice();
+            const token = ++composeToken;
+            const modelLayers = Math.min(currentLayers, MAX_MODEL_LAYERS);
+            const base = `${modelsBaseUrl}/cake_${currentSizeKey}_layers${modelLayers}_${MODEL_VERSION}.glb`;
+
+            loadingEl.hidden = !!currentBlob;
+            try {
+                const url = await composeCake(base, {
+                    color: CAKE_COLOR,
+                    style: currentStyle,
+                    extraHeight: (currentLayers - modelLayers) * LAYER_HEIGHT,
+                });
+                if (token !== composeToken) { URL.revokeObjectURL(url); return; }
+                if (currentBlob) URL.revokeObjectURL(currentBlob);
+                currentBlob = url;
+                viewer.src = url;
+            } catch (e) {
+                console.error(e);
+                if (token === composeToken) loadingEl.textContent = 'تعذر تحميل الكيكة، حدّث الصفحة';
+                return;
+            }
+            loadingEl.hidden = true;
         }
+
+        function updatePrice() {
+            const badge = document.getElementById('price-badge');
+            const price = prices[currentSizeKey]?.[currentLayers];
+            badge.hidden = price === undefined;
+            if (price !== undefined) {
+                document.getElementById('price-amount').textContent = Math.round(price) + ' ريال';
+            }
+        }
+
+        document.querySelectorAll('.style-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                if (opt.dataset.style === currentStyle) return;
+                document.querySelectorAll('.style-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                currentStyle = opt.dataset.style;
+                updateModel();
+            });
+        });
 
         // بيانات المقاسات لكل خيار "دور" — دور واحد شغال بالكامل (نماذج حقيقية)
         const sizesData = {
