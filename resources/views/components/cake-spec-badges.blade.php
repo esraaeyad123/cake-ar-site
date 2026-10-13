@@ -8,8 +8,9 @@
     @if ($withShape)
         {{-- الشكل (دائري/قلب/مخروطي) — اسمه بكلاس مختلف حتى لا يغيّر ترتيب .spec-label للبقية --}}
         <div class="spec-badge clickable" data-target="panel-shape">
+            {{-- الأيقونة تتغير مع الشكل المختار (شوف SHAPE_ICONS في الصفحة) --}}
             <svg class="spec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/>
+                <path id="shape-icon" d="M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z"/>
             </svg>
             <span class="spec-label-shape" id="shape-label">دائري</span>
         </div>

@@ -14,8 +14,9 @@ use Throwable;
 class CakePricing
 {
     /**
-     * أسعار المقاسات بدور واحد: ['4in' => [2 => 65, 3 => 75], ...] حسب الطبقات المسموحة في الصفحة.
-     * الأدوار المتعددة ما لها سعر بعد في الموقع، فما ترجع هنا.
+     * السعر المبدئي لكل مقاس/كومبو حسب الطبقات المسموحة في الصفحة:
+     * ['4in' => [2 => 65, 3 => 75], 'tier2_6-4' => [2 => 175, ...], ...]
+     * الأدوار المتعددة تُحسب مثل موقع جوماكيك: كل دور بسعر مقاسه وطبقاته، والمجموع للكيكة.
      */
     public function startingPrices(): array
     {
@@ -23,15 +24,20 @@ class CakePricing
         $prices = [];
 
         foreach (config('cake_ar.layers') as $sizeKey => $allowed) {
-            $inch = rtrim($sizeKey, 'in');
-            if (! isset($table[$inch])) {
-                continue;
-            }
+            // "6in" => [6]، "tier2_8-6" => [8, 6]
+            $inches = str_starts_with($sizeKey, 'tier')
+                ? explode('-', substr($sizeKey, strpos($sizeKey, '_') + 1))
+                : [rtrim($sizeKey, 'in')];
 
             foreach ($allowed as $layers) {
-                if (isset($table[$inch]['layers'][$layers])) {
-                    $prices[$sizeKey][$layers] = $table[$inch]['base'] + $table[$inch]['layers'][$layers];
+                $total = 0;
+                foreach ($inches as $inch) {
+                    if (! isset($table[$inch]['layers'][$layers])) {
+                        continue 2;
+                    }
+                    $total += $table[$inch]['base'] + $table[$inch]['layers'][$layers];
                 }
+                $prices[$sizeKey][$layers] = $total;
             }
         }
 

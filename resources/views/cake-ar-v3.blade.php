@@ -470,7 +470,7 @@
 
         // المدى المسموح بعدد الطبقات لكل مقاس/كومبو (من config/cake_ar.php)
         const layerLimits = @json($layerLimits);
-        // السعر المبدئي لكل مقاس وعدد طبقات (دور واحد فقط حاليًا)
+        // السعر المبدئي لكل مقاس/كومبو وعدد طبقات
         const prices = @json((object) $prices);
         const CAKE_COLOR = @json(config('cake_ar.cake_color'));
         const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
@@ -612,7 +612,7 @@
                 card.dataset.serves = s.serves;
 
                 const circleSize = 26 + i * 8;
-                // سعر المقاس بأقل عدد طبقات (الأدوار المتعددة ما لها سعر بعد)
+                // سعر المقاس/الكومبو بأقل عدد طبقات
                 const basePrice = prices[s.sizeKey]?.[(layerLimits[s.sizeKey] || [2])[0]];
                 card.innerHTML = `
                     ${s.badge ? '<div class="badge">الأكثر طلبًا</div>' : ''}
@@ -668,6 +668,11 @@
 
         // الشكل: القلب والمخروطي دور واحد فقط، والمخروطي ارتفاعه ثابت (بدون طبقات) وبدون فنتج
         const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي' };
+        const SHAPE_ICONS = {
+            round: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z',
+            heart: 'M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z',
+            cone: 'M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z',
+        };
         document.querySelectorAll('.shape-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 if (opt.dataset.shape === currentShape) return;
@@ -675,6 +680,7 @@
                 opt.classList.add('active');
                 currentShape = opt.dataset.shape;
                 document.getElementById('shape-label').textContent = SHAPE_LABELS[currentShape];
+                document.getElementById('shape-icon').setAttribute('d', SHAPE_ICONS[currentShape]);
 
                 const singleTierOnly = currentShape !== 'round';
                 const tierOne = document.querySelector('#tier-switch .tier-option[data-tier="1"]');
