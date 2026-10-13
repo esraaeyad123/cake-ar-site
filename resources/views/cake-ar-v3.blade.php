@@ -171,6 +171,7 @@
             color: #fff;
         }
         .tier-option:active { transform: scale(0.96); }
+        .tier-option.disabled, .style-option.disabled { opacity: 0.35; cursor: not-allowed; }
         .tier-note {
             font-size: 11px;
             color: #993556;
@@ -395,8 +396,18 @@
         :tier-count="1"
         :size-label="$defaultVariant->size_label"
         :layers-count="2"
+        :with-shape="true"
         id="spec-badges-el"
     />
+
+    <div id="panel-shape" class="options-panel">
+        <div class="section-title">شكل الكيكة</div>
+        <div class="tier-switch" id="shape-switch">
+            <div class="tier-option shape-option active" data-shape="round">دائري</div>
+            <div class="tier-option shape-option" data-shape="heart">قلب</div>
+            <div class="tier-option shape-option" data-shape="cone">مخروطي</div>
+        </div>
+    </div>
 
     <div id="panel-tier" class="options-panel">
         <div class="section-title">عدد الأدوار</div>
@@ -440,10 +451,10 @@
                 }
             });
         });
-                // فتح لوحة "عدد الأدوار" افتراضيًا عند تحميل الصفحة
-        (function openTierPanelByDefault() {
-            const defaultPanel = document.getElementById('panel-tier');
-            const defaultBadge = document.querySelector('.spec-badge.clickable[data-target="panel-tier"]');
+        // فتح لوحة "الشكل" افتراضيًا عند تحميل الصفحة (أول اختيار)
+        (function openShapePanelByDefault() {
+            const defaultPanel = document.getElementById('panel-shape');
+            const defaultBadge = document.querySelector('.spec-badge.clickable[data-target="panel-shape"]');
             if (defaultPanel) defaultPanel.classList.add('open');
             if (defaultBadge) defaultBadge.classList.add('open');
         })();
@@ -455,6 +466,7 @@
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
         let currentLayers = 2;
         let currentStyle = "plain";  // plain = سادة، vintage = فنتج
+        let currentShape = "round";  // round = دائري، heart = قلب، cone = مخروطي
 
         // المدى المسموح بعدد الطبقات لكل مقاس/كومبو (من config/cake_ar.php)
         const layerLimits = @json($layerLimits);
@@ -462,6 +474,7 @@
         const prices = @json((object) $prices);
         const CAKE_COLOR = @json(config('cake_ar.cake_color'));
         const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
+        const BOARD_COLOR = @json(config('cake_ar.board_color'));
         // النماذج الجاهزة فيها طبقتين و3 طبقات — أكثر من ذلك يُبنى من نموذج 3 طبقات + ارتفاع إضافي
         const MAX_MODEL_LAYERS = 3;
 
@@ -528,7 +541,9 @@
             try {
                 const url = await composeCake(base, {
                     color: CAKE_COLOR,
-                    style: currentStyle,
+                    boardColor: BOARD_COLOR,
+                    shape: currentShape,
+                    style: currentShape === 'cone' ? 'plain' : currentStyle,
                     extraHeight: (currentLayers - modelLayers) * LAYER_HEIGHT,
                 });
                 if (token !== composeToken) { URL.revokeObjectURL(url); return; }
@@ -554,7 +569,7 @@
 
         document.querySelectorAll('.style-option').forEach(opt => {
             opt.addEventListener('click', () => {
-                if (opt.dataset.style === currentStyle) return;
+                if (opt.dataset.style === currentStyle || opt.classList.contains('disabled')) return;
                 document.querySelectorAll('.style-option').forEach(o => o.classList.remove('active'));
                 opt.classList.add('active');
                 currentStyle = opt.dataset.style;
@@ -626,9 +641,10 @@
             });
         }
 
-        document.querySelectorAll('.tier-option').forEach(opt => {
+        document.querySelectorAll('#tier-switch .tier-option').forEach(opt => {
             opt.addEventListener('click', () => {
-                document.querySelectorAll('.tier-option').forEach(o => o.classList.remove('active'));
+                if (opt.classList.contains('disabled')) return;
+                document.querySelectorAll('#tier-switch .tier-option').forEach(o => o.classList.remove('active'));
                 opt.classList.add('active');
 
                 const tier = parseInt(opt.dataset.tier);
@@ -647,6 +663,35 @@
                 document.getElementById('serves-text').textContent = firstOption.serves;
                 document.querySelectorAll('.spec-label')[2].textContent =
                     currentLayers + (currentLayers == 1 ? ' طبقة' : ' طبقات');
+            });
+        });
+
+        // الشكل: القلب والمخروطي دور واحد فقط، والمخروطي ارتفاعه ثابت (بدون طبقات) وبدون فنتج
+        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي' };
+        document.querySelectorAll('.shape-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                if (opt.dataset.shape === currentShape) return;
+                document.querySelectorAll('.shape-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                currentShape = opt.dataset.shape;
+                document.getElementById('shape-label').textContent = SHAPE_LABELS[currentShape];
+
+                const singleTierOnly = currentShape !== 'round';
+                const tierOne = document.querySelector('#tier-switch .tier-option[data-tier="1"]');
+                if (singleTierOnly && !tierOne.classList.contains('active')) tierOne.click();
+                document.querySelectorAll('#tier-switch .tier-option:not([data-tier="1"])')
+                    .forEach(o => o.classList.toggle('disabled', singleTierOnly));
+
+                const isCone = currentShape === 'cone';
+                document.querySelector('.spec-badge[data-target="panel-layers"]').style.display = isCone ? 'none' : '';
+                document.querySelector('.style-option[data-style="vintage"]').classList.toggle('disabled', isCone);
+                if (isCone) {
+                    currentLayers = (layerLimits[currentSizeKey] || [2])[0];
+                    renderLayerChips(currentSizeKey);
+                    document.querySelectorAll('.spec-label')[2].textContent = currentLayers + ' طبقات';
+                }
+
+                updateModel();
             });
         });
 

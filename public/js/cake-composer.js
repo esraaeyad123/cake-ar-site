@@ -113,75 +113,163 @@ function addMerged(group, name, geos, material) {
     group.add(mesh);
 }
 
-// يوجّه شكلًا محليًا حول الكيكة: x على طول المحيط (المماس)، y للأعلى، z نحو المركز
-function place(g, a, r, y) {
-    g.rotateY(-(a + Math.PI / 2));
-    g.translate(Math.cos(a) * r, y, Math.sin(a) * r);
+// ---------- محيط الكيكة (دائري أو قلب) ----------
+
+/**
+ * محيط مغلق على مستوى x/z كنقاط متقاربة، مع طول كل جزء والاتجاه للخارج،
+ * حتى توزَّع الزخرفة بالتساوي على أي شكل.
+ */
+function makeOutline(points) {
+    // اتجاه الرسم (مع/عكس عقارب الساعة) لتحديد الخارج
+    let area = 0;
+    points.forEach((p, i) => { const q = points[(i + 1) % points.length]; area += p.x * q.z - q.x * p.z; });
+    const sign = area > 0 ? 1 : -1;
+
+    const n = points.length, cum = [0];
+    for (let i = 0; i < n; i++) {
+        const p = points[i], q = points[(i + 1) % n];
+        cum.push(cum[i] + Math.hypot(q.x - p.x, q.z - p.z));
+    }
+    const normals = points.map((_, i) => {
+        const a = points[(i - 1 + n) % n], b = points[(i + 1) % n];
+        const tx = b.x - a.x, tz = b.z - a.z, l = Math.hypot(tx, tz) || 1;
+        return { nx: sign * tz / l, nz: -sign * tx / l };
+    });
+
+    return {
+        length: cum[n],
+        // نقطة على المحيط بعد مسافة d من البداية
+        at(d) {
+            d = ((d % cum[n]) + cum[n]) % cum[n];
+            let lo = 0, hi = n;
+            while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= d) lo = mid; else hi = mid; }
+            const u = (d - cum[lo]) / ((cum[lo + 1] - cum[lo]) || 1);
+            const p = points[lo], q = points[(lo + 1) % n], np = normals[lo], nq = normals[(lo + 1) % n];
+            const nx = np.nx + (nq.nx - np.nx) * u, nz = np.nz + (nq.nz - np.nz) * u, l = Math.hypot(nx, nz) || 1;
+            return { x: p.x + (q.x - p.x) * u, z: p.z + (q.z - p.z) * u, nx: nx / l, nz: nz / l };
+        },
+    };
+}
+
+function circleOutline(r) {
+    const pts = [];
+    for (let i = 0; i < 256; i++) {
+        const a = (i / 256) * Math.PI * 2;
+        pts.push({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+    }
+    return makeOutline(pts);
+}
+
+// قلب بعرض 2r، رأسه المدبب باتجاه الكاميرا (+z)
+function heartPoints(r, count = 240) {
+    const k = r / 16, pts = [];
+    for (let i = 0; i < count; i++) {
+        const t = (i / count) * Math.PI * 2;
+        const x = 16 * Math.pow(Math.sin(t), 3);
+        const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+        pts.push({ x: k * x, z: -k * (y + 2.5) });
+    }
+    return pts;
+}
+
+// يوجّه شكلًا محليًا عند نقطة على المحيط: x على طول المحيط، y للأعلى، z نحو الداخل.
+// offset: بُعد عن المحيط للخارج (سالب = للداخل)
+function place(g, p, offset, y) {
+    g.rotateY(-(Math.atan2(p.nz, p.nx) + Math.PI / 2));
+    g.translate(p.x + p.nx * offset, y, p.z + p.nz * offset);
     return g;
 }
 
 // ---------- جسم الكيكة ----------
 
-function cakeBody(tier, material) {
+function bevelSize(tier) {
+    return Math.min(0.009, (tier.y1 - tier.y0) * 0.14, tier.r * 0.12);
+}
+
+function roundBody(tier, material) {
     const { r, y0, y1 } = tier;
-    const e = Math.min(0.009, (y1 - y0) * 0.14, r * 0.12);
+    const e = bevelSize(tier);
     const pts = [new THREE.Vector2(0, y0), new THREE.Vector2(r, y0), new THREE.Vector2(r, y1 - e)];
     for (let i = 1; i <= 10; i++) {
         const a = (i / 10) * Math.PI / 2;
         pts.push(new THREE.Vector2(r - e + Math.cos(a) * e, y1 - e + Math.sin(a) * e));
     }
     pts.push(new THREE.Vector2(0, y1));
-    const mesh = new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
-    mesh.name = 'CakeTier';
-    return mesh;
+    return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
 }
 
-// ---------- زخرفة الفنتج ----------
+// قلب ممدود للأعلى بحافة علوية دائرية
+function heartBody(tier, material) {
+    const { r, y0, y1 } = tier;
+    const e = bevelSize(tier);
+    const shape = new THREE.Shape(heartPoints(r - e).map(p => new THREE.Vector2(p.x, -p.z)));
+    const g = new THREE.ExtrudeGeometry(shape, {
+        depth: (y1 - y0) - 2 * e, bevelEnabled: true, bevelThickness: e, bevelSize: e, bevelSegments: 5, curveSegments: 1,
+    });
+    g.rotateX(-Math.PI / 2);   // العمق يصير للأعلى
+    g.translate(0, y0 + e, 0);
+    g.computeVertexNormals();
+    return new THREE.Mesh(g, material);
+}
+
+// مخروط مثل قبعة الحفلة: جوانب منتفخة قليلًا ورأس دائري
+function coneBody(tier, material) {
+    const { r, y0, y1 } = tier;
+    const pts = [new THREE.Vector2(0, y0)];
+    for (let i = 0; i <= 40; i++) {
+        const t = i / 40;
+        pts.push(new THREE.Vector2(r * Math.pow(1 - Math.pow(t, 1.3), 0.75), y0 + (y1 - y0) * t));
+    }
+    return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
+}
+
+// ---------- الزخرفة ----------
+
+// صدف: رأس منتفخ + ذيل رفيع على طول المحيط
+function shellBorder(outline, y, bs, out) {
+    const n = Math.round(outline.length / (bs * 2.3));
+    for (let i = 0; i < n; i++) {
+        const p = outline.at((i / n) * outline.length);
+        const head = new THREE.SphereGeometry(bs, 10, 7);
+        head.scale(1.05, 0.95, 1.05);
+        const tail = new THREE.SphereGeometry(bs * 0.55, 8, 5);
+        tail.scale(1.6, 0.8, 1);
+        tail.translate(bs * 1.05, -bs * 0.2, 0);
+        out.push(place(head, p, bs * 0.35, y), place(tail, p, bs * 0.35, y));
+    }
+}
 
 /**
  * مثل كيكات الفنتج الكلاسيكية:
  * حبل كريمة ملفوف على الحافة العلوية، أقواس متدلية (كشكش + خيط رفيع + حبات)،
  * شرّابة ووردة عند كل التقاء، نقاط عمودية تحت الشرّابة، وصدف على الحافة السفلية.
  */
-function vintage(tiers, group, color) {
-    const piping = [], beads = [];
-
+function vintage(tiers, piping, beads) {
     tiers.forEach(t => {
-        const h = t.y1 - t.y0;
+        const h = t.y1 - t.y0, o = t.outline, L = o.length;
         const s = Math.max(0.0042, Math.min(0.0065, t.r * 0.06)); // حجم الزخرفة حسب الدور
 
         // حبل ملفوف: حبات مائلة متداخلة
-        const ropeR = t.r - s * 0.55;
-        const ropeN = Math.round((2 * Math.PI * ropeR) / (s * 1.25));
+        const ropeN = Math.round(L / (s * 1.25));
         for (let i = 0; i < ropeN; i++) {
             const g = new THREE.SphereGeometry(s, 10, 6);
             g.scale(1.45, 0.78, 0.9);
             g.rotateZ(0.65);
-            piping.push(place(g, (i / ropeN) * Math.PI * 2, ropeR, t.y1 + s * 0.45));
+            piping.push(place(g, o.at((i / ropeN) * L), -s * 0.55, t.y1 + s * 0.45));
         }
 
-        // صدف سفلي: رأس منتفخ + ذيل رفيع
-        const bs = s * 1.1, shellR = t.r + bs * 0.35;
-        const shellN = Math.round((2 * Math.PI * shellR) / (bs * 2.3));
-        for (let i = 0; i < shellN; i++) {
-            const a = (i / shellN) * Math.PI * 2;
-            const head = new THREE.SphereGeometry(bs, 10, 7);
-            head.scale(1.05, 0.95, 1.05);
-            const tail = new THREE.SphereGeometry(bs * 0.55, 8, 5);
-            tail.scale(1.6, 0.8, 1);
-            tail.translate(bs * 1.05, -bs * 0.2, 0);
-            piping.push(place(head, a, shellR, t.y0 + bs * 0.9), place(tail, a, shellR, t.y0 + bs * 0.9));
-        }
+        const bs = s * 1.1;
+        shellBorder(o, t.y0 + bs * 0.9, bs, piping);
 
         // الأقواس
-        const swags = Math.max(5, Math.round((2 * Math.PI * t.r) / 0.075));
-        const span = (Math.PI * 2) / swags;
+        const swags = Math.max(5, Math.round(L / 0.075));
+        const span = L / swags;
         const yTop = t.y1 - s * 2.2;                         // نقطة تعليق القوس تحت الحبل
         const depth = Math.min(h * 0.32, t.r * 0.42);        // عمق تدلي الكشكش
-        const rr = t.r + 0.0012;
+        const rr = 0.0012;
 
         for (let i = 0; i < swags; i++) {
-            const a0 = i * span;
+            const d0 = i * span, p0 = o.at(d0);
 
             // كشكش: أقراص رفيعة متقاربة مائلة بالتناوب
             const m = 26;
@@ -190,28 +278,28 @@ function vintage(tiers, group, color) {
                 const g = new THREE.SphereGeometry(s * 0.55, 8, 5);
                 g.scale(0.55, 1.45, 0.45);
                 g.rotateZ(k % 2 ? 0.28 : -0.28);
-                piping.push(place(g, a0 + span * u, rr + 0.0008, y));
+                piping.push(place(g, o.at(d0 + span * u), rr + 0.0008, y));
             }
 
             // حبات صغيرة تحت الكشكش
             const b = 14;
             for (let k = 2; k < b - 1; k++) {
                 const u = k / b, y = yTop - depth * Math.sin(Math.PI * u) - s * 1.05;
-                beads.push(place(new THREE.SphereGeometry(s * 0.32, 6, 4), a0 + span * u, rr + 0.001, y));
+                beads.push(place(new THREE.SphereGeometry(s * 0.32, 6, 4), o.at(d0 + span * u), rr + 0.001, y));
             }
 
             // خيط رفيع فوق الكشكش
             const pts = [];
             for (let k = 0; k <= 20; k++) {
-                const u = k / 20, a = a0 + span * u, y = yTop - depth * 0.55 * Math.sin(Math.PI * u);
-                pts.push(new THREE.Vector3(Math.cos(a) * (rr + 0.0008), y, Math.sin(a) * (rr + 0.0008)));
+                const u = k / 20, p = o.at(d0 + span * u), y = yTop - depth * 0.55 * Math.sin(Math.PI * u);
+                pts.push(new THREE.Vector3(p.x + p.nx * (rr + 0.0008), y, p.z + p.nz * (rr + 0.0008)));
             }
             piping.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, s * 0.17, 5, false));
 
             // وردة صغيرة عند نقطة التعليق
             const rose = new THREE.SphereGeometry(s * 0.95, 12, 8);
             rose.scale(1, 1, 0.7);
-            piping.push(place(rose, a0, rr + s * 0.35, yTop + s * 0.2));
+            piping.push(place(rose, p0, rr + s * 0.35, yTop + s * 0.2));
 
             // شرّابة: خيوط متدلية تحت الوردة
             const tassel = Math.min(depth * 1.05, h * 0.42);
@@ -219,7 +307,7 @@ function vintage(tiers, group, color) {
                 const g = new THREE.CapsuleGeometry(s * 0.2, tassel * 0.8, 2, 5);
                 g.rotateZ(k * 0.06);
                 g.translate(k * s * 0.28, -tassel * 0.5, 0);
-                piping.push(place(g, a0, rr + s * 0.25, yTop - s * 0.4));
+                piping.push(place(g, p0, rr + s * 0.25, yTop - s * 0.4));
             }
 
             // نقاط عمودية تحت الشرّابة (من الكبير للصغير) إذا بقي مكان فوق الصدف
@@ -227,29 +315,29 @@ function vintage(tiers, group, color) {
             const floor = t.y0 + bs * 2.6;
             [0.42, 0.34, 0.27].forEach(f => {
                 if (y - s * f < floor) return;
-                beads.push(place(new THREE.SphereGeometry(s * f, 8, 6), a0, rr + 0.001, y));
+                beads.push(place(new THREE.SphereGeometry(s * f, 8, 6), p0, rr + 0.001, y));
                 y -= s * 1.5;
             });
         }
     });
-
-    const cream = creamMat('PipingMaterial', color, 0.08);
-    addMerged(group, 'VintagePiping', piping, cream);
-    addMerged(group, 'VintageBeads', beads, cream);
 }
 
 // ---------- التركيب ----------
 
 /**
- * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات)
- * @param {{color: string, style?: 'plain'|'vintage', extraHeight?: number}} options
+ * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي نموذج دور واحد
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone', style?: 'plain'|'vintage', extraHeight?: number}} options
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
  */
-export async function composeCake(baseUrl, { color, style = 'plain', extraHeight = 0 }) {
+export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shape = 'round', style = 'plain', extraHeight = 0 }) {
     const base = await loadBase(baseUrl);
     const tiers = base.tiers.map(t => ({ ...t }));
     if (extraHeight && tiers.length === 1) tiers[0].y1 += extraHeight;
+    if (shape === 'cone') tiers[0].y1 = tiers[0].y0 + tiers[0].r * 2.9; // ارتفاع ثابت حسب المقاس
+    tiers.forEach(t => {
+        t.outline = shape === 'heart' ? makeOutline(heartPoints(t.r)) : circleOutline(t.r);
+    });
 
     const root = new THREE.Group();
     root.name = 'JOMACAKE';
@@ -258,7 +346,7 @@ export async function composeCake(baseUrl, { color, style = 'plain', extraHeight
         const g = base.board.geo.clone().toNonIndexed();
         g.deleteAttribute('color');
         g.computeVertexNormals();
-        const board = new THREE.Mesh(g, mat('BoardMaterial', '#FFFFFF', 0.95));
+        const board = new THREE.Mesh(g, mat('BoardMaterial', boardColor, 0.95));
         board.name = 'Board';
         root.add(board);
     }
@@ -281,9 +369,24 @@ export async function composeCake(baseUrl, { color, style = 'plain', extraHeight
     }
 
     const cakeMat = creamMat('CakeMaterial', color, 0.35);
-    tiers.forEach(t => root.add(cakeBody(t, cakeMat)));
+    const body = { round: roundBody, heart: heartBody, cone: coneBody }[shape] || roundBody;
+    tiers.forEach(t => {
+        const mesh = body(t, cakeMat);
+        mesh.name = 'CakeTier';
+        root.add(mesh);
+    });
 
-    if (style === 'vintage') vintage(tiers, root, color);
+    const piping = [], beads = [];
+    if (shape === 'cone') {
+        // المخروطي: صدف على القاعدة فقط (مثل كيكة قبعة الحفلة)
+        const t = tiers[0], bs = Math.max(0.005, Math.min(0.008, t.r * 0.075));
+        shellBorder(t.outline, t.y0 + bs * 0.9, bs, piping);
+    } else if (style === 'vintage') {
+        vintage(tiers, piping, beads);
+    }
+    const cream = creamMat('PipingMaterial', color, 0.08);
+    addMerged(root, 'Piping', piping, cream);
+    addMerged(root, 'Beads', beads, cream);
 
     const glb = await exporter.parseAsync(root, { binary: true });
     return URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));

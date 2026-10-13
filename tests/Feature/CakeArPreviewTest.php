@@ -43,6 +43,8 @@ class CakeArPreviewTest extends TestCase
             ->assertSee('فنتج')
             ->assertSee('سادة')
             ->assertSee('السعر المبدئي')
+            ->assertSee('data-shape="heart"', false)
+            ->assertSee('data-shape="cone"', false)
             ->assertSee('const prices = {"4in":{"2":70,"3":80},"6in":{"2":110,"3":130,"4":150}}', false)
             ->assertSee('"6in":[2,3,4]', false);
     }

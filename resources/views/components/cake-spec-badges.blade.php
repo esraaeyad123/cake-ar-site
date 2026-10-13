@@ -1,10 +1,20 @@
-@props(['tierCount' => 1, 'sizeLabel', 'layersCount' => 1])
+@props(['tierCount' => 1, 'sizeLabel', 'layersCount' => 1, 'withShape' => false])
 
 {{--
     صف الدلالات البصرية أسفل المجسم — كل بادج (دور/حجم/طبقات) زر يفتح لوحة الخيارات المطابقة له.
     ملاحظة: بادج "عدد الأشخاص" انتقل ليكون عنصر مستقل بزاوية يسار المجسم (شوف serves-badge بالصفحة الرئيسية)
 --}}
 <div class="cake-spec-badges" dir="rtl">
+    @if ($withShape)
+        {{-- الشكل (دائري/قلب/مخروطي) — اسمه بكلاس مختلف حتى لا يغيّر ترتيب .spec-label للبقية --}}
+        <div class="spec-badge clickable" data-target="panel-shape">
+            <svg class="spec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/>
+            </svg>
+            <span class="spec-label-shape" id="shape-label">دائري</span>
+        </div>
+    @endif
+
     <div class="spec-badge clickable" data-target="panel-tier">
         <img src="{{ asset('images/icons/floor.png') }}" alt="عدد الأدوار" class="spec-icon">
         <span class="spec-label">{{ $tierCount == 1 ? 'دور واحد' : $tierCount . ' أدوار' }}</span>
@@ -52,7 +62,7 @@
         height: 28px;
         color: #D4537E;
     }
-    .spec-label {
+    .spec-label, .spec-label-shape {
         font-size: 12px;
         font-weight: 700;
         color: #4B1528;
