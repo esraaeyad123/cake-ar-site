@@ -98,6 +98,14 @@ function mat(name, color, roughness, metalness = 0) {
     return new THREE.MeshStandardMaterial({ name, color: new THREE.Color(color), roughness, metalness });
 }
 
+// كريمة: إضاءة ذاتية خفيفة بنفس اللون حتى ما تطلع جوانب الكيكة رمادية/غامقة في المعاينة
+function creamMat(name, color, glow) {
+    const m = mat(name, color, 0.7);
+    m.emissive = new THREE.Color(color);
+    m.emissiveIntensity = glow;
+    return m;
+}
+
 function addMerged(group, name, geos, material) {
     if (!geos.length) return;
     const mesh = new THREE.Mesh(mergeGeometries(geos), material);
@@ -225,7 +233,7 @@ function vintage(tiers, group, color) {
         }
     });
 
-    const cream = mat('PipingMaterial', color, 0.72);
+    const cream = creamMat('PipingMaterial', color, 0.08);
     addMerged(group, 'VintagePiping', piping, cream);
     addMerged(group, 'VintageBeads', beads, cream);
 }
@@ -272,7 +280,7 @@ export async function composeCake(baseUrl, { color, style = 'plain', extraHeight
         root.add(logo);
     }
 
-    const cakeMat = mat('CakeMaterial', color, 0.62);
+    const cakeMat = creamMat('CakeMaterial', color, 0.35);
     tiers.forEach(t => root.add(cakeBody(t, cakeMat)));
 
     if (style === 'vintage') vintage(tiers, root, color);

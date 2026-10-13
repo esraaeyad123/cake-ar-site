@@ -349,7 +349,7 @@
             camera-orbit="0deg 78deg 105%"
             min-camera-orbit="auto 65deg auto"
             max-camera-orbit="auto 85deg auto"
-            shadow-intensity="0.2"
+            shadow-intensity="0.1"
             shadow-softness="1"
             exposure="1"
             environment-image="neutral"
