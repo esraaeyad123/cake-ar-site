@@ -619,7 +619,6 @@
                     <div class="check">✓</div>
                     <div class="circle" style="width:${circleSize}px;height:${circleSize}px;"></div>
                     <div class="num">${s.label} إنش</div>
-                    <div class="serves">${s.serves}</div>
                     ${basePrice !== undefined ? `<div class="card-price">${money(basePrice)}</div>` : ''}
                 `;
 
@@ -669,7 +668,7 @@
         // الشكل: القلب والمخروطي دور واحد فقط، والمخروطي ارتفاعه ثابت (بدون طبقات) وبدون فنتج
         const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي' };
         const SHAPE_ICONS = {
-            round: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z',
+            round: 'M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9',
             heart: 'M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z',
             cone: 'M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z',
         };

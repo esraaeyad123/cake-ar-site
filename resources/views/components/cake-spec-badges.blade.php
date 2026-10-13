@@ -10,7 +10,7 @@
         <div class="spec-badge clickable" data-target="panel-shape">
             {{-- الأيقونة تتغير مع الشكل المختار (شوف SHAPE_ICONS في الصفحة) --}}
             <svg class="spec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
-                <path id="shape-icon" d="M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z"/>
+                <path id="shape-icon" d="M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9"/>
             </svg>
             <span class="spec-label-shape" id="shape-label">دائري</span>
         </div>
