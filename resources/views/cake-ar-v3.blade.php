@@ -474,7 +474,7 @@
         const prices = @json((object) $prices);
         const CAKE_COLOR = @json(config('cake_ar.cake_color'));
         const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
-        const BOARD_COLOR = @json(config('cake_ar.board_color'));
+        const BOARD_COLORS = @json(config('cake_ar.board_colors'));
         // النماذج الجاهزة فيها طبقتين و3 طبقات — أكثر من ذلك يُبنى من نموذج 3 طبقات + ارتفاع إضافي
         const MAX_MODEL_LAYERS = 3;
 
@@ -541,7 +541,7 @@
             try {
                 const url = await composeCake(base, {
                     color: CAKE_COLOR,
-                    boardColor: BOARD_COLOR,
+                    boardColor: BOARD_COLORS[currentSizeKey] || BOARD_COLORS.default,
                     shape: currentShape,
                     style: currentShape === 'cone' ? 'plain' : currentStyle,
                     extraHeight: (currentLayers - modelLayers) * LAYER_HEIGHT,
