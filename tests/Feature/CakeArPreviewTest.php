@@ -45,8 +45,8 @@ class CakeArPreviewTest extends TestCase
             ->assertSee('السعر المبدئي')
             ->assertSee('data-shape="heart"', false)
             ->assertSee('data-shape="cone"', false)
-            // دورين 6/4 = سعر 6 إنش + سعر 4 إنش بنفس عدد الطبقات
-            ->assertSee('const prices = {"4in":{"2":70,"3":80},"6in":{"2":110,"3":130,"4":150},"tier2_6-4":{"2":180,"3":210}}', false)
+            // دورين 6/4 = سعر 6 إنش (الدور السفلي) بنفس عدد الطبقات
+            ->assertSee('const prices = {"4in":{"2":70,"3":80},"6in":{"2":110,"3":130,"4":150},"tier2_6-4":{"2":110,"3":130}}', false)
             ->assertSee('"6in":[2,3,4]', false);
     }
 
@@ -54,10 +54,10 @@ class CakeArPreviewTest extends TestCase
     {
         Http::fake(['*' => Http::response(null, 500)]);
 
-        // 8 إنش 155 + 4 طبقات 50، و3 أدوار 10/8/6 = 200 + 155 + 110
+        // 8 إنش 155 + 4 طبقات 50، و3 أدوار 10/8/6 بسعر 10 إنش
         $this->get('/cake/signature-cake/ar')
             ->assertOk()
             ->assertSee('"8in":{"2":155,"3":180,"4":205}', false)
-            ->assertSee('"tier3_10-8-6":{"2":465,"3":540}', false);
+            ->assertSee('"tier3_10-8-6":{"2":200,"3":230}', false);
     }
 }
