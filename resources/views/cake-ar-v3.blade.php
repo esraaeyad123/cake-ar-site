@@ -268,7 +268,7 @@
             scroll-snap-type: x mandatory;
         }
         .layer-chip {
-            flex: 0 0 48px;
+            flex: 0 0 52px;
             scroll-snap-align: start;
             background: #fff;
             border: 1.5px solid #F4C0D1;
@@ -308,6 +308,22 @@
             margin-bottom: 6px;
         }
         .layer-chip .bars div { border-radius: 2px; }
+        /* سعر صغير تحت المقاس والطبقة */
+        .size-card .card-price, .layer-chip .chip-price {
+            font-size: 10px;
+            font-weight: 700;
+            color: #D4537E;
+            margin-top: 3px;
+            white-space: nowrap;
+        }
+        /* رمز الريال السعودي */
+        .riyal {
+            width: 0.85em;
+            height: 0.85em;
+            vertical-align: -0.08em;
+            margin-inline-start: 2px;
+        }
+
         .layer-chip .lnum {
             font-size: 14px;
             font-weight: 700;
@@ -449,6 +465,10 @@
         // النماذج الجاهزة فيها طبقتين و3 طبقات — أكثر من ذلك يُبنى من نموذج 3 طبقات + ارتفاع إضافي
         const MAX_MODEL_LAYERS = 3;
 
+        // رمز الريال السعودي الجديد (SVG حتى يظهر على كل الأجهزة)
+        const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
+        const money = n => `${Math.round(n)}${RIYAL}`;
+
         const layerColors = ['#F4C0D1','#ED93B1','#D4537E','#993556','#72243E','#4B1528','#2C1018'];
 
         function renderLayerChips(sizeKey) {
@@ -460,7 +480,10 @@
                 currentLayers = allowed[0];
             }
 
+            const sizePrices = prices[sizeKey];
             allowed.forEach(n => {
+                // زيادة السعر عن أقل عدد طبقات (مثل موقع جوماكيك: 2 طبقة +0، 3 طبقات +20...)
+                const extra = sizePrices?.[n] !== undefined ? sizePrices[n] - sizePrices[allowed[0]] : null;
                 const chip = document.createElement('div');
                 chip.className = 'layer-chip' + (n === currentLayers ? ' active' : '');
                 chip.dataset.layers = n;
@@ -475,6 +498,7 @@
                     <div class="check">✓</div>
                     <div class="bars">${barsHtml}</div>
                     <div class="lnum">${n}</div>
+                    ${extra !== null ? `<div class="chip-price">+${money(extra)}</div>` : ''}
                 `;
 
                 chip.addEventListener('click', () => {
@@ -524,7 +548,7 @@
             const price = prices[currentSizeKey]?.[currentLayers];
             badge.hidden = price === undefined;
             if (price !== undefined) {
-                document.getElementById('price-amount').textContent = Math.round(price) + ' ريال';
+                document.getElementById('price-amount').innerHTML = money(price);
             }
         }
 
@@ -573,12 +597,15 @@
                 card.dataset.serves = s.serves;
 
                 const circleSize = 26 + i * 8;
+                // سعر المقاس بأقل عدد طبقات (الأدوار المتعددة ما لها سعر بعد)
+                const basePrice = prices[s.sizeKey]?.[(layerLimits[s.sizeKey] || [2])[0]];
                 card.innerHTML = `
                     ${s.badge ? '<div class="badge">الأكثر طلبًا</div>' : ''}
                     <div class="check">✓</div>
                     <div class="circle" style="width:${circleSize}px;height:${circleSize}px;"></div>
                     <div class="num">${s.label} إنش</div>
                     <div class="serves">${s.serves}</div>
+                    ${basePrice !== undefined ? `<div class="card-price">${money(basePrice)}</div>` : ''}
                 `;
 
                 card.addEventListener('click', () => {
