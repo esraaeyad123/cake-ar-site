@@ -223,6 +223,27 @@ function coneBody(tier, material) {
     return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
 }
 
+// ---------- البورد ----------
+
+// كرتونة رقيقة تحت البورد، أعرض منه بقليل، وأطرافها عند الزوايا مقصوصة بدرجة (مثل قاعدة العلبة)
+function boxSheet(box, material) {
+    const half = (box.max.x - box.min.x) / 2;
+    const B = half * 1.14, step = half * 0.05, corner = B * 0.22;
+    const pts = [];
+    // ضلع واحد من الزاوية للزاوية، ثم ندوّره 4 مرات
+    const side = [[-B + step, -B], [-B + corner, -B], [-B + corner, -B - step], [B - corner, -B - step], [B - corner, -B], [B - step, -B]];
+    for (let k = 0; k < 4; k++) {
+        const c = Math.cos(k * Math.PI / 2), sn = Math.sin(k * Math.PI / 2);
+        side.forEach(([x, y]) => pts.push(new THREE.Vector2(x * c - y * sn, x * sn + y * c)));
+    }
+    const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth: 0.0015, bevelEnabled: false });
+    g.rotateX(-Math.PI / 2);
+    g.translate((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+    const mesh = new THREE.Mesh(g, material);
+    mesh.name = 'BoxSheet';
+    return mesh;
+}
+
 // ---------- الزخرفة ----------
 
 // صدف: رأس منتفخ + ذيل رفيع على طول المحيط
@@ -346,9 +367,12 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         const g = base.board.geo.clone().toNonIndexed();
         g.deleteAttribute('color');
         g.computeVertexNormals();
-        const board = new THREE.Mesh(g, mat('BoardMaterial', boardColor, 0.95));
+        const boardMat = mat('BoardMaterial', boardColor, 0.95);
+        const board = new THREE.Mesh(g, boardMat);
         board.name = 'Board';
         root.add(board);
+        // البورد السميك (6 و8 و10 والأدوار) يجي فوق كرتونة رقيقة أكبر منه مثل علبة جوماكيك
+        if (base.board.box.max.y - base.board.box.min.y > 0.01) root.add(boxSheet(base.board.box, boardMat));
     }
 
     if (base.logo) {
