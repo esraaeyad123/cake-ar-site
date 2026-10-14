@@ -5,14 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ $cake->name }} - جوماكيك</title>
 
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+        }
+    }
+    </script>
 
     <style>
         * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif;
-            background: #fffafb;
+            background: #FFFFFF;
             text-align: center;
         }
 
@@ -22,7 +30,7 @@
         model-viewer {
             width: 100%;
             height: 46vh;
-            background-color: #F1EFE8;
+            background-color: #FFFFFF;
         }
 
         .viewer-wrap { position: relative; }
@@ -47,6 +55,58 @@
             color: #4B1528;
             white-space: nowrap;
         }
+
+        /* السعر المبدئي */
+        .price-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #fff;
+            border: 1.5px solid #F4C0D1;
+            border-radius: 14px;
+            padding: 8px 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        .price-badge[hidden] { display: none; }
+        .price-badge .amount { font-size: 18px; font-weight: 800; color: #4B1528; white-space: nowrap; }
+        .price-badge .caption { font-size: 11px; font-weight: 700; color: #993556; }
+
+        /* سادة / فنتج */
+        .style-switch {
+            position: absolute;
+            right: 12px;
+            bottom: 74px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .style-option {
+            background: #fff;
+            border: 1.5px solid #F4C0D1;
+            border-radius: 12px;
+            padding: 7px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #993556;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+        }
+        .style-option.active { background: #D4537E; border-color: #D4537E; color: #fff; }
+        .style-option:active { transform: scale(0.95); }
+
+        .viewer-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #993556;
+            pointer-events: none;
+        }
+        .viewer-loading[hidden] { display: none; }
 
         #ar-button-el {
             background: #D4537E;
@@ -111,6 +171,7 @@
             color: #fff;
         }
         .tier-option:active { transform: scale(0.96); }
+        .tier-option.disabled, .style-option.disabled { opacity: 0.35; cursor: not-allowed; }
         .tier-note {
             font-size: 11px;
             color: #993556;
@@ -208,7 +269,7 @@
             scroll-snap-type: x mandatory;
         }
         .layer-chip {
-            flex: 0 0 48px;
+            flex: 0 0 52px;
             scroll-snap-align: start;
             background: #fff;
             border: 1.5px solid #F4C0D1;
@@ -248,6 +309,22 @@
             margin-bottom: 6px;
         }
         .layer-chip .bars div { border-radius: 2px; }
+        /* سعر صغير تحت المقاس والطبقة */
+        .size-card .card-price, .layer-chip .chip-price {
+            font-size: 10px;
+            font-weight: 700;
+            color: #D4537E;
+            margin-top: 3px;
+            white-space: nowrap;
+        }
+        /* رمز الريال السعودي */
+        .riyal {
+            width: 0.85em;
+            height: 0.85em;
+            vertical-align: -0.08em;
+            margin-inline-start: 2px;
+        }
+
         .layer-chip .lnum {
             font-size: 14px;
             font-weight: 700;
@@ -279,8 +356,6 @@
     <div class="viewer-wrap">
         <model-viewer
             id="viewer"
-            src="{{ asset('storage/models/cake_4in_layers2_v45.glb') }}"
-            ios-src="{{ asset('storage/models/cake_4in_layers2_v45.usdz') }}"
             alt="{{ $cake->name }}"
             ar
             ar-modes="webxr scene-viewer quick-look"
@@ -291,13 +366,25 @@
             camera-orbit="0deg 78deg 105%"
             min-camera-orbit="auto 65deg auto"
             max-camera-orbit="auto 85deg auto"
-            shadow-intensity="0.2"
+            shadow-intensity="0.1"
             shadow-softness="1"
             exposure="1"
             environment-image="neutral"
         >
             <button id="ar-button-el" slot="ar-button">شاهدها على طاولتك</button>
         </model-viewer>
+
+        <div class="viewer-loading" id="viewer-loading">جاري تجهيز الكيكة…</div>
+
+        <div class="price-badge" id="price-badge" hidden>
+            <div class="amount" id="price-amount"></div>
+            <div class="caption">السعر المبدئي</div>
+        </div>
+
+        <div class="style-switch" id="style-switch">
+            <div class="style-option" data-style="vintage">فنتج</div>
+            <div class="style-option active" data-style="plain">سادة</div>
+        </div>
 
         <div class="serves-badge" id="serves-badge">
             <x-mdi-account-group class="serves-icon" />
@@ -309,8 +396,18 @@
         :tier-count="1"
         :size-label="$defaultVariant->size_label"
         :layers-count="2"
+        :with-shape="true"
         id="spec-badges-el"
     />
+
+    <div id="panel-shape" class="options-panel">
+        <div class="section-title">شكل الكيكة</div>
+        <div class="tier-switch" id="shape-switch">
+            <div class="tier-option shape-option active" data-shape="round">دائري</div>
+            <div class="tier-option shape-option" data-shape="heart">قلب</div>
+            <div class="tier-option shape-option" data-shape="cone">مخروطي</div>
+        </div>
+    </div>
 
     <div id="panel-tier" class="options-panel">
         <div class="section-title">عدد الأدوار</div>
@@ -335,7 +432,9 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { composeCake } from "{{ asset('js/cake-composer.js') }}";
+
         // فتح/قفل لوحة الخيارات حسب البادج المضغوط (وحدة مفتوحة بنفس الوقت)
         document.querySelectorAll('.spec-badge.clickable').forEach(badge => {
             badge.addEventListener('click', () => {
@@ -352,10 +451,10 @@
                 }
             });
         });
-                // فتح لوحة "عدد الأدوار" افتراضيًا عند تحميل الصفحة
-        (function openTierPanelByDefault() {
-            const defaultPanel = document.getElementById('panel-tier');
-            const defaultBadge = document.querySelector('.spec-badge.clickable[data-target="panel-tier"]');
+        // فتح لوحة "الشكل" افتراضيًا عند تحميل الصفحة (أول اختيار)
+        (function openShapePanelByDefault() {
+            const defaultPanel = document.getElementById('panel-shape');
+            const defaultBadge = document.querySelector('.spec-badge.clickable[data-target="panel-shape"]');
             if (defaultPanel) defaultPanel.classList.add('open');
             if (defaultBadge) defaultBadge.classList.add('open');
         })();
@@ -366,19 +465,22 @@
 
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
         let currentLayers = 2;
+        let currentStyle = "plain";  // plain = سادة، vintage = فنتج
+        let currentShape = "round";  // round = دائري، heart = قلب، cone = مخروطي
 
-        // المدى المسموح بعدد الطبقات لكل مقاس/كومبو — حاليًا نكتفي بـ 2-3 لكل الخيارات
-        const layerLimits = {
-            "4in":  [2, 3],
-            "6in":  [2, 3],
-            "8in":  [2, 3],
-            "10in": [2, 3],
-            "tier2_6-4":     [2, 3],
-            "tier2_8-6":     [2, 3],
-            "tier2_10-8":    [2, 3],
-            "tier3_8-6-4":   [2, 3],
-            "tier3_10-8-6":  [2, 3],
-        };
+        // المدى المسموح بعدد الطبقات لكل مقاس/كومبو (من config/cake_ar.php)
+        const layerLimits = @json($layerLimits);
+        // السعر المبدئي لكل مقاس/كومبو وعدد طبقات
+        const prices = @json((object) $prices);
+        const CAKE_COLOR = @json(config('cake_ar.cake_color'));
+        const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
+        const BOARD_COLORS = @json(config('cake_ar.board_colors'));
+        // النماذج الجاهزة فيها طبقتين و3 طبقات — أكثر من ذلك يُبنى من نموذج 3 طبقات + ارتفاع إضافي
+        const MAX_MODEL_LAYERS = 3;
+
+        // رمز الريال السعودي الجديد (SVG حتى يظهر على كل الأجهزة)
+        const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
+        const money = n => `${Math.round(n)}${RIYAL}`;
 
         const layerColors = ['#F4C0D1','#ED93B1','#D4537E','#993556','#72243E','#4B1528','#2C1018'];
 
@@ -391,7 +493,10 @@
                 currentLayers = allowed[0];
             }
 
+            const sizePrices = prices[sizeKey];
             allowed.forEach(n => {
+                // زيادة السعر عن أقل عدد طبقات (مثل موقع جوماكيك: 2 طبقة +0، 3 طبقات +20...)
+                const extra = sizePrices?.[n] !== undefined ? sizePrices[n] - sizePrices[allowed[0]] : null;
                 const chip = document.createElement('div');
                 chip.className = 'layer-chip' + (n === currentLayers ? ' active' : '');
                 chip.dataset.layers = n;
@@ -406,6 +511,7 @@
                     <div class="check">✓</div>
                     <div class="bars">${barsHtml}</div>
                     <div class="lnum">${n}</div>
+                    ${extra !== null ? `<div class="chip-price">+${money(extra)}</div>` : ''}
                 `;
 
                 chip.addEventListener('click', () => {
@@ -420,11 +526,56 @@
             });
         }
 
-        function updateModel() {
-            const path = `${modelsBaseUrl}/cake_${currentSizeKey}_layers${currentLayers}_${MODEL_VERSION}`;
-            viewer.src = path + '.glb';
-            viewer.iosSrc = path + '.usdz';
+        // كل تغيير يركّب الكيكة من جديد؛ نتجاهل النتيجة إذا اختار الزبون شي ثاني قبل ما تخلص
+        let composeToken = 0;
+        let currentBlob = null;
+        const loadingEl = document.getElementById('viewer-loading');
+
+        async function updateModel() {
+            updatePrice();
+            const token = ++composeToken;
+            const modelLayers = Math.min(currentLayers, MAX_MODEL_LAYERS);
+            const base = `${modelsBaseUrl}/cake_${currentSizeKey}_layers${modelLayers}_${MODEL_VERSION}.glb`;
+
+            loadingEl.hidden = !!currentBlob;
+            try {
+                const url = await composeCake(base, {
+                    color: CAKE_COLOR,
+                    boardColor: BOARD_COLORS[currentSizeKey] || BOARD_COLORS.default,
+                    shape: currentShape,
+                    style: currentShape === 'cone' ? 'plain' : currentStyle,
+                    extraHeight: (currentLayers - modelLayers) * LAYER_HEIGHT,
+                });
+                if (token !== composeToken) { URL.revokeObjectURL(url); return; }
+                if (currentBlob) URL.revokeObjectURL(currentBlob);
+                currentBlob = url;
+                viewer.src = url;
+            } catch (e) {
+                console.error(e);
+                if (token === composeToken) loadingEl.textContent = 'تعذر تحميل الكيكة، حدّث الصفحة';
+                return;
+            }
+            loadingEl.hidden = true;
         }
+
+        function updatePrice() {
+            const badge = document.getElementById('price-badge');
+            const price = prices[currentSizeKey]?.[currentLayers];
+            badge.hidden = price === undefined;
+            if (price !== undefined) {
+                document.getElementById('price-amount').innerHTML = money(price);
+            }
+        }
+
+        document.querySelectorAll('.style-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                if (opt.dataset.style === currentStyle || opt.classList.contains('disabled')) return;
+                document.querySelectorAll('.style-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                currentStyle = opt.dataset.style;
+                updateModel();
+            });
+        });
 
         // بيانات المقاسات لكل خيار "دور" — دور واحد شغال بالكامل (نماذج حقيقية)
         const sizesData = {
@@ -461,12 +612,14 @@
                 card.dataset.serves = s.serves;
 
                 const circleSize = 26 + i * 8;
+                // سعر المقاس/الكومبو بأقل عدد طبقات
+                const basePrice = prices[s.sizeKey]?.[(layerLimits[s.sizeKey] || [2])[0]];
                 card.innerHTML = `
                     ${s.badge ? '<div class="badge">الأكثر طلبًا</div>' : ''}
                     <div class="check">✓</div>
                     <div class="circle" style="width:${circleSize}px;height:${circleSize}px;"></div>
                     <div class="num">${s.label} إنش</div>
-                    <div class="serves">${s.serves}</div>
+                    ${basePrice !== undefined ? `<div class="card-price">${money(basePrice)}</div>` : ''}
                 `;
 
                 card.addEventListener('click', () => {
@@ -487,9 +640,10 @@
             });
         }
 
-        document.querySelectorAll('.tier-option').forEach(opt => {
+        document.querySelectorAll('#tier-switch .tier-option').forEach(opt => {
             opt.addEventListener('click', () => {
-                document.querySelectorAll('.tier-option').forEach(o => o.classList.remove('active'));
+                if (opt.classList.contains('disabled')) return;
+                document.querySelectorAll('#tier-switch .tier-option').forEach(o => o.classList.remove('active'));
                 opt.classList.add('active');
 
                 const tier = parseInt(opt.dataset.tier);
@@ -508,6 +662,41 @@
                 document.getElementById('serves-text').textContent = firstOption.serves;
                 document.querySelectorAll('.spec-label')[2].textContent =
                     currentLayers + (currentLayers == 1 ? ' طبقة' : ' طبقات');
+            });
+        });
+
+        // الشكل: القلب والمخروطي دور واحد فقط، والمخروطي ارتفاعه ثابت (بدون طبقات) وبدون فنتج
+        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي' };
+        const SHAPE_ICONS = {
+            round: 'M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9',
+            heart: 'M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z',
+            cone: 'M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z',
+        };
+        document.querySelectorAll('.shape-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                if (opt.dataset.shape === currentShape) return;
+                document.querySelectorAll('.shape-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                currentShape = opt.dataset.shape;
+                document.getElementById('shape-label').textContent = SHAPE_LABELS[currentShape];
+                document.getElementById('shape-icon').setAttribute('d', SHAPE_ICONS[currentShape]);
+
+                const singleTierOnly = currentShape !== 'round';
+                const tierOne = document.querySelector('#tier-switch .tier-option[data-tier="1"]');
+                if (singleTierOnly && !tierOne.classList.contains('active')) tierOne.click();
+                document.querySelectorAll('#tier-switch .tier-option:not([data-tier="1"])')
+                    .forEach(o => o.classList.toggle('disabled', singleTierOnly));
+
+                const isCone = currentShape === 'cone';
+                document.querySelector('.spec-badge[data-target="panel-layers"]').style.display = isCone ? 'none' : '';
+                document.querySelector('.style-option[data-style="vintage"]').classList.toggle('disabled', isCone);
+                if (isCone) {
+                    currentLayers = (layerLimits[currentSizeKey] || [2])[0];
+                    renderLayerChips(currentSizeKey);
+                    document.querySelectorAll('.spec-label')[2].textContent = currentLayers + ' طبقات';
+                }
+
+                updateModel();
             });
         });
 
