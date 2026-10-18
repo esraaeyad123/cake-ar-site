@@ -28,6 +28,13 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // توليد تصاميم الكيك بالذكاء الاصطناعي (العينة التجريبية)
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'image_model' => env('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
+        'image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

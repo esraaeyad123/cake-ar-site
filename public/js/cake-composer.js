@@ -223,6 +223,96 @@ function coneBody(tier, material) {
     return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
 }
 
+// ---------- تصاميم مطبوعة (الذكاء الاصطناعي) ----------
+
+function loadImage(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('تعذر تحميل الصورة: ' + url));
+        img.src = url;
+    });
+}
+
+// خامة طباعة: نفس إضاءة الكريمة الخفيفة حتى ما تطلع الصورة غامقة على الكيكة
+function printMaterial(name, canvas) {
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return new THREE.MeshStandardMaterial({
+        name, map: tex, emissiveMap: tex, emissive: new THREE.Color('#FFFFFF'), emissiveIntensity: 0.3,
+        roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2,
+    });
+}
+
+// سطح الدور العلوي: الصورة المربعة تغطي عرض الكيكة، ومقصوصة على شكل المحيط (دائرة أو قلب)
+function topPrint(tier, shape, img) {
+    const e = bevelSize(tier), r = tier.r - e * 0.6;
+    const pts = shape === 'heart' ? heartPoints(r) : Array.from({ length: 128 }, (_, i) => {
+        const a = (i / 128) * Math.PI * 2;
+        return { x: Math.cos(a) * r, z: Math.sin(a) * r };
+    });
+    const g = new THREE.ShapeGeometry(new THREE.Shape(pts.map(p => new THREE.Vector2(p.x, -p.z))));
+    // قبل الدوران: y الموجب = بعيد عن الكاميرا = أعلى الصورة
+    const pos = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.5 + pos.getX(i) / (2 * tier.r), 0.5 + pos.getY(i) / (2 * tier.r));
+    g.rotateX(-Math.PI / 2);
+    g.translate(0, tier.y1 + 0.0006, 0);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1024;
+    canvas.getContext('2d').drawImage(img, 0, 0, 1024, 1024);
+    const mesh = new THREE.Mesh(g, printMaterial('TopPrintMaterial', canvas));
+    mesh.name = 'TopPrint';
+    return mesh;
+}
+
+// شريط حول جوانب الدور: الصورة تتكرر أفقيًا حتى تحافظ على نسبتها، وتلف المحيط كامل
+function sidePrint(tier, shape, img) {
+    const e = bevelSize(tier);
+    // جسم القلب = محيط مصغّر + حافة دائرية بعرض e، فنمشي على نفس المحيط ونبعد بنفس المسافة
+    const o = shape === 'heart' ? makeOutline(heartPoints(tier.r - e)) : tier.outline;
+    const out = (shape === 'heart' ? e : 0) + 0.0007, L = o.length;
+    const yA = tier.y0 + 0.002, yB = tier.y1 - e, h = yB - yA;
+    const repeats = Math.max(1, Math.round(L / h / (img.width / img.height)));
+
+    const canvas = document.createElement('canvas');
+    const tileW = Math.min(img.width, Math.floor(4096 / repeats));
+    const tileH = Math.round(tileW * img.height / img.width);
+    canvas.width = tileW * repeats;
+    canvas.height = tileH;
+    const ctx = canvas.getContext('2d');
+    for (let k = 0; k < repeats; k++) ctx.drawImage(img, k * tileW, 0, tileW, tileH);
+
+    const n = 256, positions = [], normals = [], uvs = [], index = [];
+    for (let i = 0; i <= n; i++) {
+        const p = o.at((i / n) * L);
+        // نلف عكس اتجاه الرسم حتى ما تطلع الصورة مقلوبة من برّا
+        const u = 1 - i / n;
+        [[yA, 0], [yB, 1]].forEach(([y, v]) => {
+            positions.push(p.x + p.nx * out, y, p.z + p.nz * out);
+            normals.push(p.nx, 0, p.nz);
+            uvs.push(u, v);
+        });
+        if (i < n) {
+            const a = i * 2;
+            index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    g.setIndex(index);
+
+    const material = printMaterial('SidePrintMaterial', canvas);
+    material.side = THREE.DoubleSide;
+    const mesh = new THREE.Mesh(g, material);
+    mesh.name = 'SidePrint';
+    return mesh;
+}
+
 // ---------- الزخرفة ----------
 
 // صدف: رأس منتفخ + ذيل رفيع على طول المحيط
@@ -326,11 +416,12 @@ function vintage(tiers, piping, beads) {
 
 /**
  * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي نموذج دور واحد
- * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone', style?: 'plain'|'vintage', extraHeight?: number}} options
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone', style?: 'plain'|'vintage', extraHeight?: number, topImage?: string, sideImage?: string}} options
+ *        topImage / sideImage: روابط تصاميم تنطبع على سطح الدور العلوي وجوانب كل الأدوار (دائري أو قلب)
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
  */
-export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shape = 'round', style = 'plain', extraHeight = 0 }) {
+export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shape = 'round', style = 'plain', extraHeight = 0, topImage = null, sideImage = null }) {
     const base = await loadBase(baseUrl);
     const tiers = base.tiers.map(t => ({ ...t }));
     if (extraHeight && tiers.length === 1) tiers[0].y1 += extraHeight;
@@ -375,6 +466,12 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         mesh.name = 'CakeTier';
         root.add(mesh);
     });
+
+    if (shape !== 'cone') {
+        const [top, side] = await Promise.all([topImage && loadImage(topImage), sideImage && loadImage(sideImage)]);
+        if (top) root.add(topPrint(tiers[tiers.length - 1], shape, top));
+        if (side) tiers.forEach(t => root.add(sidePrint(t, shape, side)));
+    }
 
     const piping = [], beads = [];
     if (shape === 'cone') {
