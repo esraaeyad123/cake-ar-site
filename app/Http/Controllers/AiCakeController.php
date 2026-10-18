@@ -89,7 +89,8 @@ class AiCakeController extends Controller
 
             $path = self::DIR."/{$id}-{$part}.png";
             Storage::disk('public')->put($path, base64_decode($image));
-            $urls[$part] = Storage::disk('public')->url($path);
+            // asset() يبني الرابط من عنوان الطلب نفسه، فيشتغل من الجوال على الشبكة المحلية وعلى أي دومين
+            $urls[$part] = asset('storage/'.$path);
         }
 
         return response()->json(['top' => $urls['top'], 'side' => $urls['side']]);

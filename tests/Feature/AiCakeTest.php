@@ -46,6 +46,7 @@ class AiCakeTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request['prompt'] ?? '', 'SIDE wall') && $request['size'] === '1536x1024');
         $this->assertCount(2, Storage::disk('public')->files('ai-cakes'));
         $this->assertStringEndsWith('-top.png', $response->json('top'));
+        $this->assertStringStartsWith(url('/storage/ai-cakes/'), $response->json('top'));
     }
 
     public function test_reference_images_use_the_edits_endpoint(): void
