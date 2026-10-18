@@ -17,3 +17,11 @@ Route::get('/cake/{slug}/ai', [AiCakeController::class, 'show'])->name('cake.ai.
 Route::post('/cake/{slug}/ai', [AiCakeController::class, 'design'])
     ->middleware('throttle:5,1')
     ->name('cake.ai.design');
+
+// عينة تجريبية: الطلب الخاص بتصميم المدير (3D + AR + سعر + صورة بالذكاء الاصطناعي بنفس المواصفات)
+use App\Http\Controllers\SpecialOrderController;
+
+Route::get('/special-order', [SpecialOrderController::class, 'show'])->name('special-order.show');
+Route::post('/special-order/ai', [SpecialOrderController::class, 'generate'])
+    ->middleware('throttle:5,1')
+    ->name('special-order.ai');
