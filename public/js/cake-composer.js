@@ -223,6 +223,27 @@ function coneBody(tier, material) {
     return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
 }
 
+// سن ست: نص دائرة واقفة على البورد (مثل الشمس وقت الغروب)، العرض = قطر المقاس،
+// والسماكة من قدام لورا = ارتفاع الطبقات
+function sunsetBody(tier, material) {
+    const { r, y0, y1 } = tier;
+    const thick = y1 - y0;
+    const e = Math.min(0.008, thick * 0.14);
+    const shape = new THREE.Shape();
+    shape.moveTo(-(r - e), 0);
+    shape.absarc(0, 0, r - e, Math.PI, 0, true);
+    shape.lineTo(-(r - e), 0);
+    const g = new THREE.ExtrudeGeometry(shape, {
+        depth: thick - 2 * e, bevelEnabled: true, bevelThickness: e, bevelSize: e, bevelSegments: 5, curveSegments: 64,
+    });
+    // الحافة السفلية المستقيمة تنزل للبورد، والوجه المقوس باتجاه الكاميرا
+    g.translate(0, e, -(thick - 2 * e) / 2);
+    g.computeBoundingBox();
+    g.translate(0, y0 - g.boundingBox.min.y, 0);
+    g.computeVertexNormals();
+    return new THREE.Mesh(g, material);
+}
+
 // ---------- تصاميم مطبوعة (الذكاء الاصطناعي) ----------
 
 function loadImage(url) {
@@ -415,8 +436,8 @@ function vintage(tiers, piping, beads) {
 // ---------- التركيب ----------
 
 /**
- * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي نموذج دور واحد
- * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone', style?: 'plain'|'vintage', extraHeight?: number, topImage?: string, sideImage?: string}} options
+ * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي والسن ست نموذج دور واحد
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone'|'sunset', style?: 'plain'|'vintage', extraHeight?: number, topImage?: string, sideImage?: string}} options
  *        topImage / sideImage: روابط تصاميم تنطبع على سطح الدور العلوي وجوانب كل الأدوار (دائري أو قلب)
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
@@ -460,14 +481,14 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     }
 
     const cakeMat = creamMat('CakeMaterial', color, 0.35);
-    const body = { round: roundBody, heart: heartBody, cone: coneBody }[shape] || roundBody;
+    const body = { round: roundBody, heart: heartBody, cone: coneBody, sunset: sunsetBody }[shape] || roundBody;
     tiers.forEach(t => {
         const mesh = body(t, cakeMat);
         mesh.name = 'CakeTier';
         root.add(mesh);
     });
 
-    if (shape !== 'cone') {
+    if (shape === 'round' || shape === 'heart') {
         const [top, side] = await Promise.all([topImage && loadImage(topImage), sideImage && loadImage(sideImage)]);
         if (top) root.add(topPrint(tiers[tiers.length - 1], shape, top));
         if (side) tiers.forEach(t => root.add(sidePrint(t, shape, side)));
@@ -478,7 +499,7 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         // المخروطي: صدف على القاعدة فقط (مثل كيكة قبعة الحفلة)
         const t = tiers[0], bs = Math.max(0.005, Math.min(0.008, t.r * 0.075));
         shellBorder(t.outline, t.y0 + bs * 0.9, bs, piping);
-    } else if (style === 'vintage') {
+    } else if (style === 'vintage' && shape !== 'sunset') {
         vintage(tiers, piping, beads);
     }
     const cream = creamMat('PipingMaterial', color, 0.08);

@@ -23,6 +23,7 @@ class SpecialOrderController extends Controller
         'round' => 'round',
         'heart' => 'heart-shaped',
         'cone' => 'tall cone-shaped (tapering to a point at the top)',
+        'sunset' => 'sunset-shaped: a half-circle (semicircle) cake standing upright on its flat edge, like a setting sun, with the round face to the front',
     ];
 
     public function show(CakePricing $pricing, SpecialOrderOptions $options)
@@ -47,6 +48,14 @@ class SpecialOrderController extends Controller
             'note' => ['nullable', 'string', 'max:300'],
             'reference' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
         ]);
+
+        // الأشكال الخاصة (السن ست) دور واحد بمقاساتها وطبقاتها فقط
+        if ($special = config("special_order.shapes.{$data['shape']}")) {
+            $request->validate([
+                'size' => ['in:'.implode(',', array_map(fn ($inch) => "{$inch}in", array_keys($special['fallback'])))],
+                'layers' => ['in:'.$special['layers']],
+            ]);
+        }
 
         if ($this->remaining() <= 0) {
             return response()->json(['message' => 'استخدمتِ كل محاولات التوليد ('.config('special_order.ai_limit').'). كمّلي الطلب بالوصف والصور.', 'remaining' => 0], 429);
@@ -115,9 +124,13 @@ class SpecialOrderController extends Controller
             : count($inches).'-tier stacked cake, tiers from bottom to top: '
                 .implode(', ', array_map(fn ($i) => "{$i} inches", $inches));
 
-        $height = $data['shape'] === 'cone' ? '' : "Each tier has {$data['layers']} sponge layers, about ".($data['layers'] * 4 + 2).' cm tall. ';
+        $height = match ($data['shape']) {
+            'cone' => '',
+            'sunset' => "The half-circle is {$inches[0]} inches (".round($inches[0] * 2.54).' cm) wide and about '.($data['layers'] * 4 + 2).' cm thick from front to back. ',
+            default => "Each tier has {$data['layers']} sponge layers, about ".($data['layers'] * 4 + 2).' cm tall. ',
+        };
 
-        $finish = $data['style'] === 'vintage'
+        $finish = $data['style'] === 'vintage' && $data['shape'] !== 'sunset'
             ? 'Use vintage (Lambeth) style piped cream borders on the top edge and the base. '
             : 'Keep the sides smooth (plain cream finish), apart from the reference decorations. ';
 

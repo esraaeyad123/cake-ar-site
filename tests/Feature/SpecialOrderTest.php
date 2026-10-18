@@ -36,6 +36,12 @@ class SpecialOrderTest extends TestCase
             ]),
             self::API.'/cake-items/flavor*' => Http::response([$item(314, 'شوكولاته', 'flavor'), $item(12, 'فانيلا عادية', 'flavor')]),
             self::API.'/cake-items/stuffing*' => Http::response([$item(312, 'ويب كريم مع نوتيلا', 'stuffing')]),
+            // سعر السن ست من منتج فان جوخ: 6 إنش (4) و 8 إنش (9)، مع خصم ما نستخدمه
+            self::API.'/shop/layers/1456/*' => fn ($request) => Http::response([['id' => 2, 'name' => '2 layer', 'tiers' => [[
+                'id' => 1, 'name' => '1 tier',
+                'price' => str_contains($request->url(), '/1456/4') ? 191 : 251,
+                'price_before_discount' => str_contains($request->url(), '/1456/4') ? 260 : 340,
+            ]]]]),
         ]);
     }
 
@@ -52,7 +58,21 @@ class SpecialOrderTest extends TestCase
             // نكهات الطلب الخاص فقط (اللي لها سعر)، والحشوة بزيادة حسب المقاس
             ->assertSee('"name":'.json_encode('شوكولاته'), false)
             ->assertDontSee(json_encode('فانيلا عادية'), false)
-            ->assertSee('"extra":{"4":10,"8":15}', false);
+            ->assertSee('"extra":{"4":10,"8":15}', false)
+            ->assertSee('data-shape="sunset"', false)
+            ->assertSee('"shapePrices":{"sunset":{"6in":{"2":260},"8in":{"2":340}}}', false);
+    }
+
+    public function test_sunset_falls_back_alone_when_its_product_is_down(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([self::API.'/shop/layers/*' => Http::response(null, 500)]);
+        $this->fakeJomacake();
+
+        $this->get('/special-order')
+            ->assertOk()
+            ->assertSee('"name":'.json_encode('شوكولاته'), false)
+            ->assertSee('"shapePrices":{"sunset":{"6in":{"2":255},"8in":{"2":335}}}', false);
     }
 
     public function test_fallback_options_when_api_is_down(): void
@@ -105,6 +125,24 @@ class SpecialOrderTest extends TestCase
         $send()->assertOk()->assertJson(['remaining' => 0]);
         $send()->assertStatus(429);
         Http::assertSentCount(2);
+    }
+
+    public function test_sunset_ai_image_only_allows_its_sizes(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $send = fn ($size) => $this->post('/special-order/ai', [
+            'shape' => 'sunset', 'size' => $size, 'layers' => 2, 'style' => 'plain',
+            'reference' => UploadedFile::fake()->image('cake.jpg'),
+        ], ['Accept' => 'application/json']);
+
+        $send('10in')->assertStatus(422)->assertJsonValidationErrors('size');
+        $send('8in')->assertOk();
+        Http::assertSent(function ($request) {
+            $prompt = collect($request->data())->firstWhere('name', 'prompt')['contents'] ?? '';
+
+            return str_contains($prompt, 'half-circle') && str_contains($prompt, '8 inches (20 cm) wide');
+        });
     }
 
     public function test_ai_requires_a_reference_photo(): void
