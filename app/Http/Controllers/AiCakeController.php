@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Cake;
 use App\Services\CakePricing;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -14,7 +13,7 @@ use Illuminate\Support\Str;
 
 /**
  * عينة تجريبية: الزبون يصف التصميم (ويرفع صور مرجعية)، الذكاء الاصطناعي يولّد
- * تصميم سطح الكيكة وتصميم جوانبها، والصفحة تطبعهم على الكيكة 3D للمعاينة والواقع المعزز.
+ * تصميم سطح الكيكة، والصفحة تطبعه على الكيكة 3D للمعاينة والواقع المعزز.
  */
 class AiCakeController extends Controller
 {
@@ -52,48 +51,34 @@ class AiCakeController extends Controller
             return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
         }
 
-        // توليد صورتين بالتوازي قد يأخذ دقيقة أو أكثر
+        // التوليد قد يأخذ دقيقة، والحد الافتراضي في PHP 30 ثانية
         set_time_limit(180);
 
-        $shape = self::SHAPES[$data['shape']];
-        $references = $request->file('references', []);
-        $prompts = [
-            'top' => $this->topPrompt($shape, $data['description']),
-            'side' => $this->sidePrompt($data['description']),
-        ];
-        $sizes = ['top' => '1024x1024', 'side' => '1536x1024'];
-
         try {
-            $responses = Http::pool(fn (Pool $pool) => collect($prompts)->map(
-                fn (string $prompt, string $part) => $this->imageRequest($pool->as($part), $prompt, $sizes[$part], $references)
-            )->all());
+            $response = $this->imageRequest(
+                Http::withOptions([]),
+                $this->topPrompt(self::SHAPES[$data['shape']], $data['description']),
+                '1024x1024',
+                $request->file('references', []),
+            );
         } catch (ConnectionException) {
             return $this->failed('تعذر الوصول إلى OpenAI. جربي مرة ثانية.');
         }
 
-        $id = now()->format('Ymd-His').'-'.Str::random(6);
-        $urls = [];
-
-        foreach (array_keys($prompts) as $part) {
-            $response = $responses[$part];
-            if (! $response instanceof Response) {
-                return $this->failed('تعذر الوصول إلى OpenAI. جربي مرة ثانية.');
-            }
-            if ($response->failed()) {
-                return $this->failed($this->friendlyError($response));
-            }
-            $image = $response->json('data.0.b64_json');
-            if (! $image) {
-                return $this->failed('ما رجعت صورة من الذكاء الاصطناعي. جربي مرة ثانية.');
-            }
-
-            $path = self::DIR."/{$id}-{$part}.png";
-            Storage::disk('public')->put($path, base64_decode($image));
-            // asset() يبني الرابط من عنوان الطلب نفسه، فيشتغل من الجوال على الشبكة المحلية وعلى أي دومين
-            $urls[$part] = asset('storage/'.$path);
+        if ($response->failed()) {
+            return $this->failed($this->friendlyError($response));
         }
 
-        return response()->json(['top' => $urls['top'], 'side' => $urls['side']]);
+        $image = $response->json('data.0.b64_json');
+        if (! $image) {
+            return $this->failed('ما رجعت صورة من الذكاء الاصطناعي. جربي مرة ثانية.');
+        }
+
+        $path = self::DIR.'/'.now()->format('Ymd-His').'-'.Str::random(6).'-top.png';
+        Storage::disk('public')->put($path, base64_decode($image));
+
+        // asset() يبني الرابط من عنوان الطلب نفسه، فيشتغل من الجوال على الشبكة المحلية وعلى أي دومين
+        return response()->json(['top' => asset('storage/'.$path)]);
     }
 
     /**
@@ -130,15 +115,6 @@ class AiCakeController extends Controller
             .'No cake, no plate, no table, no perspective, no shadows, no photo of food — only the flat artwork. '
             .'If reference images are provided, use them as the main subject and style. '
             ."Customer request: {$description}";
-    }
-
-    private function sidePrompt(string $description): string
-    {
-        return 'Flat printable border design for the SIDE wall of a cake, a wide horizontal strip that wraps around the cake. '
-            .'It must tile seamlessly: the left and right edges must continue into each other. '
-            .'Keep it simple and decorative (patterns, small motifs), no large text. '
-            .'Soft cream background (#F6EBD5). No cake, no perspective, no shadows — only the flat artwork. '
-            ."It must match this customer request in colours and style: {$description}";
     }
 
     private function friendlyError(Response $response): string

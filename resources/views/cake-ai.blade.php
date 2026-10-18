@@ -96,7 +96,7 @@
 
         .results { display: none; gap: 10px; margin-top: 14px; }
         .results.show { display: flex; }
-        .results figure { margin: 0; flex: 1; text-align: center; }
+        .results figure { margin: 0 auto; width: 60%; text-align: center; }
         .results img { width: 100%; border-radius: 12px; border: 1px solid #F4C0D1; }
         .results figcaption { font-size: 11px; font-weight: 700; color: #993556; margin-top: 4px; }
     </style>
@@ -154,7 +154,7 @@
 
         <div class="section-title">صفي التصميم اللي تبينه</div>
         <textarea id="description" maxlength="500" placeholder="مثال: ورد وردي ناعم على الأطراف، وفي النص كتابة «كل عام وأنتِ بخير سارة» بخط ذهبي"></textarea>
-        <div class="hint">الذكاء الاصطناعي يصمم سطح الكيكة وجوانبها، وينطبع التصميم على الكيكة. الشخصيات المحمية بحقوق (ديزني، سانريو، أنمي…) ما يقبلها.</div>
+        <div class="hint">الذكاء الاصطناعي يصمم سطح الكيكة، وينطبع التصميم عليها. الشخصيات المحمية بحقوق (ديزني، سانريو، أنمي…) ما يقبلها.</div>
 
         <div class="section-title">صور مرجعية (اختياري، لين 4)</div>
         <label class="upload">
@@ -170,7 +170,6 @@
 
         <div class="results" id="results">
             <figure><img id="top-img" alt="تصميم السطح"><figcaption>تصميم السطح</figcaption></figure>
-            <figure><img id="side-img" alt="تصميم الجوانب"><figcaption>تصميم الجوانب</figcaption></figure>
         </div>
     </main>
 
@@ -191,7 +190,7 @@
         const MAX_MODEL_LAYERS = 3;
         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
 
-        const state = { shape: 'round', size: Object.keys(layerLimits)[0], layers: 2, top: null, side: null };
+        const state = { shape: 'round', size: Object.keys(layerLimits)[0], layers: 2, top: null };
 
         function selectChip(container, chip) {
             container.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
@@ -232,7 +231,6 @@
                     shape: state.shape,
                     extraHeight: (state.layers - modelLayers) * LAYER_HEIGHT,
                     topImage: state.top,
-                    sideImage: state.side,
                 });
                 if (mine !== token) { URL.revokeObjectURL(url); return; }
                 if (currentBlob) URL.revokeObjectURL(currentBlob);
@@ -285,7 +283,10 @@
             [...refsInput.files].slice(0, 4).forEach(f => form.append('references[]', f));
 
             generateBtn.disabled = true;
-            showMessage('الذكاء الاصطناعي يصمم السطح والجوانب… ممكن ياخذ دقيقة ⏳', 'info');
+            const started = Date.now();
+            const tick = () => showMessage(`الذكاء الاصطناعي يصمم سطح الكيكة… ⏳ ${Math.round((Date.now() - started) / 1000)} ثانية`, 'info');
+            tick();
+            const timer = setInterval(tick, 1000);
             try {
                 const res = await fetch(designUrl, {
                     method: 'POST',
@@ -293,20 +294,20 @@
                     body: form,
                 });
                 const data = await res.json().catch(() => ({}));
+                clearInterval(timer);
                 if (!res.ok) {
                     const firstError = data.errors && Object.values(data.errors)[0]?.[0];
                     throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
                 }
                 state.top = data.top;
-                state.side = data.side;
                 document.getElementById('top-img').src = data.top;
-                document.getElementById('side-img').src = data.side;
                 document.getElementById('results').classList.add('show');
                 showMessage('تم! لفّي الكيكة وشوفيها، أو اضغطي «شاهدها على طاولتك».', 'info');
                 await update();
             } catch (e) {
                 showMessage(e.message, 'error');
             } finally {
+                clearInterval(timer);
                 generateBtn.disabled = false;
             }
         });

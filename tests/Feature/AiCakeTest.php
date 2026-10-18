@@ -31,20 +31,20 @@ class AiCakeTest extends TestCase
             ->assertSee('data-shape="heart"', false);
     }
 
-    public function test_generates_top_and_side_designs(): void
+    public function test_generates_top_design(): void
     {
         Storage::fake('public');
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
 
         $response = $this->postJson('/cake/signature-cake/ai', ['shape' => 'round', 'description' => 'ورد وردي'])
             ->assertOk()
-            ->assertJsonStructure(['top', 'side']);
+            ->assertJsonStructure(['top']);
 
-        Http::assertSentCount(2);
+        // صورة وحدة للسطح بجودة منخفضة
+        Http::assertSentCount(1);
         Http::assertSent(fn ($request) => str_contains($request->url(), 'images/generations')
-            && str_contains($request['prompt'], 'TOP surface') && $request['size'] === '1024x1024');
-        Http::assertSent(fn ($request) => str_contains($request['prompt'] ?? '', 'SIDE wall') && $request['size'] === '1536x1024');
-        $this->assertCount(2, Storage::disk('public')->files('ai-cakes'));
+            && str_contains($request['prompt'], 'TOP surface') && $request['size'] === '1024x1024' && $request['quality'] === 'low');
+        $this->assertCount(1, Storage::disk('public')->files('ai-cakes'));
         $this->assertStringEndsWith('-top.png', $response->json('top'));
         $this->assertStringStartsWith(url('/storage/ai-cakes/'), $response->json('top'));
     }
