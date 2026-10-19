@@ -24,6 +24,7 @@ class SpecialOrderController extends Controller
         'heart' => 'heart-shaped',
         'cone' => 'tall cone-shaped (tapering to a point at the top)',
         'sunset' => 'sunset-shaped: a half-circle (semicircle) cake standing upright on its flat edge, like a setting sun, with the round face to the front',
+        'wall' => 'wall cake: a rectangular slab cake standing upright like a wall, decorated on its front face',
     ];
 
     public function show(CakePricing $pricing, SpecialOrderOptions $options)
@@ -33,6 +34,7 @@ class SpecialOrderController extends Controller
             'prices' => $pricing->startingPrices(),
             'layerLimits' => config('cake_ar.layers'),
             'tierPeople' => config('special_order.tier_people'),
+            'shapes' => config('special_order.shapes'),
             'aiRemaining' => $this->remaining(),
             'hasKey' => filled(config('services.openai.key')),
         ]);
@@ -52,7 +54,7 @@ class SpecialOrderController extends Controller
         // الأشكال الخاصة (السن ست) دور واحد بمقاساتها وطبقاتها فقط
         if ($special = config("special_order.shapes.{$data['shape']}")) {
             $request->validate([
-                'size' => ['in:'.implode(',', array_map(fn ($inch) => "{$inch}in", array_keys($special['fallback'])))],
+                'size' => ['in:'.implode(',', array_map(fn ($inch) => "{$inch}in", $special['sizes']))],
                 'layers' => ['in:'.$special['layers']],
             ]);
         }
@@ -124,13 +126,18 @@ class SpecialOrderController extends Controller
             : count($inches).'-tier stacked cake, tiers from bottom to top: '
                 .implode(', ', array_map(fn ($i) => "{$i} inches", $inches));
 
+        if ($data['shape'] === 'wall') {
+            $structure = "2 stacked wall tiers: the bottom wall is {$inches[0]} inches (".round($inches[0] * 2.54).' cm) wide and the top wall is narrower and shorter';
+        }
+
+        $part = $data['shape'] === 'wall' ? 'bottom wall' : 'half-circle';
         $height = match ($data['shape']) {
             'cone' => '',
-            'sunset' => "The half-circle is {$inches[0]} inches (".round($inches[0] * 2.54).' cm) wide and about '.($data['layers'] * 4 + 2).' cm thick from front to back. ',
+            'sunset', 'wall' => "The {$part} is {$inches[0]} inches (".round($inches[0] * 2.54).' cm) wide and about '.($data['layers'] * 4 + 2).' cm thick from front to back. ',
             default => "Each tier has {$data['layers']} sponge layers, about ".($data['layers'] * 4 + 2).' cm tall. ',
         };
 
-        $finish = $data['style'] === 'vintage' && $data['shape'] !== 'sunset'
+        $finish = $data['style'] === 'vintage' && ! config("special_order.shapes.{$data['shape']}")
             ? 'Use vintage (Lambeth) style piped cream borders on the top edge and the base. '
             : 'Keep the sides smooth (plain cream finish), apart from the reference decorations. ';
 

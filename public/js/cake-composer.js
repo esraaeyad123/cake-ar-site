@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const loader = new GLTFLoader();
 const exporter = new GLTFExporter();
@@ -244,6 +245,23 @@ function sunsetBody(tier, material) {
     return new THREE.Mesh(g, material);
 }
 
+// وال كيك: دورين جدار مستطيل واقف، العلوي أصغر. عرض الجدار السفلي = قطر المقاس،
+// والسماكة من قدام لورا = ارتفاع الطبقات
+function wallBody(tier, material) {
+    const { r, y0, y1 } = tier;
+    const thick = y1 - y0;
+    const e = Math.min(0.008, thick * 0.14);
+    const parts = [];
+    let y = y0;
+    [[2 * r, 1.3 * r], [1.4 * r, 0.9 * r]].forEach(([w, h]) => {
+        const g = new RoundedBoxGeometry(w, h, thick, 4, e);
+        g.translate(0, y + h / 2, 0);
+        parts.push(g);
+        y += h;
+    });
+    return new THREE.Mesh(mergeGeometries(parts), material);
+}
+
 // ---------- تصاميم مطبوعة (الذكاء الاصطناعي) ----------
 
 function loadImage(url) {
@@ -436,8 +454,8 @@ function vintage(tiers, piping, beads) {
 // ---------- التركيب ----------
 
 /**
- * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي والسن ست نموذج دور واحد
- * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone'|'sunset', style?: 'plain'|'vintage', extraHeight?: number, topImage?: string, sideImage?: string}} options
+ * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي والسن ست والوال كيك نموذج دور واحد
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone'|'sunset'|'wall', style?: 'plain'|'vintage', extraHeight?: number, topImage?: string, sideImage?: string}} options
  *        topImage / sideImage: روابط تصاميم تنطبع على سطح الدور العلوي وجوانب كل الأدوار (دائري أو قلب)
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
@@ -481,7 +499,7 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     }
 
     const cakeMat = creamMat('CakeMaterial', color, 0.35);
-    const body = { round: roundBody, heart: heartBody, cone: coneBody, sunset: sunsetBody }[shape] || roundBody;
+    const body = { round: roundBody, heart: heartBody, cone: coneBody, sunset: sunsetBody, wall: wallBody }[shape] || roundBody;
     tiers.forEach(t => {
         const mesh = body(t, cakeMat);
         mesh.name = 'CakeTier';
@@ -499,7 +517,7 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         // المخروطي: صدف على القاعدة فقط (مثل كيكة قبعة الحفلة)
         const t = tiers[0], bs = Math.max(0.005, Math.min(0.008, t.r * 0.075));
         shellBorder(t.outline, t.y0 + bs * 0.9, bs, piping);
-    } else if (style === 'vintage' && shape !== 'sunset') {
+    } else if (style === 'vintage' && shape !== 'sunset' && shape !== 'wall') {
         vintage(tiers, piping, beads);
     }
     const cream = creamMat('PipingMaterial', color, 0.08);

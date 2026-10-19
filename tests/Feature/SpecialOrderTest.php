@@ -36,12 +36,6 @@ class SpecialOrderTest extends TestCase
             ]),
             self::API.'/cake-items/flavor*' => Http::response([$item(314, 'شوكولاته', 'flavor'), $item(12, 'فانيلا عادية', 'flavor')]),
             self::API.'/cake-items/stuffing*' => Http::response([$item(312, 'ويب كريم مع نوتيلا', 'stuffing')]),
-            // سعر السن ست من منتج فان جوخ: 6 إنش (4) و 8 إنش (9)، مع خصم ما نستخدمه
-            self::API.'/shop/layers/1456/*' => fn ($request) => Http::response([['id' => 2, 'name' => '2 layer', 'tiers' => [[
-                'id' => 1, 'name' => '1 tier',
-                'price' => str_contains($request->url(), '/1456/4') ? 191 : 251,
-                'price_before_discount' => str_contains($request->url(), '/1456/4') ? 260 : 340,
-            ]]]]),
         ]);
     }
 
@@ -60,29 +54,10 @@ class SpecialOrderTest extends TestCase
             ->assertDontSee(json_encode('فانيلا عادية'), false)
             ->assertSee('"extra":{"4":10,"8":15}', false)
             ->assertSee('data-shape="sunset"', false)
-            ->assertSee('"shapePrices":{"sunset":{"6in":{"2":260},"8in":{"2":340}}}', false);
-    }
-
-    public function test_sunset_falls_back_alone_when_its_product_is_down(): void
-    {
-        Http::preventStrayRequests();
-        Http::fake([self::API.'/shop/layers/*' => Http::response(null, 500)]);
-        $this->fakeJomacake();
-
-        $this->get('/special-order')
-            ->assertOk()
-            ->assertSee('"name":'.json_encode('شوكولاته'), false)
-            ->assertSee('"shapePrices":{"sunset":{"6in":{"2":255},"8in":{"2":335}}}', false);
-    }
-
-    public function test_fallback_options_when_api_is_down(): void
-    {
-        Http::fake(['*' => Http::response(null, 500)]);
-
-        $this->get('/special-order')
-            ->assertOk()
-            ->assertSee('"name":'.json_encode('ويب كريم مع فراوله'), false)
-            ->assertSee('"tier3_10-8-6":{"2":200,"3":230}', false);
+            ->assertSee('data-shape="wall"', false)
+            // السن ست بنفس سعر الكعكة الخاصة، والوال كيك دورين بنص السعر
+            ->assertSee('"sunset":{"sizes":["6","8"],"layers":2,"tiers":1,"price_factor":1}', false)
+            ->assertSee('"wall":{"sizes":["6","8"],"layers":2,"tiers":2,"price_factor":0.5}', false);
     }
 
     public function test_ai_image_uses_reference_photo_and_selected_specs(): void
@@ -142,6 +117,24 @@ class SpecialOrderTest extends TestCase
             $prompt = collect($request->data())->firstWhere('name', 'prompt')['contents'] ?? '';
 
             return str_contains($prompt, 'half-circle') && str_contains($prompt, '8 inches (20 cm) wide');
+        });
+    }
+
+    public function test_wall_cake_ai_prompt_has_two_wall_tiers(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+
+        $this->post('/special-order/ai', [
+            'shape' => 'wall', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
+            'reference' => UploadedFile::fake()->image('cake.jpg'),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        Http::assertSent(function ($request) {
+            $prompt = collect($request->data())->firstWhere('name', 'prompt')['contents'] ?? '';
+
+            return str_contains($prompt, 'standing upright like a wall')
+                && str_contains($prompt, '2 stacked wall tiers: the bottom wall is 6 inches (15 cm) wide');
         });
     }
 

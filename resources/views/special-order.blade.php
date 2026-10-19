@@ -107,7 +107,6 @@
 
         .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .options.two { grid-template-columns: repeat(2, 1fr); }
-        .options.four { grid-template-columns: repeat(4, 1fr); }
         .option {
             border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px; padding: 12px 6px;
             font-size: 13px; font-weight: 800; color: var(--ink); cursor: pointer; text-align: center;
@@ -263,11 +262,12 @@
         {{-- 1) الشكل --}}
         <section class="panel active" data-panel="0">
             <div class="section-title">شكل الكيكة</div>
-            <div class="options four" id="shape-options">
+            <div class="options" id="shape-options">
                 <button type="button" class="option active" data-shape="round"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9"/></svg>دائري</button>
                 <button type="button" class="option" data-shape="heart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/></svg>قلب</button>
                 <button type="button" class="option" data-shape="cone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z"/></svg>مخروطي</button>
                 <button type="button" class="option" data-shape="sunset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0"/></svg>سن ست</button>
+                <button type="button" class="option" data-shape="wall"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 19.5h16v-7H4zM7 12.5h10V7H7z"/></svg>وال كيك</button>
             </div>
 
             <div class="section-title">عدد الأدوار</div>
@@ -276,7 +276,7 @@
                 <button type="button" class="option" data-tiers="2">دورين</button>
                 <button type="button" class="option" data-tiers="3">3 أدوار</button>
             </div>
-            <div class="hint" id="tier-hint" hidden>القلب والمخروطي والسن ست دور واحد فقط.</div>
+            <div class="hint" id="tier-hint" hidden></div>
         </section>
 
         {{-- 2) الحجم والطبقات --}}
@@ -388,11 +388,13 @@
         const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
         const MAX_MODEL_LAYERS = 3;
         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
-        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست' };
-        // أشكال بسعر منتجها في المتجر ومقاساتها وطبقاتها الخاصة (السن ست)
-        const shapePrices = options.shapePrices || {};
-        const PLAIN_ONLY = ['cone', 'sunset'];
-        const isPlainOnly = () => PLAIN_ONLY.includes(state.shape);
+        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك' };
+        // أشكال خاصة (السن ست، الوال كيك): مقاساتها وطبقاتها وأدوارها ثابتة، وسعرها من أسعار
+        // الكعكة الخاصة لنفس المقاس مضروب في price_factor (الوال كيك نص السعر)، وكلها سادة
+        const SHAPES = @json($shapes);
+        const special = () => SHAPES[state.shape];
+        const factor = () => special()?.price_factor ?? 1;
+        const isPlainOnly = () => state.shape === 'cone' || !!special();
         const TIER_LABELS = { 1: 'دور واحد', 2: 'دورين', 3: '3 أدوار' };
         const $ = id => document.getElementById(id);
 
@@ -413,10 +415,10 @@
         const bottomInch = key => key.startsWith('tier') ? key.split('_')[1].split('-')[0] : key.replace('in', '');
         const sizeLabel = key => key.startsWith('tier') ? key.split('_')[1].replaceAll('-', '/') + ' إنش' : bottomInch(key) + ' إنش';
         const people = key => key.startsWith('tier') ? tierPeople[key] : options.sizes[bottomInch(key)]?.people;
-        const money = n => Math.round(n) + RIYAL;
-        const extra = item => item ? (item.extra[bottomInch(state.size)] || 0) : 0;
+        const money = n => Math.round(n * 10) / 10 + RIYAL;
+        const extra = item => item ? (item.extra[bottomInch(state.size)] || 0) * factor() : 0;
 
-        const basePrice = (size, n) => shapePrices[state.shape] ? shapePrices[state.shape][size]?.[n] : prices[size]?.[n];
+        const basePrice = (size, n) => prices[size]?.[n] === undefined ? undefined : prices[size][n] * factor();
 
         function total() {
             const base = basePrice(state.size, state.layers);
@@ -438,7 +440,7 @@
 
         function renderSizes() {
             const box = $('size-options');
-            const list = shapePrices[state.shape] ? Object.keys(shapePrices[state.shape]) : sizesByTier[state.tiers];
+            const list = special() ? special().sizes.map(inch => inch + 'in') : sizesByTier[state.tiers];
             if (!list.includes(state.size)) state.size = list[0];
             box.innerHTML = '';
             list.forEach(key => box.appendChild(optionButton(
@@ -453,9 +455,7 @@
             const isCone = state.shape === 'cone';
             $('layers-block').hidden = isCone;
             $('cone-hint').hidden = !isCone;
-            const allowed = shapePrices[state.shape]
-                ? Object.keys(shapePrices[state.shape][state.size]).map(Number)
-                : layerLimits[state.size];
+            const allowed = special() ? [special().layers] : layerLimits[state.size];
             if (isCone || !allowed.includes(state.layers)) state.layers = allowed[0];
             const box = $('layer-options');
             box.innerHTML = '';
@@ -474,7 +474,7 @@
                     const card = document.createElement('button');
                     card.type = 'button';
                     card.className = 'item-card' + (state[key]?.id === item.id ? ' active' : '');
-                    const add = item.extra[bottomInch(state.size)] || 0;
+                    const add = extra(item);
                     card.innerHTML = `<div class="pic" ${item.image ? `style="background-image:url('${item.image}')"` : ''}>${item.image ? '' : icon}</div>${item.name}<span class="extra">${add ? '+' + money(add) : 'بدون زيادة'}</span>`;
                     card.addEventListener('click', () => { state[key] = item; selectIn(box, card); refresh(); });
                     box.appendChild(card);
@@ -525,11 +525,13 @@
         document.querySelectorAll('#shape-options .option').forEach(btn => btn.addEventListener('click', () => {
             state.shape = btn.dataset.shape;
             selectIn(btn.parentElement, btn);
-            const singleOnly = state.shape !== 'round';
-            document.querySelectorAll('#tier-options .option').forEach(t => { t.disabled = singleOnly && t.dataset.tiers !== '1'; });
-            $('tier-hint').hidden = !singleOnly;
-            if (singleOnly && state.tiers !== 1) document.querySelector('#tier-options [data-tiers="1"]').click();
-            // المخروطي والسن ست سادة فقط
+            // الدائري كل الأدوار، القلب والمخروطي دور واحد، والأشكال الخاصة حسب إعداداتها
+            const tiers = state.shape === 'round' ? null : (special()?.tiers ?? 1);
+            document.querySelectorAll('#tier-options .option').forEach(t => { t.disabled = tiers !== null && Number(t.dataset.tiers) !== tiers; });
+            $('tier-hint').hidden = tiers === null;
+            $('tier-hint').textContent = `${SHAPE_LABELS[state.shape]} ${TIER_LABELS[tiers] || ''} فقط.`;
+            if (tiers !== null && state.tiers !== tiers) document.querySelector(`#tier-options [data-tiers="${tiers}"]`).click();
+            // المخروطي والأشكال الخاصة سادة فقط
             document.querySelector('#style-toggle [data-style="vintage"]').disabled = isPlainOnly();
             if (isPlainOnly()) document.querySelector('#style-toggle [data-style="plain"]').click();
             renderSizes();
