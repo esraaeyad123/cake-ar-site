@@ -488,7 +488,7 @@
             $('people-amount').textContent = people(state.size) || '—';
         }
 
-        let token = 0, currentBlob = null;
+        let token = 0, currentBlob = null, modelReady = Promise.resolve();
         async function updateModel() {
             const mine = ++token;
             const modelLayers = Math.min(state.layers, MAX_MODEL_LAYERS);
@@ -505,7 +505,9 @@
                 if (mine !== token) { URL.revokeObjectURL(url); return; }
                 if (currentBlob) URL.revokeObjectURL(currentBlob);
                 currentBlob = url;
+                const loaded = new Promise(res => $('viewer').addEventListener('load', res, { once: true }));
                 $('viewer').src = url;
+                await loaded;
                 $('viewer-status').hidden = true;
             } catch (e) {
                 console.error(e);
@@ -518,7 +520,7 @@
             updateBadges();
             renderSummary($('summary'));
             const key = [state.shape, state.size, state.layers, state.style].join('|');
-            if (key !== lastModelKey) { lastModelKey = key; updateModel(); }
+            if (key !== lastModelKey) { lastModelKey = key; modelReady = updateModel(); }
         }
 
         // ===== الشكل والأدوار =====
@@ -585,6 +587,27 @@
                 $('ai-thumb').appendChild(img);
             }
         });
+        // صورة المجسم بالمواصفات المختارة من الأمام، تنرسل تلقائيًا مع صورة الزبون حتى ياخذ الذكاء الاصطناعي الشكل منها
+        async function snapshotModel() {
+            try {
+                await Promise.race([modelReady, new Promise(res => setTimeout(res, 15000))]);
+                const v = $('viewer');
+                if (!v.loaded) return null;
+                const orbit = v.getCameraOrbit(), auto = v.autoRotate;
+                v.autoRotate = false;
+                v.cameraOrbit = '0deg 55deg 105%'; // من فوق شوي حتى يبان المحيط (قلب، سن ست…)
+                v.jumpCameraToGoal();
+                await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+                const blob = await v.toBlob({ mimeType: 'image/png' });
+                v.cameraOrbit = `${orbit.theta}rad ${orbit.phi}rad ${orbit.radius}m`;
+                v.autoRotate = auto;
+                return blob;
+            } catch (e) {
+                console.error(e);
+                return null;
+            }
+        }
+
         $('ai-generate').addEventListener('click', async () => {
             if (!aiRef.files[0]) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
             const form = new FormData();
@@ -596,6 +619,8 @@
             form.append('reference', aiRef.files[0]);
 
             $('ai-generate').disabled = true;
+            const shot = await snapshotModel();
+            if (shot) form.append('shape_image', shot, 'shape.png');
             const started = Date.now();
             const tick = () => showAiMessage(`الذكاء الاصطناعي يجهّز صورة كيكتك… ⏳ ${Math.round((Date.now() - started) / 1000)} ثانية`, 'info');
             tick();

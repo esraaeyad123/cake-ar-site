@@ -49,6 +49,8 @@ class SpecialOrderController extends Controller
             'style' => ['required', 'in:plain,vintage'],
             'note' => ['nullable', 'string', 'max:300'],
             'reference' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
+            // صورة المجسم 3D بالمواصفات المختارة، تلتقطها الصفحة تلقائيًا عند الضغط على "ولّدي الصورة"
+            'shape_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
         ]);
 
         // الأشكال الخاصة (السن ست) دور واحد بمقاساتها وطبقاتها فقط
@@ -69,15 +71,17 @@ class SpecialOrderController extends Controller
 
         set_time_limit(180);
 
-        $file = $request->file('reference');
+        $shapeImage = $request->file('shape_image');
         try {
-            $response = Http::withToken(config('services.openai.key'))
-                ->acceptJson()
-                ->timeout(170)
-                ->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()])
+            $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(170);
+            // الترتيب مهم: الصورة الأولى للشكل، والثانية للزينة
+            foreach (array_filter([$shapeImage, $request->file('reference')]) as $file) {
+                $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
+            }
+            $response = $pending
                 ->post('https://api.openai.com/v1/images/edits', [
                     'model' => config('services.openai.image_model'),
-                    'prompt' => $this->prompt($data),
+                    'prompt' => $this->prompt($data, (bool) $shapeImage),
                     'size' => '1024x1024',
                     'quality' => config('services.openai.image_quality'),
                     'n' => 1,
@@ -114,7 +118,7 @@ class SpecialOrderController extends Controller
         return max(0, config('special_order.ai_limit') - (int) session('special_order.ai_used', 0));
     }
 
-    private function prompt(array $data): string
+    private function prompt(array $data, bool $withShapeImage): string
     {
         // "tier2_8-6" => [8, 6]، "6in" => [6]
         $inches = str_starts_with($data['size'], 'tier')
@@ -139,16 +143,24 @@ class SpecialOrderController extends Controller
 
         $finish = $data['style'] === 'vintage' && ! config("special_order.shapes.{$data['shape']}")
             ? 'Use vintage (Lambeth) style piped cream borders on the top edge and the base. '
-            : 'Keep the sides smooth (plain cream finish), apart from the reference decorations. ';
+            : 'No vintage piped borders. ';
 
         $shape = self::SHAPES[$data['shape']];
         $note = filled($data['note'] ?? null) ? "Customer changes to apply: {$data['note']}. " : '';
 
-        return 'The attached photo is the customer\'s reference cake. Create a realistic professional bakery photo of ONE cake that copies '
-            .'the reference cake\'s decoration, colours, toppings, piping and writing as closely as possible, '
-            ."but rebuilt with these exact specifications: shape {$shape}; {$structure}. "
-            .$height.$finish.$note
-            .'Show the whole cake on a simple round cake board, front three-quarter view, on a plain light background. No people, no hands.';
+        $specs = "Required cake: {$shape}; {$structure}. {$height}";
+
+        $intro = $withShapeImage
+            ? 'Image 1 is a plain 3D model of the EXACT cake the customer ordered: copy its shape, outline, number of tiers, '
+                .'proportions and height exactly. Image 2 is the customer\'s reference cake: use it ONLY for the decoration, '
+                .'frosting colours, toppings, flowers, figures and writing, and re-arrange them to fit the new shape. '
+                .'Do NOT keep the shape or number of tiers of image 2. '
+            : 'The attached photo is the customer\'s reference cake. Copy its decoration, frosting colours, toppings and writing, '
+                .'but do NOT keep its shape: rebuild the cake with the required shape below. ';
+
+        return $intro.'Create a realistic professional bakery photo of ONE cake. '
+            .$specs.$finish.$note
+            .'Show the whole cake on a simple cake board, front three-quarter view, on a plain light background. No people, no hands.';
     }
 
     private function failed(string $message)

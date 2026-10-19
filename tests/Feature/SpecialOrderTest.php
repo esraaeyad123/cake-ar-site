@@ -87,6 +87,27 @@ class SpecialOrderTest extends TestCase
         });
     }
 
+    public function test_3d_snapshot_is_sent_first_to_set_the_shape(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+
+        $this->post('/special-order/ai', [
+            'shape' => 'heart', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
+            'reference' => UploadedFile::fake()->image('cake.jpg'),
+            'shape_image' => UploadedFile::fake()->image('shape.png'),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        Http::assertSent(function ($request) {
+            $parts = collect($request->data());
+            $images = $parts->where('name', 'image[]')->pluck('filename')->values()->all();
+
+            return $images === ['shape.png', 'cake.jpg']
+                && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'Image 1 is a plain 3D model')
+                && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'heart-shaped');
+        });
+    }
+
     public function test_ai_is_limited_to_two_images_per_customer(): void
     {
         Storage::fake('public');
