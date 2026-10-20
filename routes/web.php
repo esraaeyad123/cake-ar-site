@@ -16,3 +16,9 @@ Route::get('/special-order', [SpecialOrderController::class, 'show'])->name('spe
 Route::post('/special-order/ai', [SpecialOrderController::class, 'generate'])
     ->middleware('throttle:5,1')
     ->name('special-order.ai');
+Route::get('/special-order/ai/{job}', [SpecialOrderController::class, 'status'])
+    ->middleware('throttle:60,1')
+    ->name('special-order.ai.status');
+Route::post('/special-order/review', [SpecialOrderController::class, 'review'])
+    ->middleware('throttle:10,1')
+    ->name('special-order.review');
