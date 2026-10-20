@@ -616,8 +616,8 @@
             ],
         };
 
-        // الأشكال الخاصة: مقاساتها فقط (من مقاسات الدور الواحد) مهما كان عدد أدوارها
-        const sizesFor = tier => special() ? sizesData[1].filter(s => special().sizes.includes(s.label)) : sizesData[tier];
+        // الأشكال الخاصة: مقاساتها فقط
+        const sizesFor = tier => special() ? Object.values(sizesData).flat().filter(s => special().sizes.includes(s.sizeKey)) : sizesData[tier];
 
         function renderSizeCards(tier) {
             const container = document.getElementById('size-cards');

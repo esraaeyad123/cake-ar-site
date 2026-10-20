@@ -444,7 +444,7 @@
 
         function renderSizes() {
             const box = $('size-options');
-            const list = special() ? special().sizes.map(inch => inch + 'in') : sizesByTier[state.tiers];
+            const list = special() ? special().sizes : sizesByTier[state.tiers];
             if (!list.includes(state.size)) state.size = list[0];
             box.innerHTML = '';
             list.forEach(key => box.appendChild(optionButton(
