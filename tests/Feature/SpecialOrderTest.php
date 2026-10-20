@@ -166,6 +166,19 @@ class SpecialOrderTest extends TestCase
         });
     }
 
+    public function test_ai_note_allows_500_characters(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $send = fn ($note) => $this->post('/special-order/ai', [
+            'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain', 'note' => $note,
+            'reference' => UploadedFile::fake()->image('cake.jpg'),
+        ], ['Accept' => 'application/json']);
+
+        $send(str_repeat('ا', 500))->assertOk();
+        $send(str_repeat('ا', 501))->assertStatus(422)->assertJsonPath('errors.note.0', 'الملاحظة طويلة، الحد 500 حرف.');
+    }
+
     public function test_ai_requires_a_reference_photo(): void
     {
         Http::fake();

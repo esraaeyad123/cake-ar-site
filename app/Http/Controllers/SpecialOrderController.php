@@ -47,10 +47,13 @@ class SpecialOrderController extends Controller
             'size' => ['required', 'in:'.implode(',', array_keys(config('cake_ar.layers')))],
             'layers' => ['required', 'integer', 'between:1,4'],
             'style' => ['required', 'in:plain,vintage'],
-            'note' => ['nullable', 'string', 'max:300'],
+            'note' => ['nullable', 'string', 'max:500'],
             'reference' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
             // صورة المجسم 3D بالمواصفات المختارة، تلتقطها الصفحة تلقائيًا عند الضغط على "ولّدي الصورة"
             'shape_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+        ], [
+            'note.max' => 'الملاحظة طويلة، الحد 500 حرف.',
+            'reference.required' => 'اختاري صورة الكيكة أول.',
         ]);
 
         // الأشكال الخاصة (السن ست) دور واحد بمقاساتها وطبقاتها فقط

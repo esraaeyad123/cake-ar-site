@@ -320,7 +320,7 @@
                 <div class="thumbs" id="ai-thumb"></div>
 
                 <div class="section-title">ملاحظة <small>(اختياري)</small></div>
-                <textarea id="ai-note" maxlength="300" placeholder="مثال: غيّري لون الورد إلى أبيض"></textarea>
+                <textarea id="ai-note" maxlength="500" placeholder="مثال: غيّري لون الورد إلى أبيض"></textarea>
 
                 <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining > 0 ? '' : 'disabled' }}>✨ ولّدي الصورة</button>
                 <div class="hint" id="ai-remaining"></div>
