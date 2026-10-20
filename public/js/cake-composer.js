@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const loader = new GLTFLoader();
 const exporter = new GLTFExporter();
@@ -172,6 +173,18 @@ function heartPoints(r, count = 240) {
     return pts;
 }
 
+// مستطيل w × d بزوايا مدوّرة نصف قطرها c (محيط جدار الوال كيك من فوق)
+function roundedRectPoints(w, d, c, perCorner = 8) {
+    const pts = [], hx = w / 2 - c, hz = d / 2 - c;
+    [[hx, hz, 0], [-hx, hz, 0.5], [-hx, -hz, 1], [hx, -hz, 1.5]].forEach(([cx, cz, start]) => {
+        for (let i = 0; i <= perCorner; i++) {
+            const a = (start + (i / perCorner) * 0.5) * Math.PI;
+            pts.push({ x: cx + Math.cos(a) * c, z: cz + Math.sin(a) * c });
+        }
+    });
+    return pts;
+}
+
 // يوجّه شكلًا محليًا عند نقطة على المحيط: x على طول المحيط، y للأعلى، z نحو الداخل.
 // offset: بُعد عن المحيط للخارج (سالب = للداخل)
 function place(g, p, offset, y) {
@@ -221,6 +234,49 @@ function coneBody(tier, material) {
         pts.push(new THREE.Vector2(r * Math.pow(1 - Math.pow(t, 1.3), 0.75), y0 + (y1 - y0) * t));
     }
     return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
+}
+
+// سن ست: نص دائرة واقفة على البورد (مثل الشمس وقت الغروب)، العرض = قطر المقاس،
+// والسماكة من قدام لورا = ارتفاع الطبقات
+function sunsetBody(tier, material) {
+    const { r, y0, y1 } = tier;
+    const thick = y1 - y0;
+    const e = Math.min(0.008, thick * 0.14);
+    const shape = new THREE.Shape();
+    shape.moveTo(-(r - e), 0);
+    shape.absarc(0, 0, r - e, Math.PI, 0, true);
+    shape.lineTo(-(r - e), 0);
+    const g = new THREE.ExtrudeGeometry(shape, {
+        depth: thick - 2 * e, bevelEnabled: true, bevelThickness: e, bevelSize: e, bevelSegments: 5, curveSegments: 64,
+    });
+    // الحافة السفلية المستقيمة تنزل للبورد، والوجه المقوس باتجاه الكاميرا
+    g.translate(0, e, -(thick - 2 * e) / 2);
+    g.computeBoundingBox();
+    g.translate(0, y0 - g.boundingBox.min.y, 0);
+    g.computeVertexNormals();
+    return new THREE.Mesh(g, material);
+}
+
+/**
+ * وال كيك: دورين جدار مستطيل واقف، العلوي أصغر. عرض الجدار السفلي = قطر المقاس،
+ * والسماكة من قدام لورا = ارتفاع الطبقات. كل جدار يرجع كدور (له محيط) حتى تنطبق عليه زخرفة الفنتج.
+ */
+function wallBlocks(tier) {
+    const { r, y0, y1 } = tier;
+    const d = y1 - y0;
+    const c = Math.min(0.008, d * 0.14);
+    let y = y0;
+    return [[2 * r, 1.3 * r], [1.4 * r, 0.9 * r]].map(([w, h]) => {
+        const block = { r: w / 2, w, d, c, y0: y, y1: y + h, outline: makeOutline(roundedRectPoints(w, d, c)) };
+        y += h;
+        return block;
+    });
+}
+
+function wallBody(block, material) {
+    const g = new RoundedBoxGeometry(block.w, block.y1 - block.y0, block.d, 4, block.c);
+    g.translate(0, (block.y0 + block.y1) / 2, 0);
+    return new THREE.Mesh(g, material);
 }
 
 // ---------- الزخرفة ----------
@@ -325,8 +381,8 @@ function vintage(tiers, piping, beads) {
 // ---------- التركيب ----------
 
 /**
- * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي نموذج دور واحد
- * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone', style?: 'plain'|'vintage', extraHeight?: number}} options
+ * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي والسن ست والوال كيك نموذج دور واحد
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone'|'sunset'|'wall', style?: 'plain'|'vintage', extraHeight?: number}} options
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
  */
@@ -338,6 +394,8 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     tiers.forEach(t => {
         t.outline = shape === 'heart' ? makeOutline(heartPoints(t.r)) : circleOutline(t.r);
     });
+    // الوال كيك يُبنى من نموذج دور واحد: الجداران هم الأدوار
+    const parts = shape === 'wall' ? wallBlocks(tiers[0]) : tiers;
 
     const root = new THREE.Group();
     root.name = 'JOMACAKE';
@@ -369,8 +427,8 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     }
 
     const cakeMat = creamMat('CakeMaterial', color, 0.35);
-    const body = { round: roundBody, heart: heartBody, cone: coneBody }[shape] || roundBody;
-    tiers.forEach(t => {
+    const body = { round: roundBody, heart: heartBody, cone: coneBody, sunset: sunsetBody, wall: wallBody }[shape] || roundBody;
+    parts.forEach(t => {
         const mesh = body(t, cakeMat);
         mesh.name = 'CakeTier';
         root.add(mesh);
@@ -381,8 +439,8 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         // المخروطي: صدف على القاعدة فقط (مثل كيكة قبعة الحفلة)
         const t = tiers[0], bs = Math.max(0.005, Math.min(0.008, t.r * 0.075));
         shellBorder(t.outline, t.y0 + bs * 0.9, bs, piping);
-    } else if (style === 'vintage') {
-        vintage(tiers, piping, beads);
+    } else if (style === 'vintage' && shape !== 'sunset') {
+        vintage(parts, piping, beads);
     }
     const cream = creamMat('PipingMaterial', color, 0.08);
     addMerged(root, 'Piping', piping, cream);

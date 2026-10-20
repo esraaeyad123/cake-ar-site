@@ -171,6 +171,9 @@
             color: #fff;
         }
         .tier-option:active { transform: scale(0.96); }
+        /* الشكل: أيقونات بدون كلمات، والاسم يظهر في بادج الشكل فوق */
+        .shape-option { display: flex; align-items: center; justify-content: center; padding: 7px 4px; }
+        .shape-svg { width: 26px; height: 26px; }
         .tier-option.disabled, .style-option.disabled { opacity: 0.35; cursor: not-allowed; }
         .tier-note {
             font-size: 11px;
@@ -403,9 +406,11 @@
     <div id="panel-shape" class="options-panel">
         <div class="section-title">شكل الكيكة</div>
         <div class="tier-switch" id="shape-switch">
-            <div class="tier-option shape-option active" data-shape="round">دائري</div>
-            <div class="tier-option shape-option" data-shape="heart">قلب</div>
-            <div class="tier-option shape-option" data-shape="cone">مخروطي</div>
+            <div class="tier-option shape-option active" data-shape="round" role="button" aria-label="دائري" title="دائري"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9"/></svg></div>
+            <div class="tier-option shape-option" data-shape="heart" role="button" aria-label="قلب" title="قلب"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="cone" role="button" aria-label="مخروطي" title="مخروطي"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="sunset" role="button" aria-label="سن ست" title="سن ست"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0"/></svg></div>
+            <div class="tier-option shape-option" data-shape="wall" role="button" aria-label="وال كيك" title="وال كيك"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5h16v-7H4zM7 12.5h10V7H7z"/></svg></div>
         </div>
     </div>
 
@@ -480,23 +485,33 @@
 
         // رمز الريال السعودي الجديد (SVG حتى يظهر على كل الأجهزة)
         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
-        const money = n => `${Math.round(n)}${RIYAL}`;
+        const money = n => `${Math.round(n * 10) / 10}${RIYAL}`;
+
+        // أشكال خاصة (السن ست، الوال كيك) من config/cake_ar.php: مقاساتها وطبقاتها وأدوارها ثابتة،
+        // وسعرها = سعر الكعكة الخاصة لنفس المقاس × price_factor (الوال كيك نص السعر)
+        const SHAPES = @json(config('cake_ar.shapes'));
+        const special = () => SHAPES[currentShape];
+        const priceOf = (sizeKey, layers) => {
+            const p = prices[sizeKey]?.[layers];
+            return p === undefined ? undefined : p * (special()?.price_factor ?? 1);
+        };
+        const allowedLayers = sizeKey => special() ? [special().layers] : (layerLimits[sizeKey] || [1,2,3,4,5,6,7]);
+        const isPlainOnly = () => currentShape === 'cone' || (!!special() && !special().vintage);
 
         const layerColors = ['#F4C0D1','#ED93B1','#D4537E','#993556','#72243E','#4B1528','#2C1018'];
 
         function renderLayerChips(sizeKey) {
             const container = document.getElementById('layers-row');
             container.innerHTML = '';
-            const allowed = layerLimits[sizeKey] || [1,2,3,4,5,6,7];
+            const allowed = allowedLayers(sizeKey);
 
             if (!allowed.includes(currentLayers)) {
                 currentLayers = allowed[0];
             }
 
-            const sizePrices = prices[sizeKey];
             allowed.forEach(n => {
                 // زيادة السعر عن أقل عدد طبقات (مثل موقع جوماكيك: 2 طبقة +0، 3 طبقات +20...)
-                const extra = sizePrices?.[n] !== undefined ? sizePrices[n] - sizePrices[allowed[0]] : null;
+                const extra = priceOf(sizeKey, n) !== undefined ? priceOf(sizeKey, n) - priceOf(sizeKey, allowed[0]) : null;
                 const chip = document.createElement('div');
                 chip.className = 'layer-chip' + (n === currentLayers ? ' active' : '');
                 chip.dataset.layers = n;
@@ -543,7 +558,7 @@
                     color: CAKE_COLOR,
                     boardColor: BOARD_COLORS[currentSizeKey] || BOARD_COLORS.default,
                     shape: currentShape,
-                    style: currentShape === 'cone' ? 'plain' : currentStyle,
+                    style: isPlainOnly() ? 'plain' : currentStyle,
                     extraHeight: (currentLayers - modelLayers) * LAYER_HEIGHT,
                 });
                 if (token !== composeToken) { URL.revokeObjectURL(url); return; }
@@ -560,7 +575,7 @@
 
         function updatePrice() {
             const badge = document.getElementById('price-badge');
-            const price = prices[currentSizeKey]?.[currentLayers];
+            const price = priceOf(currentSizeKey, currentLayers);
             badge.hidden = price === undefined;
             if (price !== undefined) {
                 document.getElementById('price-amount').innerHTML = money(price);
@@ -600,10 +615,13 @@
             ],
         };
 
+        // الأشكال الخاصة: مقاساتها فقط (من مقاسات الدور الواحد) مهما كان عدد أدوارها
+        const sizesFor = tier => special() ? sizesData[1].filter(s => special().sizes.includes(s.label)) : sizesData[tier];
+
         function renderSizeCards(tier) {
             const container = document.getElementById('size-cards');
             container.innerHTML = '';
-            sizesData[tier].forEach((s, i) => {
+            sizesFor(tier).forEach((s, i) => {
                 const isActive = s.sizeKey === currentSizeKey;
                 const card = document.createElement('div');
                 card.className = 'size-card' + (isActive ? ' active' : '');
@@ -613,7 +631,7 @@
 
                 const circleSize = 26 + i * 8;
                 // سعر المقاس/الكومبو بأقل عدد طبقات
-                const basePrice = prices[s.sizeKey]?.[(layerLimits[s.sizeKey] || [2])[0]];
+                const basePrice = priceOf(s.sizeKey, allowedLayers(s.sizeKey)[0]);
                 card.innerHTML = `
                     ${s.badge ? '<div class="badge">الأكثر طلبًا</div>' : ''}
                     <div class="check">✓</div>
@@ -648,8 +666,9 @@
 
                 const tier = parseInt(opt.dataset.tier);
 
-                // اختيار أول مقاس افتراضيًا من هذا الدور
-                const firstOption = sizesData[tier][0];
+                // نخلي المقاس الحالي إذا موجود في هذا الدور، وإلا أول مقاس
+                const list = sizesFor(tier);
+                const firstOption = list.find(s => s.sizeKey === currentSizeKey) || list[0];
                 currentSizeKey = firstOption.sizeKey;
 
                 renderSizeCards(tier);
@@ -665,38 +684,42 @@
             });
         });
 
-        // الشكل: القلب والمخروطي دور واحد فقط، والمخروطي ارتفاعه ثابت (بدون طبقات) وبدون فنتج
-        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي' };
-        const SHAPE_ICONS = {
-            round: 'M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9',
-            heart: 'M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z',
-            cone: 'M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z',
-        };
+        // الشكل: الدائري كل الأدوار، القلب والمخروطي دور واحد، والأشكال الخاصة حسب إعداداتها.
+        // المخروطي ارتفاعه ثابت (بدون طبقات)، والمخروطي والسن ست بدون فنتج
+        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك' };
+        const SHAPE_ICONS = Object.fromEntries([...document.querySelectorAll('.shape-option')]
+            .map(o => [o.dataset.shape, o.querySelector('path').getAttribute('d')]));
         document.querySelectorAll('.shape-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 if (opt.dataset.shape === currentShape) return;
                 document.querySelectorAll('.shape-option').forEach(o => o.classList.remove('active'));
                 opt.classList.add('active');
+                const wasSpecial = !!special();
                 currentShape = opt.dataset.shape;
                 document.getElementById('shape-label').textContent = SHAPE_LABELS[currentShape];
                 document.getElementById('shape-icon').setAttribute('d', SHAPE_ICONS[currentShape]);
 
-                const singleTierOnly = currentShape !== 'round';
-                const tierOne = document.querySelector('#tier-switch .tier-option[data-tier="1"]');
-                if (singleTierOnly && !tierOne.classList.contains('active')) tierOne.click();
-                document.querySelectorAll('#tier-switch .tier-option:not([data-tier="1"])')
-                    .forEach(o => o.classList.toggle('disabled', singleTierOnly));
+                const tiers = currentShape === 'round' ? null : (special()?.tiers ?? 1);
+                document.querySelectorAll('#tier-switch .tier-option')
+                    .forEach(o => o.classList.toggle('disabled', tiers !== null && Number(o.dataset.tier) !== tiers));
 
                 const isCone = currentShape === 'cone';
                 document.querySelector('.spec-badge[data-target="panel-layers"]').style.display = isCone ? 'none' : '';
-                document.querySelector('.style-option[data-style="vintage"]').classList.toggle('disabled', isCone);
-                if (isCone) {
-                    currentLayers = (layerLimits[currentSizeKey] || [2])[0];
-                    renderLayerChips(currentSizeKey);
-                    document.querySelectorAll('.spec-label')[2].textContent = currentLayers + ' طبقات';
+                const vintageOpt = document.querySelector('.style-option[data-style="vintage"]');
+                vintageOpt.classList.toggle('disabled', isPlainOnly());
+                if (isPlainOnly() && currentStyle === 'vintage') {
+                    vintageOpt.classList.remove('active');
+                    document.querySelector('.style-option[data-style="plain"]').classList.add('active');
+                    currentStyle = 'plain';
                 }
+                if (isCone) currentLayers = allowedLayers(currentSizeKey)[0];
 
-                updateModel();
+                // نعيد عرض المقاسات والطبقات للدور المناسب (ويركّب الكيكة من جديد)
+                // من شكل خاص (مثل الوال كيك دورين) للدائري نرجع لدور واحد
+                const tierOpt = tiers === null
+                    ? document.querySelector(wasSpecial ? '#tier-switch .tier-option[data-tier="1"]' : '#tier-switch .tier-option.active')
+                    : document.querySelector(`#tier-switch .tier-option[data-tier="${tiers}"]`);
+                tierOpt.click();
             });
         });
 
