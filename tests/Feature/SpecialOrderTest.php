@@ -56,8 +56,8 @@ class SpecialOrderTest extends TestCase
             ->assertSee('data-shape="sunset"', false)
             ->assertSee('data-shape="wall"', false)
             // السن ست بنفس سعر الكعكة الخاصة، والوال كيك دورين بنص السعر
-            ->assertSee('"sunset":{"sizes":["6","8"],"layers":2,"tiers":1,"price_factor":1,"vintage":false}', false)
-            ->assertSee('"wall":{"sizes":["6","8"],"layers":2,"tiers":2,"price_factor":0.5,"vintage":true}', false);
+            ->assertSee('"sunset":{"sizes":["6in","8in"],"layers":2,"tiers":1,"price_factor":1,"vintage":false}', false)
+            ->assertSee('"wall":{"sizes":["tier2_8-6"],"layers":2,"tiers":2,"price_factor":0.5,"vintage":true}', false);
     }
 
     public function test_ai_image_uses_reference_photo_and_selected_specs(): void
@@ -141,21 +141,24 @@ class SpecialOrderTest extends TestCase
         });
     }
 
-    public function test_wall_cake_ai_prompt_has_two_wall_tiers(): void
+    public function test_wall_cake_is_half_of_an_8_6_cake_on_a_standing_board(): void
     {
         Storage::fake('public');
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
-
-        $this->post('/special-order/ai', [
-            'shape' => 'wall', 'size' => '6in', 'layers' => 2, 'style' => 'vintage',
+        $send = fn ($size) => $this->post('/special-order/ai', [
+            'shape' => 'wall', 'size' => $size, 'layers' => 2, 'style' => 'vintage',
             'reference' => UploadedFile::fake()->image('cake.jpg'),
-        ], ['Accept' => 'application/json'])->assertOk();
+        ], ['Accept' => 'application/json']);
+
+        $send('8in')->assertStatus(422)->assertJsonValidationErrors('size');
+        $send('tier2_8-6')->assertOk();
 
         Http::assertSent(function ($request) {
             $prompt = collect($request->data())->firstWhere('name', 'prompt')['contents'] ?? '';
 
-            return str_contains($prompt, 'standing upright like a wall')
-                && str_contains($prompt, '2 stacked wall tiers: the bottom wall is 6 inches (15 cm) wide')
+            return str_contains($prompt, 'FRONT HALF of a round tiered cake')
+                && str_contains($prompt, 'leans slightly back')
+                && str_contains($prompt, 'bottom tier 8 inches (20 cm) wide, top tier 6 inches')
                 && str_contains($prompt, 'Lambeth');
         });
     }

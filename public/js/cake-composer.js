@@ -12,7 +12,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const loader = new GLTFLoader();
 const exporter = new GLTFExporter();
@@ -173,15 +172,14 @@ function heartPoints(r, count = 240) {
     return pts;
 }
 
-// مستطيل w × d بزوايا مدوّرة نصف قطرها c (محيط جدار الوال كيك من فوق)
-function roundedRectPoints(w, d, c, perCorner = 8) {
-    const pts = [], hx = w / 2 - c, hz = d / 2 - c;
-    [[hx, hz, 0], [-hx, hz, 0.5], [-hx, -hz, 1], [hx, -hz, 1.5]].forEach(([cx, cz, start]) => {
-        for (let i = 0; i <= perCorner; i++) {
-            const a = (start + (i / perCorner) * 0.5) * Math.PI;
-            pts.push({ x: cx + Math.cos(a) * c, z: cz + Math.sin(a) * c });
-        }
-    });
+// نص دائرة من قدام (z ≥ 0) مع الظهر المستقيم — محيط الوال كيك الملصوق على البورد
+function halfCirclePoints(r) {
+    const pts = [];
+    for (let i = 0; i <= 128; i++) {
+        const a = -Math.PI / 2 + (i / 128) * Math.PI;
+        pts.push({ x: Math.sin(a) * r, z: Math.cos(a) * r });
+    }
+    for (let i = 1; i < 32; i++) pts.push({ x: r - (i / 32) * 2 * r, z: 0 });
     return pts;
 }
 
@@ -199,7 +197,8 @@ function bevelSize(tier) {
     return Math.min(0.009, (tier.y1 - tier.y0) * 0.14, tier.r * 0.12);
 }
 
-function roundBody(tier, material) {
+// half: نص الكيكة الأمامي فقط (الوال كيك)
+function roundBody(tier, material, half = false) {
     const { r, y0, y1 } = tier;
     const e = bevelSize(tier);
     const pts = [new THREE.Vector2(0, y0), new THREE.Vector2(r, y0), new THREE.Vector2(r, y1 - e)];
@@ -208,7 +207,8 @@ function roundBody(tier, material) {
         pts.push(new THREE.Vector2(r - e + Math.cos(a) * e, y1 - e + Math.sin(a) * e));
     }
     pts.push(new THREE.Vector2(0, y1));
-    return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
+    const g = half ? new THREE.LatheGeometry(pts, 48, -Math.PI / 2, Math.PI) : new THREE.LatheGeometry(pts, 96);
+    return new THREE.Mesh(g, material);
 }
 
 // قلب ممدود للأعلى بحافة علوية دائرية
@@ -258,25 +258,56 @@ function sunsetBody(tier, material) {
 }
 
 /**
- * وال كيك: دورين جدار مستطيل واقف، العلوي أصغر. عرض الجدار السفلي = قطر المقاس،
- * والسماكة من قدام لورا = ارتفاع الطبقات. كل جدار يرجع كدور (له محيط) حتى تنطبق عليه زخرفة الفنتج.
+ * وال كيك: نص كيكة أدوار (الوجه المدوّر للأمام) ملصوقة على بورد مربع واقف ومايل شوي لورا،
+ * مثل البرواز، واللوجو تحت على اليسار. root = الكيكة والزخرفة كما بُنيت على الأرض.
  */
-function wallBlocks(tier) {
-    const { r, y0, y1 } = tier;
-    const d = y1 - y0;
-    const c = Math.min(0.008, d * 0.14);
-    let y = y0;
-    return [[2 * r, 1.3 * r], [1.4 * r, 0.9 * r]].map(([w, h]) => {
-        const block = { r: w / 2, w, d, c, y0: y, y1: y + h, outline: makeOutline(roundedRectPoints(w, d, c)) };
-        y += h;
-        return block;
-    });
-}
+function wallScene(root, tiers, logo, boardColor) {
+    const rB = tiers[0].r;
+    const S = 2 * rB * 1.5;                  // ضلع البورد
+    const T = 0.012;                         // سماكة البورد
+    const baseH = 0.008;                     // قاعدة نص دائرية تحت الكيكة
+    // الكيكة فوق سطر اللوجو (مثل الصورة: اللوجو تحت على اليسار)
+    const logoH = logo ? logo.box.max.z - logo.box.min.z : 0;
+    const lift = S * 0.04 + logoH + 0.006;
+    const boardMat = mat('BoardMaterial', boardColor, 0.95);
 
-function wallBody(block, material) {
-    const g = new RoundedBoxGeometry(block.w, block.y1 - block.y0, block.d, 4, block.c);
-    g.translate(0, (block.y0 + block.y1) / 2, 0);
-    return new THREE.Mesh(g, material);
+    const wall = new THREE.Group();
+    wall.name = 'WallCake';
+
+    const cake = new THREE.Group();
+    [...root.children].forEach(c => cake.add(c));
+    cake.position.y = lift + baseH - tiers[0].y0;
+    wall.add(cake);
+
+    const board = new THREE.Mesh(new THREE.BoxGeometry(S, S, T), boardMat);
+    board.geometry.translate(0, S / 2, -T / 2);
+    board.name = 'Board';
+    wall.add(board);
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(rB * 1.04, rB * 1.04, baseH, 48, 1, false, -Math.PI / 2, Math.PI), boardMat);
+    base.geometry.translate(0, lift + baseH / 2, 0);
+    base.name = 'CakeBase';
+    wall.add(base);
+
+    if (logo) {
+        const { canvas, box } = logo;
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.flipY = false;
+        const w = box.max.x - box.min.x, h = box.max.z - box.min.z;
+        const plane = new THREE.PlaneGeometry(w, h);
+        const uv = plane.attributes.uv;
+        for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
+        plane.translate(-S / 2 + S * 0.05 + w / 2, S * 0.04 + h / 2, 0.0004);
+        const mesh = new THREE.Mesh(plane, new THREE.MeshStandardMaterial({ name: 'LogoMaterial', map: tex, roughness: 0.9 }));
+        mesh.name = 'Logo';
+        wall.add(mesh);
+    }
+
+    // مايل لورا 10 درجات، مسنود على حافته السفلية
+    wall.rotation.x = -THREE.MathUtils.degToRad(10);
+    wall.position.y = T * Math.sin(THREE.MathUtils.degToRad(10));
+    root.add(wall);
 }
 
 // ---------- الزخرفة ----------
@@ -391,16 +422,18 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     const tiers = base.tiers.map(t => ({ ...t }));
     if (extraHeight && tiers.length === 1) tiers[0].y1 += extraHeight;
     if (shape === 'cone') tiers[0].y1 = tiers[0].y0 + tiers[0].r * 2.9; // ارتفاع ثابت حسب المقاس
+    const isWall = shape === 'wall';
     tiers.forEach(t => {
-        t.outline = shape === 'heart' ? makeOutline(heartPoints(t.r)) : circleOutline(t.r);
+        t.outline = shape === 'heart' ? makeOutline(heartPoints(t.r))
+            : isWall ? makeOutline(halfCirclePoints(t.r))
+            : circleOutline(t.r);
     });
-    // الوال كيك يُبنى من نموذج دور واحد: الجداران هم الأدوار
-    const parts = shape === 'wall' ? wallBlocks(tiers[0]) : tiers;
 
     const root = new THREE.Group();
     root.name = 'JOMACAKE';
 
-    if (base.board) {
+    // الوال كيك له بورد واقف خاص (wallScene)
+    if (base.board && !isWall) {
         const g = base.board.geo.clone().toNonIndexed();
         g.deleteAttribute('color');
         g.computeVertexNormals();
@@ -409,7 +442,7 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         root.add(board);
     }
 
-    if (base.logo) {
+    if (base.logo && !isWall) {
         const { canvas, box } = base.logo;
         const tex = new THREE.CanvasTexture(canvas);
         tex.colorSpace = THREE.SRGBColorSpace;
@@ -427,8 +460,8 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     }
 
     const cakeMat = creamMat('CakeMaterial', color, 0.35);
-    const body = { round: roundBody, heart: heartBody, cone: coneBody, sunset: sunsetBody, wall: wallBody }[shape] || roundBody;
-    parts.forEach(t => {
+    const body = { round: roundBody, heart: heartBody, cone: coneBody, sunset: sunsetBody, wall: (t, m) => roundBody(t, m, true) }[shape] || roundBody;
+    tiers.forEach(t => {
         const mesh = body(t, cakeMat);
         mesh.name = 'CakeTier';
         root.add(mesh);
@@ -440,11 +473,13 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         const t = tiers[0], bs = Math.max(0.005, Math.min(0.008, t.r * 0.075));
         shellBorder(t.outline, t.y0 + bs * 0.9, bs, piping);
     } else if (style === 'vintage' && shape !== 'sunset') {
-        vintage(parts, piping, beads);
+        vintage(tiers, piping, beads);
     }
     const cream = creamMat('PipingMaterial', color, 0.08);
     addMerged(root, 'Piping', piping, cream);
     addMerged(root, 'Beads', beads, cream);
+
+    if (isWall) wallScene(root, tiers, base.logo, boardColor);
 
     const glb = await exporter.parseAsync(root, { binary: true });
     return URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
