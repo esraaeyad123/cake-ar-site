@@ -45,6 +45,11 @@ class CakeArPreviewTest extends TestCase
             ->assertSee('السعر المبدئي')
             ->assertSee('data-shape="heart"', false)
             ->assertSee('data-shape="cone"', false)
+            // الأشكال الخاصة: السن ست (سادة) والوال كيك (دورين، نص السعر، فيه فنتج)، وأيقونات بدون كلمات
+            ->assertSee('data-shape="sunset"', false)
+            ->assertSee('data-shape="wall"', false)
+            ->assertSee('"wall":{"sizes":["6","8"],"layers":2,"tiers":2,"price_factor":0.5,"vintage":true}', false)
+            ->assertDontSee('data-shape="heart">قلب</div>', false)
             // دورين 6/4 = سعر 6 إنش (الدور السفلي) بنفس عدد الطبقات
             ->assertSee('const prices = {"4in":{"2":70,"3":80},"6in":{"2":110,"3":130,"4":150},"tier2_6-4":{"2":110,"3":130}}', false)
             ->assertSee('"6in":[2,3,4]', false);
