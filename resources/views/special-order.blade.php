@@ -319,12 +319,12 @@
         <section class="panel" data-panel="3">
             <div class="ai-box">
                 <h3>✨ شوفي كيكتك قبل الطلب <span class="badge">اختياري</span></h3>
-                <div class="hint" style="margin-top:0">ارفعي صورة كيكة عاجبتك، والذكاء الاصطناعي يسوي لك صورتها بنفس المواصفات اللي اخترتيها (الشكل، الحجم، الأدوار، الطبقات).</div>
+                <div class="hint" style="margin-top:0">ارفعي صور كيكة عاجبتك (لين 6 صور: مثلًا صورة للزينة وصورة للورد وصورة للكتابة)، والذكاء الاصطناعي يسوي لك صورتها بنفس المواصفات اللي اخترتيها (الشكل، الحجم، الأدوار، الطبقات).</div>
 
-                <div class="section-title">صورة الكيكة</div>
+                <div class="section-title">صور الكيكة <small>(لين 6)</small></div>
                 <label class="upload">
-                    <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp">
-                    📷 اختاري صورة
+                    <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple>
+                    📷 اختاري صور
                 </label>
                 <div class="thumbs" id="ai-thumb"></div>
 
@@ -652,16 +652,35 @@
             return box;
         }
 
-        let refFile = null;
+        const MAX_REFS = 6;
+        const refFiles = [];
         function renderRef() {
             $('ai-thumb').innerHTML = '';
-            if (refFile) $('ai-thumb').appendChild(thumb(refFile, () => { refFile = null; renderRef(); }));
+            refFiles.forEach((f, i) => $('ai-thumb').appendChild(thumb(f, () => { refFiles.splice(i, 1); renderRef(); })));
         }
         aiRef.addEventListener('change', () => {
-            refFile = aiRef.files[0] || refFile;
+            const picked = [...aiRef.files], room = MAX_REFS - refFiles.length;
+            refFiles.push(...picked.slice(0, room));
+            if (picked.length > room) showAiMessage(`الحد ${MAX_REFS} صور، أخذنا أول ${Math.max(room, 0)} من اللي اخترتيها.`, 'error');
             aiRef.value = ''; // حتى يقدر يختار نفس الصورة مرة ثانية بعد الحذف
             renderRef();
         });
+
+        // نصغّر الصورة (أطول ضلع 1600 بكسل) قبل الرفع: 6 صور جوال ممكن تكون ثقيلة على السيرفر
+        async function shrink(file) {
+            try {
+                const bitmap = await createImageBitmap(file);
+                const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(bitmap.width * scale);
+                canvas.height = Math.round(bitmap.height * scale);
+                canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+                return blob ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file;
+            } catch (e) {
+                return file;
+            }
+        }
 
         // كل الصور اللي طلعت، والمعروضة الحين
         const aiImages = [];
@@ -719,14 +738,14 @@
         }
 
         $('ai-generate').addEventListener('click', async () => {
-            if (!refFile) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
+            if (!refFiles.length) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
             const form = new FormData();
             form.append('shape', shape());
             form.append('size', state.size);
             form.append('layers', state.layers);
             form.append('style', STYLE);
             form.append('note', $('ai-note').value.trim());
-            form.append('reference', refFile);
+            for (const f of await Promise.all(refFiles.map(shrink))) form.append('references[]', f);
             // رقم التوليد: إذا انقطع الطلب نسأل السيرفر عن نتيجته بهذا الرقم
             const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
             form.append('job', job);

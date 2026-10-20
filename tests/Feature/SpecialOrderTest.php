@@ -76,7 +76,7 @@ class SpecialOrderTest extends TestCase
             'layers' => 3,
             'style' => 'vintage',
             'note' => 'ورد أبيض',
-            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json'])->assertOk();
 
         $this->assertSame(4, $response->json('remaining'));
@@ -99,7 +99,7 @@ class SpecialOrderTest extends TestCase
 
         $this->post('/special-order/ai', [
             'shape' => 'heart', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
-            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
             'shape_image' => UploadedFile::fake()->image('shape.png'),
         ], ['Accept' => 'application/json'])->assertOk();
 
@@ -128,7 +128,7 @@ class SpecialOrderTest extends TestCase
             ->push(['data' => [['b64_json' => base64_encode('png')]]]);
         $send = fn () => $this->post('/special-order/ai', [
             'shape' => 'heart', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
-            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json']);
 
         $send()->assertStatus(422)->assertJson(['remaining' => 5]);
@@ -150,7 +150,7 @@ class SpecialOrderTest extends TestCase
 
         $this->post('/special-order/ai', [
             'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
-            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-abc12345',
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-abc12345',
         ], ['Accept' => 'application/json'])->assertOk();
 
         $this->getJson('/special-order/ai/job-abc12345')
@@ -166,7 +166,7 @@ class SpecialOrderTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
         $send = fn ($size) => $this->post('/special-order/ai', [
             'shape' => 'sunset', 'size' => $size, 'layers' => 2, 'style' => 'plain',
-            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json']);
 
         $send('10in')->assertStatus(422)->assertJsonValidationErrors('size');
@@ -184,7 +184,7 @@ class SpecialOrderTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
         $send = fn ($size) => $this->post('/special-order/ai', [
             'shape' => 'wall', 'size' => $size, 'layers' => 2, 'style' => 'vintage',
-            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json']);
 
         $send('8in')->assertStatus(422)->assertJsonValidationErrors('size');
@@ -206,11 +206,28 @@ class SpecialOrderTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
         $send = fn ($note) => $this->post('/special-order/ai', [
             'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain', 'note' => $note,
-            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json']);
 
         $send(str_repeat('ا', 500))->assertOk();
         $send(str_repeat('ا', 501))->assertStatus(422)->assertJsonPath('errors.note.0', 'الملاحظة طويلة، الحد 500 حرف.');
+    }
+
+    public function test_up_to_six_reference_photos_are_sent_after_the_3d_snapshot(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $send = fn ($count) => $this->post('/special-order/ai', [
+            'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain', 'job' => 'job-'.Str::random(10),
+            'references' => collect(range(1, $count))->map(fn ($i) => UploadedFile::fake()->image("ref{$i}.jpg"))->all(),
+            'shape_image' => UploadedFile::fake()->image('shape.png'),
+        ], ['Accept' => 'application/json']);
+
+        $send(7)->assertStatus(422)->assertJsonPath('errors.references.0', 'الحد 6 صور.');
+        $send(6)->assertOk();
+
+        Http::assertSent(fn ($request) => collect($request->data())->where('name', 'image[]')->pluck('filename')->values()->all()
+            === ['shape.png', 'ref1.jpg', 'ref2.jpg', 'ref3.jpg', 'ref4.jpg', 'ref5.jpg', 'ref6.jpg']);
     }
 
     public function test_ai_requires_a_reference_photo(): void
@@ -219,7 +236,7 @@ class SpecialOrderTest extends TestCase
 
         $this->postJson('/special-order/ai', ['shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('reference');
+            ->assertJsonValidationErrors('references');
         Http::assertNothingSent();
     }
 }
