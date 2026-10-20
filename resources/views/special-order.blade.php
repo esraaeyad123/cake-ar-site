@@ -320,7 +320,7 @@
                 <div class="thumbs" id="ai-thumb"></div>
 
                 <div class="section-title">ملاحظة <small>(اختياري)</small></div>
-                <textarea id="ai-note" maxlength="300" placeholder="مثال: غيّري لون الورد إلى أبيض"></textarea>
+                <textarea id="ai-note" maxlength="500" placeholder="مثال: غيّري لون الورد إلى أبيض"></textarea>
 
                 <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining > 0 ? '' : 'disabled' }}>✨ ولّدي الصورة</button>
                 <div class="hint" id="ai-remaining"></div>
@@ -389,6 +389,9 @@
         const layerLimits = @json($layerLimits);
         const tierPeople = @json($tierPeople);
         const aiUrl = "{{ route('special-order.ai') }}";
+        const reviewUrl = "{{ route('special-order.review') }}";
+        const HAS_KEY = @json($hasKey);
+        const CSRF = document.querySelector('meta[name="csrf-token"]').content;
         const modelsBaseUrl = "{{ asset('storage/models') }}";
         const CAKE_COLOR = @json(config('cake_ar.cake_color'));
         const BOARD_COLORS = @json(config('cake_ar.board_colors'));
@@ -621,10 +624,11 @@
         const aiRef = $('ai-reference');
         function showAiMessage(text, type) { $('ai-message').textContent = text; $('ai-message').className = 'message ' + type; }
         function renderRemaining() {
+            // المحاولة الفاشلة ما تنحسب، فالعدد = الصور اللي باقية
             $('ai-remaining').textContent = state.aiRemaining > 0
-                ? `باقي لك ${state.aiRemaining === 1 ? 'محاولة وحدة' : state.aiRemaining + ' محاولات'}.`
-                : 'خلصت محاولات التوليد. كمّلي بالوصف والصور تحت.';
-            if (state.aiRemaining <= 0) $('ai-generate').disabled = true;
+                ? `باقي لك ${state.aiRemaining === 1 ? 'صورة وحدة' : state.aiRemaining + ' صور'}.`
+                : 'خلصت صور الذكاء الاصطناعي. كمّلي بالوصف والصور تحت.';
+            $('ai-generate').disabled = !HAS_KEY || state.aiRemaining <= 0;
         }
         aiRef.addEventListener('change', () => {
             $('ai-thumb').innerHTML = '';
@@ -655,6 +659,22 @@
             }
         }
 
+        // نسأل عن نتيجة التوليد كل 4 ثواني (لين 4 دقايق). إذا ما وصل الطلب للسيرفر أصلًا نوقف بعد 20 ثانية
+        async function waitForJob(job) {
+            const started = Date.now();
+            while (Date.now() - started < 240000) {
+                await new Promise(res => setTimeout(res, 4000));
+                try {
+                    const res = await fetch(`${aiUrl}/${job}`, { headers: { 'Accept': 'application/json' } });
+                    const data = await res.json();
+                    if (data.status === 'done') return { data, ok: true };
+                    if (data.status === 'failed') return { data, ok: false };
+                    if (data.status === 'missing' && Date.now() - started > 20000) break;
+                } catch (e) { /* نجرب مرة ثانية */ }
+            }
+            return { data: { message: 'انقطع الاتصال قبل ما توصل الصورة، وما انحسبت المحاولة. جربي مرة ثانية.' }, ok: false };
+        }
+
         $('ai-generate').addEventListener('click', async () => {
             if (!aiRef.files[0]) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
             const form = new FormData();
@@ -664,6 +684,9 @@
             form.append('style', STYLE);
             form.append('note', $('ai-note').value.trim());
             form.append('reference', aiRef.files[0]);
+            // رقم التوليد: إذا انقطع الطلب نسأل السيرفر عن نتيجته بهذا الرقم
+            const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+            form.append('job', job);
 
             $('ai-generate').disabled = true;
             const shot = await snapshotModel();
@@ -673,15 +696,22 @@
             tick();
             const timer = setInterval(tick, 1000);
             try {
-                const res = await fetch(aiUrl, {
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-                    body: form,
-                });
-                const data = await res.json().catch(() => ({}));
+                let data, ok;
+                try {
+                    const res = await fetch(aiUrl, {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: form,
+                    });
+                    data = await res.json();
+                    ok = res.ok;
+                } catch (cut) {
+                    // الاستضافة قطعت الانتظار (أو رجعت صفحة خطأ)، والتوليد مكمّل في السيرفر: ننتظر نتيجته
+                    ({ data, ok } = await waitForJob(job));
+                }
                 clearInterval(timer);
                 if (data.remaining !== undefined) state.aiRemaining = data.remaining;
-                if (!res.ok) {
+                if (!ok) {
                     const firstError = data.errors && Object.values(data.errors)[0]?.[0];
                     throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
                 }
@@ -694,7 +724,7 @@
                 showAiMessage(e.message, 'error');
             } finally {
                 clearInterval(timer);
-                $('ai-generate').disabled = state.aiRemaining <= 0;
+                $('ai-generate').disabled = !HAS_KEY || state.aiRemaining <= 0;
                 renderRemaining();
                 renderSummary($('summary'));
             }
@@ -792,6 +822,11 @@
             $('submit-message').textContent = '';
             renderSummary($('modal-summary'));
             $('done-modal').classList.add('show');
+            // بعد الطلب تتجدد صور الذكاء الاصطناعي
+            fetch(reviewUrl, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF } })
+                .then(res => res.json())
+                .then(data => { state.aiRemaining = data.remaining; renderRemaining(); })
+                .catch(() => {});
         });
         $('close-modal').addEventListener('click', () => $('done-modal').classList.remove('show'));
 

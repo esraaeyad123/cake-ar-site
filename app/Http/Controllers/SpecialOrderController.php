@@ -6,6 +6,7 @@ use App\Services\CakePricing;
 use App\Services\SpecialOrderOptions;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,6 +15,9 @@ use Illuminate\Support\Str;
  * عينة تجريبية للطلب الخاص بتصميم المدير: الزبون يختار المواصفات (3D + AR + السعر)،
  * ويقدر يرفع صورة كيكة يحبها فيولّد الذكاء الاصطناعي صورتها بنفس المواصفات اللي اختارها.
  * زر "إرسال للمراجعة" يعرض الملخص فقط ولا يرسل شيئًا لموقع جوماكيك.
+ *
+ * التوليد ياخذ لين دقيقتين، والاستضافة ممكن تقطع الطلب قبلها. فكل توليد له رقم (job) تحفظ نتيجته
+ * في الكاش، والصفحة تسأل عنها (status) إذا انقطع الطلب. والمحاولة ما تنحسب إلا إذا طلعت صورة.
  */
 class SpecialOrderController extends Controller
 {
@@ -47,10 +51,14 @@ class SpecialOrderController extends Controller
             'size' => ['required', 'in:'.implode(',', array_keys(config('cake_ar.layers')))],
             'layers' => ['required', 'integer', 'between:1,4'],
             'style' => ['required', 'in:plain,vintage'],
-            'note' => ['nullable', 'string', 'max:300'],
+            'note' => ['nullable', 'string', 'max:500'],
             'reference' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
             // صورة المجسم 3D بالمواصفات المختارة، تلتقطها الصفحة تلقائيًا عند الضغط على "ولّدي الصورة"
             'shape_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+            'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
+        ], [
+            'note.max' => 'الملاحظة طويلة، الحد 500 حرف.',
+            'reference.required' => 'اختاري صورة الكيكة أول.',
         ]);
 
         // الأشكال الخاصة (السن ست) دور واحد بمقاساتها وطبقاتها فقط
@@ -69,6 +77,11 @@ class SpecialOrderController extends Controller
             return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
         }
 
+        $job = $data['job'];
+        Cache::put($this->jobKey($job), ['status' => 'working', 'owner' => $this->visitor()], now()->addMinutes(15));
+
+        // نكمّل حتى لو انقطع الاتصال مع الصفحة، عشان تقدر تاخذ النتيجة من status
+        ignore_user_abort(true);
         set_time_limit(180);
 
         $shapeImage = $request->file('shape_image');
@@ -87,35 +100,89 @@ class SpecialOrderController extends Controller
                     'n' => 1,
                 ]);
         } catch (ConnectionException) {
-            return $this->failed('تعذر الوصول إلى OpenAI. جربي مرة ثانية.');
+            return $this->finish($request, $job, 422, ['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.']);
         }
 
         if ($response->failed()) {
             $code = $response->json('error.code');
             $message = (string) $response->json('error.message');
 
-            return $this->failed($code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
+            return $this->finish($request, $job, 422, ['message' => $code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
                 ? 'الذكاء الاصطناعي رفض هذه الصورة. جربي صورة ثانية.'
-                : "خطأ من OpenAI ({$response->status()}): {$message}");
+                : "خطأ من OpenAI ({$response->status()}): {$message}"]);
         }
 
         $image = $response->json('data.0.b64_json');
         if (! $image) {
-            return $this->failed('ما رجعت صورة من الذكاء الاصطناعي. جربي مرة ثانية.');
+            return $this->finish($request, $job, 422, ['message' => 'ما رجعت صورة من الذكاء الاصطناعي. جربي مرة ثانية.']);
         }
 
         // المحاولة تنحسب فقط إذا رجعت صورة
-        $request->session()->increment('special_order.ai_used');
+        Cache::increment($this->usedKey());
 
         $path = self::DIR.'/'.now()->format('Ymd-His').'-'.Str::random(6).'-special.png';
         Storage::disk('public')->put($path, base64_decode($image));
 
-        return response()->json(['image' => asset('storage/'.$path), 'remaining' => $this->remaining()]);
+        return $this->finish($request, $job, 200, ['image' => asset('storage/'.$path)]);
+    }
+
+    /**
+     * نتيجة توليد سابق، للصفحة إذا انقطع طلب التوليد قبل ما يرجع
+     */
+    public function status(Request $request, string $job)
+    {
+        $result = Cache::get($this->jobKey($job));
+        if (! $result || $result['owner'] !== $this->visitor()) {
+            return response()->json(['status' => 'missing', 'remaining' => $this->remaining()], 404);
+        }
+
+        return response()->json(collect($result)->except('owner')->all() + ['remaining' => $this->remaining()]);
+    }
+
+    /**
+     * "إرسال للمراجعة": في العينة يجدّد محاولات التوليد (بعد الربط بنظام الطلبات: لما ينطلب فعلًا)
+     */
+    public function review(Request $request)
+    {
+        Cache::forget($this->usedKey());
+
+        return response()->json(['remaining' => $this->remaining()]);
+    }
+
+    private function finish(Request $request, string $job, int $status, array $payload)
+    {
+        Cache::put($this->jobKey($job), $payload + [
+            'status' => $status === 200 ? 'done' : 'failed',
+            'owner' => $this->visitor(),
+        ], now()->addMinutes(15));
+
+        return response()->json($payload + ['remaining' => $this->remaining()], $status);
+    }
+
+    private function jobKey(string $job): string
+    {
+        return "special_order.ai_job.{$job}";
+    }
+
+    // العداد في الكاش لكل زائر (مش في الجلسة) حتى ما تضيع الزيادة إذا انحفظت الجلسة من طلب ثاني بنفس الوقت
+    private function usedKey(): string
+    {
+        return 'special_order.ai_used.'.$this->visitor();
+    }
+
+    // رقم ثابت للزائر في جلسته، ينكتب مرة وحدة
+    private function visitor(): string
+    {
+        if (! session()->has('special_order.visitor')) {
+            session()->put('special_order.visitor', (string) Str::uuid());
+        }
+
+        return session('special_order.visitor');
     }
 
     private function remaining(): int
     {
-        return max(0, config('special_order.ai_limit') - (int) session('special_order.ai_used', 0));
+        return max(0, config('special_order.ai_limit') - (int) Cache::get($this->usedKey(), 0));
     }
 
     private function prompt(array $data, bool $withShapeImage): string

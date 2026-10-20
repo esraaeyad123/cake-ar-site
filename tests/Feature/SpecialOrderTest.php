@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SpecialOrderTest extends TestCase
@@ -74,10 +76,10 @@ class SpecialOrderTest extends TestCase
             'layers' => 3,
             'style' => 'vintage',
             'note' => 'ورد أبيض',
-            'reference' => UploadedFile::fake()->image('cake.jpg'),
+            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json'])->assertOk();
 
-        $this->assertSame(1, $response->json('remaining'));
+        $this->assertSame(4, $response->json('remaining'));
         $this->assertCount(1, Storage::disk('public')->files('ai-cakes'));
         Http::assertSent(function ($request) {
             $prompt = collect($request->data())->firstWhere('name', 'prompt')['contents'] ?? '';
@@ -97,7 +99,7 @@ class SpecialOrderTest extends TestCase
 
         $this->post('/special-order/ai', [
             'shape' => 'heart', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
-            'reference' => UploadedFile::fake()->image('cake.jpg'),
+            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
             'shape_image' => UploadedFile::fake()->image('shape.png'),
         ], ['Accept' => 'application/json'])->assertOk();
 
@@ -111,19 +113,51 @@ class SpecialOrderTest extends TestCase
         });
     }
 
-    public function test_ai_is_limited_to_two_images_per_customer(): void
+    public function test_five_real_images_per_visitor_and_failures_do_not_count(): void
+    {
+        // حد الطلبات بالدقيقة (throttle) موضوع ثاني، نوقفه هنا عشان نختبر عدد الصور بس
+        $this->withoutMiddleware(ThrottleRequests::class);
+        Storage::fake('public');
+        Http::fakeSequence('api.openai.com/*')
+            ->push(['error' => ['code' => 'server_error', 'message' => 'boom']], 500) // فشل: ما ينحسب
+            ->push(['data' => [['b64_json' => base64_encode('png')]]])
+            ->push(['data' => [['b64_json' => base64_encode('png')]]])
+            ->push(['data' => [['b64_json' => base64_encode('png')]]])
+            ->push(['data' => [['b64_json' => base64_encode('png')]]])
+            ->push(['data' => [['b64_json' => base64_encode('png')]]])
+            ->push(['data' => [['b64_json' => base64_encode('png')]]]);
+        $send = fn () => $this->post('/special-order/ai', [
+            'shape' => 'heart', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
+            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+        ], ['Accept' => 'application/json']);
+
+        $send()->assertStatus(422)->assertJson(['remaining' => 5]);
+        foreach ([4, 3, 2, 1, 0] as $left) {
+            $send()->assertOk()->assertJson(['remaining' => $left]);
+        }
+        $send()->assertStatus(429);
+        Http::assertSentCount(6);
+
+        // "إرسال للمراجعة" يجدّد الصور
+        $this->postJson('/special-order/review')->assertOk()->assertJson(['remaining' => 5]);
+        $send()->assertOk()->assertJson(['remaining' => 4]);
+    }
+
+    public function test_result_can_be_fetched_by_job_if_the_request_was_cut(): void
     {
         Storage::fake('public');
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
-        $send = fn () => $this->post('/special-order/ai', [
-            'shape' => 'heart', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
-            'reference' => UploadedFile::fake()->image('cake.jpg'),
-        ], ['Accept' => 'application/json']);
 
-        $send()->assertOk();
-        $send()->assertOk()->assertJson(['remaining' => 0]);
-        $send()->assertStatus(429);
-        Http::assertSentCount(2);
+        $this->post('/special-order/ai', [
+            'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
+            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-abc12345',
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $this->getJson('/special-order/ai/job-abc12345')
+            ->assertOk()
+            ->assertJson(['status' => 'done', 'remaining' => 4])
+            ->assertJsonStructure(['image']);
+        $this->getJson('/special-order/ai/job-unknown1')->assertNotFound()->assertJson(['status' => 'missing']);
     }
 
     public function test_sunset_ai_image_only_allows_its_sizes(): void
@@ -132,7 +166,7 @@ class SpecialOrderTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
         $send = fn ($size) => $this->post('/special-order/ai', [
             'shape' => 'sunset', 'size' => $size, 'layers' => 2, 'style' => 'plain',
-            'reference' => UploadedFile::fake()->image('cake.jpg'),
+            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json']);
 
         $send('10in')->assertStatus(422)->assertJsonValidationErrors('size');
@@ -150,7 +184,7 @@ class SpecialOrderTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
         $send = fn ($size) => $this->post('/special-order/ai', [
             'shape' => 'wall', 'size' => $size, 'layers' => 2, 'style' => 'vintage',
-            'reference' => UploadedFile::fake()->image('cake.jpg'),
+            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
         ], ['Accept' => 'application/json']);
 
         $send('8in')->assertStatus(422)->assertJsonValidationErrors('size');
@@ -164,6 +198,19 @@ class SpecialOrderTest extends TestCase
                 && str_contains($prompt, 'bottom tier 8 inches (20 cm) wide, top tier 6 inches')
                 && str_contains($prompt, 'Lambeth');
         });
+    }
+
+    public function test_ai_note_allows_500_characters(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $send = fn ($note) => $this->post('/special-order/ai', [
+            'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain', 'note' => $note,
+            'reference' => UploadedFile::fake()->image('cake.jpg'), 'job' => 'job-'.Str::random(10),
+        ], ['Accept' => 'application/json']);
+
+        $send(str_repeat('ا', 500))->assertOk();
+        $send(str_repeat('ا', 501))->assertStatus(422)->assertJsonPath('errors.note.0', 'الملاحظة طويلة، الحد 500 حرف.');
     }
 
     public function test_ai_requires_a_reference_photo(): void
