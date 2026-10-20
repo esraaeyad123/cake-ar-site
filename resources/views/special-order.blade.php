@@ -33,8 +33,9 @@
         .site-header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 10px 16px; border-bottom: 1px solid #F3E3E9; background: #fff;
-            position: sticky; top: 0; z-index: 20;
         }
+        /* الجزء الثابت فوق (الهيدر، المجسم، الملخص): الخيارات تتحرك تحته والكيكة تبقى قدام الزبون */
+        .top-fixed { position: sticky; top: 0; z-index: 20; background: #fff; box-shadow: 0 4px 8px -6px rgba(75,21,40,0.18); }
         .site-header .logo { height: 34px; }
         .site-header nav { display: flex; gap: 16px; font-size: 13px; font-weight: 700; }
         .site-header nav a { color: var(--ink); text-decoration: none; }
@@ -47,7 +48,7 @@
 
         /* المجسم */
         .viewer-wrap { position: relative; background: #fff; }
-        model-viewer { width: 100%; height: 42vh; min-height: 280px; background-color: #FFFFFF; }
+        model-viewer { width: 100%; height: 30vh; min-height: 200px; max-height: 300px; background-color: #FFFFFF; }
         .viewer-status {
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
             font-size: 13px; font-weight: 700; color: var(--pink-dark); pointer-events: none;
@@ -77,7 +78,6 @@
         .tabs {
             display: grid; grid-template-columns: repeat(5, 1fr); background: #fff;
             border-top: 1px solid #F3E3E9; border-bottom: 1px solid #F3E3E9;
-            position: sticky; top: 55px; z-index: 10;
         }
         .tab {
             border: none; background: none; padding: 9px 2px 8px; cursor: pointer; color: var(--muted);
@@ -203,6 +203,7 @@
 </head>
 <body>
 
+    <div class="top-fixed" id="top-fixed">
     <header class="site-header">
         <a href="https://jomacake.com"><img src="{{ asset('images/icons/logo.png') }}" alt="JOMACAKE" class="logo"></a>
         <nav>
@@ -226,7 +227,7 @@
             ar-placement="floor"
             camera-controls
             auto-rotate
-            camera-orbit="0deg 62deg 105%"
+            camera-orbit="0deg 66deg 88%"
             min-camera-orbit="auto 20deg auto"
             max-camera-orbit="auto 85deg auto"
             shadow-intensity="0.1"
@@ -255,6 +256,8 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
             AR
         </button>
+    </div>
+
     </div>
 
     <div class="tabs" id="tabs">
@@ -608,7 +611,7 @@
             $('prev').style.visibility = i === 0 ? 'hidden' : 'visible';
             $('next').style.display = i === tabs.length - 1 ? 'none' : '';
             renderSummary($('summary'));
-            if (scroll) window.scrollTo({ top: $('tabs').offsetTop - 55, behavior: 'smooth' });
+            if (scroll) window.scrollTo({ top: $('tabs').offsetTop - $('top-fixed').offsetHeight, behavior: 'smooth' });
         }
         tabs.forEach((t, i) => t.addEventListener('click', () => goTo(i)));
         $('prev').addEventListener('click', () => goTo(Math.max(0, state.tab - 1)));
