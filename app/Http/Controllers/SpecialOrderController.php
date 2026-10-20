@@ -23,6 +23,8 @@ class SpecialOrderController extends Controller
 {
     private const DIR = 'ai-cakes';
 
+    private const MAX_REFERENCES = 6;
+
     private const SHAPES = [
         'round' => 'round',
         'heart' => 'heart-shaped',
@@ -52,13 +54,16 @@ class SpecialOrderController extends Controller
             'layers' => ['required', 'integer', 'between:1,4'],
             'style' => ['required', 'in:plain,vintage'],
             'note' => ['nullable', 'string', 'max:500'],
-            'reference' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
+            // صور الزبون (لين 6): الشكل والورد والكتابة... الصفحة تصغّرها قبل الرفع
+            'references' => ['required', 'array', 'min:1', 'max:'.self::MAX_REFERENCES],
+            'references.*' => ['image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
             // صورة المجسم 3D بالمواصفات المختارة، تلتقطها الصفحة تلقائيًا عند الضغط على "ولّدي الصورة"
             'shape_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ], [
             'note.max' => 'الملاحظة طويلة، الحد 500 حرف.',
-            'reference.required' => 'اختاري صورة الكيكة أول.',
+            'references.required' => 'اختاري صورة الكيكة أول.',
+            'references.max' => 'الحد '.self::MAX_REFERENCES.' صور.',
         ]);
 
         // الأشكال الخاصة (السن ست) دور واحد بمقاساتها وطبقاتها فقط
@@ -88,7 +93,7 @@ class SpecialOrderController extends Controller
         try {
             $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(170);
             // الترتيب مهم: الصورة الأولى للشكل، والثانية للزينة
-            foreach (array_filter([$shapeImage, $request->file('reference')]) as $file) {
+            foreach (array_filter([$shapeImage, ...$request->file('references')]) as $file) {
                 $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
             }
             $response = $pending
@@ -218,11 +223,11 @@ class SpecialOrderController extends Controller
 
         $intro = $withShapeImage
             ? 'Image 1 is a plain 3D model of the EXACT cake the customer ordered: copy its shape, outline, number of tiers, '
-                .'proportions and height exactly. Image 2 is the customer\'s reference cake: use it ONLY for the decoration, '
-                .'frosting colours, toppings, flowers, figures and writing, and re-arrange them to fit the new shape. '
-                .'Do NOT keep the shape or number of tiers of image 2. '
-            : 'The attached photo is the customer\'s reference cake. Copy its decoration, frosting colours, toppings and writing, '
-                .'but do NOT keep its shape: rebuild the cake with the required shape below. ';
+                .'proportions and height exactly. The other images are the customer\'s reference photos: use them ONLY for the decoration, '
+                .'frosting colours, toppings, flowers, figures and writing (combine them if there are several), and re-arrange them to fit the new shape. '
+                .'Do NOT keep the shape or number of tiers of the reference photos. '
+            : 'The attached photos are the customer\'s reference photos. Copy their decoration, frosting colours, toppings and writing '
+                .'(combine them if there are several), but do NOT keep their shape: rebuild the cake with the required shape below. ';
 
         return $intro.'Create a realistic professional bakery photo of ONE cake. '
             .$specs.$finish.$note
