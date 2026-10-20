@@ -47,14 +47,17 @@ class SpecialOrderTest extends TestCase
             ->assertOk()
             ->assertSeeInOrder(['الشكل', 'الحجم', 'النكهة', 'الكتابة', 'التاريخ'])
             ->assertSee('إرسال للمراجعة')
-            ->assertSee('data-style="vintage"', false)
+            // كيك سادة فقط: ما فيه اختيار فنتج
+            ->assertDontSee('data-style="vintage"', false)
             ->assertSee('"people":"8-10"', false)
             // نكهات الطلب الخاص فقط (اللي لها سعر)، والحشوة بزيادة حسب المقاس
             ->assertSee('"name":'.json_encode('شوكولاته'), false)
             ->assertDontSee(json_encode('فانيلا عادية'), false)
             ->assertSee('"extra":{"4":10,"8":15}', false)
-            ->assertSee('data-shape="sunset"', false)
-            ->assertSee('data-shape="wall"', false)
+            // كروت الأشكال، وكيك الأدوار شكل بحاله
+            ->assertSee("{ key: 'tier2', name: ", false)
+            ->assertSee("{ key: 'sunset', name: ", false)
+            ->assertSee("{ key: 'wall', name: ", false)
             // السن ست بنفس سعر الكعكة الخاصة، والوال كيك دورين بنص السعر
             ->assertSee('"sunset":{"sizes":["6in","8in"],"layers":2,"tiers":1,"price_factor":1,"vintage":false}', false)
             ->assertSee('"wall":{"sizes":["tier2_8-6"],"layers":2,"tiers":2,"price_factor":0.5,"vintage":true}', false);

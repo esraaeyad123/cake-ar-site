@@ -59,25 +59,19 @@
         }
         .price-card { top: 12px; right: 12px; }
         .price-card .amount { font-size: 18px; font-weight: 800; white-space: nowrap; }
-        .people-card { top: 12px; left: 12px; }
-        .people-card .amount { font-size: 15px; font-weight: 800; white-space: nowrap; }
         .float-card .caption { font-size: 10px; font-weight: 700; color: var(--pink-dark); }
         .riyal { width: 0.85em; height: 0.85em; vertical-align: -0.08em; margin-inline-start: 2px; }
-        .style-toggle {
-            position: absolute; bottom: 14px; right: 12px; display: flex; background: #fff;
-            border: 1.5px solid var(--pink-line); border-radius: 20px; padding: 3px;
+
+        /* ملخص الاختيار تحت المجسم + زر AR */
+        .spec-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #F3E3E9; }
+        .specs { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 4px; background: #FAF5F7; border-radius: 14px; padding: 8px; }
+        .spec { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 800; white-space: nowrap; min-width: 0; }
+        .spec svg { width: 18px; height: 18px; color: var(--pink); flex-shrink: 0; }
+        .ar-btn {
+            background: var(--pink); color: #fff; border: none; border-radius: 22px; padding: 9px 13px;
+            font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; flex-shrink: 0;
         }
-        .style-toggle button {
-            border: none; background: none; border-radius: 16px; padding: 6px 12px;
-            font-size: 12px; font-weight: 800; color: var(--pink-dark); cursor: pointer;
-        }
-        .style-toggle button.active { background: var(--pink); color: #fff; }
-        .style-toggle button:disabled { opacity: 0.35; cursor: not-allowed; }
-        #ar-button-el {
-            position: absolute; bottom: 14px; left: 12px; background: var(--pink); color: #fff; border: none;
-            border-radius: 20px; padding: 9px 16px; font-size: 13px; font-weight: 800; cursor: pointer;
-            display: flex; align-items: center; gap: 6px;
-        }
+        .ar-btn svg { width: 18px; height: 18px; }
 
         /* شريط التبويبات */
         .tabs {
@@ -90,13 +84,8 @@
             font-size: 11px; font-weight: 700; line-height: 1.35; display: flex; flex-direction: column;
             align-items: center; gap: 4px; border-bottom: 3px solid transparent;
         }
-        .tab .num {
-            width: 22px; height: 22px; border-radius: 50%; background: #F5EEF1; color: var(--muted);
-            display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
-        }
-        .tab.done .num { background: var(--pink-soft); color: var(--pink); }
-        .tab.active { color: var(--pink); border-bottom-color: var(--pink); }
-        .tab.active .num { background: var(--pink); color: #fff; }
+        .tab svg { width: 30px; height: 30px; color: var(--pink); }
+        .tab.active { color: var(--ink); border-bottom-color: var(--pink); background: var(--pink-soft); }
 
         main { max-width: 520px; margin: 0 auto; padding: 4px 16px 40px; }
         .panel { display: none; }
@@ -105,20 +94,32 @@
         .section-title small { font-weight: 600; color: var(--muted); font-size: 12px; }
         .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
 
-        .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .options.two { grid-template-columns: repeat(2, 1fr); }
-        .option {
-            border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px; padding: 12px 6px;
-            font-size: 13px; font-weight: 800; color: var(--ink); cursor: pointer; text-align: center;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        /* كروت الأشكال: صورة المجسم + المعلومات، تتحرك يمين ويسار */
+        .scroll-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scroll-snap-type: x proximity; scrollbar-width: none; }
+        .scroll-row::-webkit-scrollbar { display: none; }
+        .shape-card {
+            flex: 0 0 132px; scroll-snap-align: start; border: 1.5px solid transparent; background: #fff; border-radius: 16px;
+            padding: 8px 6px 10px; cursor: pointer; text-align: center; color: var(--ink);
         }
-        .option small { font-size: 11px; font-weight: 600; color: var(--muted); }
-        .option > svg { width: 30px; height: 30px; }
-        #shape-options { grid-template-columns: repeat(5, 1fr); }
-        #shape-options .option { padding: 12px 4px; }
-        #shape-options .option > svg { width: 36px; height: 36px; }
-        .option.active { border-color: var(--pink); background: var(--pink-soft); color: var(--pink-dark); }
-        .option:disabled { opacity: 0.35; cursor: not-allowed; }
+        .shape-card img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
+        .shape-card .name { font-size: 14px; font-weight: 800; margin-top: 2px; }
+        .shape-card .meta { font-size: 11px; font-weight: 600; color: var(--muted); line-height: 1.5; }
+        .shape-card .from { font-size: 12px; font-weight: 800; color: var(--pink-dark); margin-top: 2px; }
+        .shape-card.active { background: var(--pink-soft); border-color: var(--pink-line); }
+
+        /* المقاسات والطبقات: رسمة تكبر مع المقاس، وطبقات ملونة */
+        .size-card, .layer-card {
+            flex: 0 0 auto; min-width: 86px; border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px;
+            padding: 10px 10px 9px; cursor: pointer; text-align: center; color: var(--ink);
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+        }
+        .size-card .pic { height: 64px; display: flex; align-items: flex-end; justify-content: center; color: var(--pink); }
+        .size-card .num, .layer-card .num { font-size: 13px; font-weight: 800; }
+        .size-card small, .layer-card small { font-size: 11px; font-weight: 700; color: var(--muted); }
+        .size-card .price, .layer-card .price { font-size: 11px; font-weight: 800; color: var(--pink-dark); }
+        .layer-card .bars { width: 34px; display: flex; flex-direction: column-reverse; gap: 2px; height: 40px; justify-content: flex-start; }
+        .layer-card .bars div { border-radius: 3px; }
+        .size-card.active, .layer-card.active { border-color: var(--pink); background: var(--pink-soft); }
 
         .item-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .item-card {
@@ -233,63 +234,62 @@
             exposure="1"
             environment-image="neutral"
         >
-            <button id="ar-button-el" slot="ar-button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
-                AR
-            </button>
+            {{-- زر AR الخاص بنا في شريط الملخص تحت، فنخفي زر model-viewer الافتراضي --}}
+            <button slot="ar-button" hidden></button>
         </model-viewer>
         <div class="viewer-status" id="viewer-status">جاري تجهيز الكيكة…</div>
         <div class="float-card price-card">
             <div class="amount" id="price-amount">—</div>
             <div class="caption">السعر المبدئي</div>
         </div>
-        <div class="float-card people-card">
-            <div class="amount" id="people-amount">—</div>
-            <div class="caption">عدد الأشخاص</div>
+    </div>
+
+    <div class="spec-bar">
+        <div class="specs">
+            <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 4 8 4-8 4-8-4z" fill="currentColor" fill-opacity=".9"/><path d="m4 12 8 4 8-4M4 16l8 4 8-4"/></svg><span id="spec-layers"></span></div>
+            <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 15.5 15.5 3 21 8.5 8.5 21z"/><path d="m7 12 1.5 1.5M9.5 9.5l2 2M12 7l1.5 1.5M14.5 4.5l2 2"/></svg><span id="spec-size"></span></div>
+            <div class="spec"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="3.2"/><circle cx="5.5" cy="9" r="2.4"/><circle cx="18.5" cy="9" r="2.4"/><path d="M6.5 19c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5zM1.5 18c0-2.4 1.6-4 4-4 .8 0 1.5.2 2.1.5A7 7 0 0 0 5.4 18zM22.5 18c0-2.4-1.6-4-4-4-.8 0-1.5.2-2.1.5a7 7 0 0 1 2.2 3.5z"/></svg><span id="spec-people"></span></div>
+            <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 20h16v-5H4zM6.5 15v-4h11v4M9 11V8h6v3M12 8V5.5"/><path d="M12 3.5c.8.6.8 1.4 0 2-.8-.6-.8-1.4 0-2z" fill="currentColor"/></svg><span id="spec-tiers"></span></div>
         </div>
-        <div class="style-toggle" id="style-toggle">
-            <button type="button" data-style="vintage">فنتج</button>
-            <button type="button" data-style="plain" class="active">سادة</button>
-        </div>
+        <button type="button" class="ar-btn" id="ar-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
+            AR
+        </button>
     </div>
 
     <div class="tabs" id="tabs">
-        <button type="button" class="tab active" data-tab="0"><span class="num">1</span>الشكل</button>
-        <button type="button" class="tab" data-tab="1"><span class="num">2</span>الحجم<br>والطبقات</button>
-        <button type="button" class="tab" data-tab="2"><span class="num">3</span>النكهة<br>والحشوة</button>
-        <button type="button" class="tab" data-tab="3"><span class="num">4</span>الكتابة<br>والوصف</button>
-        <button type="button" class="tab" data-tab="4"><span class="num">5</span>التاريخ<br>والتأكيد</button>
+        <button type="button" class="tab active" data-tab="0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg>
+            الشكل</button>
+        <button type="button" class="tab" data-tab="1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="9.5" cy="10" rx="6.5" ry="2.3"/><path d="M3 10v6.5c0 1.3 2.9 2.3 6.5 2.3s6.5-1 6.5-2.3V10M3 4.5h13M3 3v3M16 3v3M20.5 9v9.5M19 9h3M19 18.5h3"/></svg>
+            الحجم<br>والطبقات</button>
+        <button type="button" class="tab" data-tab="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 11.5 19 6.5l2 5v7H3z"/><path d="M3 11.5h18M3 15c2 1 3.5-1 5.5 0s3.5 1 5.5 0 3.5-1 7 0"/></svg>
+            النكهة<br>والحشوة</button>
+        <button type="button" class="tab" data-tab="3">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 4.5 3 3L9 16l-4 1 1-4z"/><path d="m13 6 3 3M3 21h9"/></svg>
+            الكتابة<br>والوصف</button>
+        <button type="button" class="tab" data-tab="4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M3 9.5h15M7 3v4M14 3v4M6.5 12.5h1M10 12.5h1M13.5 12.5h1M6.5 15.5h1M10 15.5h1"/><circle cx="18" cy="17.5" r="3.6" fill="#fff"/><path d="m16.4 17.6 1.1 1.1 2-2.2"/></svg>
+            التاريخ<br>والتأكيد</button>
     </div>
 
     <main>
         {{-- 1) الشكل --}}
         <section class="panel active" data-panel="0">
             <div class="section-title">شكل الكيكة</div>
-            <div class="options" id="shape-options">
-                <button type="button" class="option active" data-shape="round" aria-label="دائري" title="دائري"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9"/></svg></button>
-                <button type="button" class="option" data-shape="heart" aria-label="قلب" title="قلب"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/></svg></button>
-                <button type="button" class="option" data-shape="cone" aria-label="مخروطي" title="مخروطي"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z"/></svg></button>
-                <button type="button" class="option" data-shape="sunset" aria-label="سن ست" title="سن ست"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0"/></svg></button>
-                <button type="button" class="option" data-shape="wall" aria-label="وال كيك" title="وال كيك"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 19.5h16v-7H4zM7 12.5h10V7H7z"/></svg></button>
-            </div>
-
-            <div class="section-title">عدد الأدوار</div>
-            <div class="options" id="tier-options">
-                <button type="button" class="option active" data-tiers="1">دور واحد</button>
-                <button type="button" class="option" data-tiers="2">دورين</button>
-                <button type="button" class="option" data-tiers="3">3 أدوار</button>
-            </div>
-            <div class="hint" id="tier-hint" hidden></div>
+            <div class="scroll-row" id="shape-cards"></div>
         </section>
 
         {{-- 2) الحجم والطبقات --}}
         <section class="panel" data-panel="1">
             <div class="section-title">الحجم</div>
-            <div class="options" id="size-options"></div>
+            <div class="scroll-row" id="size-options"></div>
 
             <div id="layers-block">
                 <div class="section-title">عدد الطبقات <small>(لكل دور)</small></div>
-                <div class="options" id="layer-options"></div>
+                <div class="scroll-row" id="layer-options"></div>
             </div>
             <div class="hint" id="cone-hint" hidden>المخروطي بارتفاع ثابت.</div>
         </section>
@@ -392,14 +392,10 @@
         const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
         const MAX_MODEL_LAYERS = 3;
         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
-        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك' };
-        // أشكال خاصة (السن ست، الوال كيك): مقاساتها وطبقاتها وأدوارها ثابتة، وسعرها من أسعار
-        // الكعكة الخاصة لنفس المقاس مضروب في price_factor (الوال كيك نص السعر). السن ست سادة فقط
-        const SHAPES = @json($shapes);
-        const special = () => SHAPES[state.shape];
-        const factor = () => special()?.price_factor ?? 1;
-        const isPlainOnly = () => state.shape === 'cone' || (!!special() && !special().vintage);
         const TIER_LABELS = { 1: 'دور واحد', 2: 'دورين', 3: '3 أدوار' };
+        // أشكال خاصة (السن ست، الوال كيك): مقاساتها وطبقاتها وأدوارها ثابتة، وسعرها من أسعار
+        // الكعكة الخاصة لنفس المقاس مضروب في price_factor (الوال كيك نص السعر)
+        const SHAPES = @json($shapes);
         const $ = id => document.getElementById(id);
 
         const sizesByTier = { 1: [], 2: [], 3: [] };
@@ -408,21 +404,44 @@
             sizesByTier[tiers].push(key);
         });
 
+        // كروت الشكل: كيك الأدوار شكل بحاله (دورين، 3 أدوار). model = الشكل في المركّب
+        const SHAPE_CARDS = [
+            { key: 'round', name: 'دائري', model: 'round', tiers: 1 },
+            { key: 'heart', name: 'قلب', model: 'heart', tiers: 1 },
+            { key: 'tier2', name: 'دورين', model: 'round', tiers: 2 },
+            { key: 'tier3', name: '3 أدوار', model: 'round', tiers: 3 },
+            { key: 'cone', name: 'مخروطي', model: 'cone', tiers: 1 },
+            { key: 'sunset', name: 'سن ست', model: 'sunset', tiers: SHAPES.sunset.tiers },
+            { key: 'wall', name: 'وال كيك', model: 'wall', tiers: SHAPES.wall.tiers },
+        ];
+        const SHAPE_IMAGES = "{{ asset('images/shapes') }}";
+        // الفنتج موقّف في هذي الصفحة (كيك سادة فقط)، وكوده باقي في المركّب لاستخدامات ثانية
+        const STYLE = 'plain';
+
         const state = {
-            shape: 'round', tiers: 1, size: sizesByTier[1][0], layers: 2, style: 'plain',
+            card: SHAPE_CARDS[0], size: sizesByTier[1][0], layers: 2,
             flavor: options.flavors[0] || null, filling: options.fillings[0] || null,
             aiImage: null, aiApproved: false, aiRemaining: {{ $aiRemaining }},
             voice: null, tab: 0,
         };
+        const shape = () => state.card.model;
+        const special = () => SHAPES[shape()];
+        const factor = () => special()?.price_factor ?? 1;
+        const sizesOf = card => SHAPES[card.model] ? SHAPES[card.model].sizes : sizesByTier[card.tiers];
+        const layersOf = (card, size) => SHAPES[card.model] ? [SHAPES[card.model].layers] : layerLimits[size];
 
         // "tier2_8-6" => 8 (الدور السفلي يحدد السعر)، "6in" => 6
-        const bottomInch = key => key.startsWith('tier') ? key.split('_')[1].split('-')[0] : key.replace('in', '');
-        const sizeLabel = key => key.startsWith('tier') ? key.split('_')[1].replaceAll('-', '/') + ' إنش' : bottomInch(key) + ' إنش';
+        const inches = key => key.startsWith('tier') ? key.split('_')[1].split('-').map(Number) : [Number(key.replace('in', ''))];
+        const bottomInch = key => inches(key)[0];
+        const sizeLabel = key => inches(key).join('/') + ' إنش';
         const people = key => key.startsWith('tier') ? tierPeople[key] : options.sizes[bottomInch(key)]?.people;
         const money = n => Math.round(n * 10) / 10 + RIYAL;
         const extra = item => item ? (item.extra[bottomInch(state.size)] || 0) * factor() : 0;
-
-        const basePrice = (size, n) => prices[size]?.[n] === undefined ? undefined : prices[size][n] * factor();
+        const priceOf = (card, size, n) => {
+            const p = prices[size]?.[n];
+            return p === undefined ? undefined : p * (SHAPES[card.model]?.price_factor ?? 1);
+        };
+        const basePrice = (size, n) => priceOf(state.card, size, n);
 
         function total() {
             const base = basePrice(state.size, state.layers);
@@ -430,41 +449,86 @@
         }
 
         function selectIn(container, el) {
-            container.querySelectorAll('.option, .item-card').forEach(o => o.classList.toggle('active', o === el));
+            [...container.children].forEach(o => o.classList.toggle('active', o === el));
         }
 
-        function optionButton(html, active, onClick) {
+        function card(className, html, active, onClick) {
             const b = document.createElement('button');
             b.type = 'button';
-            b.className = 'option' + (active ? ' active' : '');
+            b.className = className + (active ? ' active' : '');
             b.innerHTML = html;
             b.addEventListener('click', () => { selectIn(b.parentElement, b); onClick(); });
             return b;
         }
 
+        // ===== الشكل =====
+        function renderShapes() {
+            const box = $('shape-cards');
+            box.innerHTML = '';
+            SHAPE_CARDS.forEach(c => {
+                const sizes = sizesOf(c);
+                const counts = sizes.map(people).filter(Boolean).join('-').split('-').map(Number);
+                const from = Math.min(...sizes.map(k => priceOf(c, k, layersOf(c, k)[0])).filter(p => p !== undefined));
+                const range = sizes.length > 1 ? `من ${inches(sizes[0]).join('/')} إلى ${sizeLabel(sizes[sizes.length - 1])}` : sizeLabel(sizes[0]);
+                box.appendChild(card('shape-card', `
+                    <img src="${SHAPE_IMAGES}/${c.key}.webp" alt="" loading="lazy">
+                    <div class="name">${c.name}</div>
+                    <div class="meta">${counts.length ? `${Math.min(...counts)}-${Math.max(...counts)} أشخاص` : ''}<br>${range}</div>
+                    ${isFinite(from) ? `<div class="from">يبدأ من ${money(from)}</div>` : ''}`,
+                    c === state.card,
+                    () => { state.card = c; renderSizes(); renderItems(); refresh(); },
+                ));
+            });
+        }
+
+        // ===== الحجم والطبقات =====
+        const SHAPE_PATHS = {
+            round: 'M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9',
+            heart: 'M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z',
+            cone: 'M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z',
+            sunset: 'M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0',
+        };
+        // رسمة المقاس: الشكل يكبر مع الإنش، وكيك الأدوار أدوار فوق بعض بعرض كل دور
+        function sizePicture(key) {
+            const inch = inches(key);
+            if (inch.length === 1) {
+                const px = 26 + (inch[0] - 4) * 6;
+                return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${SHAPE_PATHS[shape()] || SHAPE_PATHS.round}"/></svg>`;
+            }
+            const h = 15, w = i => 8 + i * 5;
+            const rects = inch.map((i, n) => `<rect x="${(60 - w(i)) / 2}" y="${62 - (n + 1) * (h + 1)}" width="${w(i)}" height="${h}" rx="3" fill="${n % 2 ? '#F4C0D1' : '#FBEAF0'}" stroke="currentColor" stroke-width="1.5"/>`).join('');
+            return `<svg width="60" height="64" viewBox="0 0 60 64">${rects}</svg>`;
+        }
+
         function renderSizes() {
             const box = $('size-options');
-            const list = special() ? special().sizes : sizesByTier[state.tiers];
+            const list = sizesOf(state.card);
             if (!list.includes(state.size)) state.size = list[0];
             box.innerHTML = '';
-            list.forEach(key => box.appendChild(optionButton(
-                `${sizeLabel(key)}<small>${people(key) || ''} أشخاص</small>`,
+            list.forEach(key => box.appendChild(card('size-card', `
+                <div class="pic">${sizePicture(key)}</div>
+                <div class="num">${sizeLabel(key)}</div>
+                <small>${people(key) || ''} أشخاص</small>
+                ${basePrice(key, layersOf(state.card, key)[0]) !== undefined ? `<div class="price">${money(basePrice(key, layersOf(state.card, key)[0]))}</div>` : ''}`,
                 key === state.size,
                 () => { state.size = key; renderLayers(); renderItems(); refresh(); },
             )));
             renderLayers();
         }
 
+        const LAYER_COLORS = ['#F4C0D1', '#ED93B1', '#D4537E', '#993556'];
         function renderLayers() {
-            const isCone = state.shape === 'cone';
+            const isCone = shape() === 'cone';
             $('layers-block').hidden = isCone;
             $('cone-hint').hidden = !isCone;
-            const allowed = special() ? [special().layers] : layerLimits[state.size];
+            const allowed = layersOf(state.card, state.size);
             if (isCone || !allowed.includes(state.layers)) state.layers = allowed[0];
             const box = $('layer-options');
             box.innerHTML = '';
-            allowed.forEach(n => box.appendChild(optionButton(
-                `${n} طبقات<small>${basePrice(state.size, n) !== undefined ? money(basePrice(state.size, n)) : ''}</small>`,
+            allowed.forEach(n => box.appendChild(card('layer-card', `
+                <div class="bars">${Array.from({ length: n }, (_, b) => `<div style="height:${Math.max(6, 16 - n * 2)}px;background:${LAYER_COLORS[b % LAYER_COLORS.length]}"></div>`).join('')}</div>
+                <div class="num">${n} طبقات</div>
+                ${basePrice(state.size, n) !== undefined ? `<div class="price">${money(basePrice(state.size, n))}</div>` : ''}`,
                 n === state.layers,
                 () => { state.layers = n; refresh(); },
             )));
@@ -475,13 +539,12 @@
                 const box = $(boxId);
                 box.innerHTML = '';
                 options[list].forEach(item => {
-                    const card = document.createElement('button');
-                    card.type = 'button';
-                    card.className = 'item-card' + (state[key]?.id === item.id ? ' active' : '');
                     const add = extra(item);
-                    card.innerHTML = `<div class="pic" ${item.image ? `style="background-image:url('${item.image}')"` : ''}>${item.image ? '' : icon}</div>${item.name}<span class="extra">${add ? '+' + money(add) : 'بدون زيادة'}</span>`;
-                    card.addEventListener('click', () => { state[key] = item; selectIn(box, card); refresh(); });
-                    box.appendChild(card);
+                    box.appendChild(card('item-card',
+                        `<div class="pic" ${item.image ? `style="background-image:url('${item.image}')"` : ''}>${item.image ? '' : icon}</div>${item.name}<span class="extra">${add ? '+' + money(add) : 'بدون زيادة'}</span>`,
+                        state[key]?.id === item.id,
+                        () => { state[key] = item; refresh(); },
+                    ));
                 });
             });
         }
@@ -489,7 +552,10 @@
         function updateBadges() {
             const price = total();
             $('price-amount').innerHTML = price === undefined ? '—' : money(price);
-            $('people-amount').textContent = people(state.size) || '—';
+            $('spec-layers').textContent = shape() === 'cone' ? '—' : `${state.layers} طبقة`;
+            $('spec-size').textContent = sizeLabel(state.size);
+            $('spec-people').textContent = `${people(state.size) || '—'} أشخاص`;
+            $('spec-tiers').textContent = TIER_LABELS[state.card.tiers];
         }
 
         let token = 0, currentBlob = null, modelReady = Promise.resolve();
@@ -502,8 +568,8 @@
                 const url = await composeCake(base, {
                     color: CAKE_COLOR,
                     boardColor: BOARD_COLORS[state.size] || BOARD_COLORS.default,
-                    shape: state.shape,
-                    style: isPlainOnly() ? 'plain' : state.style,
+                    shape: shape(),
+                    style: STYLE,
                     extraHeight: (state.layers - modelLayers) * LAYER_HEIGHT,
                 });
                 if (mine !== token) { URL.revokeObjectURL(url); return; }
@@ -523,44 +589,15 @@
         function refresh() {
             updateBadges();
             renderSummary($('summary'));
-            const key = [state.shape, state.size, state.layers, state.style].join('|');
+            const key = [shape(), state.size, state.layers].join('|');
             if (key !== lastModelKey) { lastModelKey = key; modelReady = updateModel(); }
         }
 
-        // ===== الشكل والأدوار =====
-        document.querySelectorAll('#shape-options .option').forEach(btn => btn.addEventListener('click', () => {
-            const wasSpecial = !!special();
-            state.shape = btn.dataset.shape;
-            selectIn(btn.parentElement, btn);
-            // الدائري كل الأدوار، القلب والمخروطي دور واحد، والأشكال الخاصة حسب إعداداتها
-            const tiers = state.shape === 'round' ? null : (special()?.tiers ?? 1);
-            document.querySelectorAll('#tier-options .option').forEach(t => { t.disabled = tiers !== null && Number(t.dataset.tiers) !== tiers; });
-            $('tier-hint').hidden = tiers === null;
-            $('tier-hint').textContent = `${SHAPE_LABELS[state.shape]} ${TIER_LABELS[tiers] || ''} فقط.`;
-            if (tiers !== null && state.tiers !== tiers) document.querySelector(`#tier-options [data-tiers="${tiers}"]`).click();
-            // من شكل خاص (مثل الوال كيك دورين) للدائري نرجع لدور واحد
-            if (tiers === null && wasSpecial && state.tiers !== 1) document.querySelector('#tier-options [data-tiers="1"]').click();
-            // المخروطي والسن ست سادة فقط
-            document.querySelector('#style-toggle [data-style="vintage"]').disabled = isPlainOnly();
-            if (isPlainOnly()) document.querySelector('#style-toggle [data-style="plain"]').click();
-            renderSizes();
-            renderItems();
-            refresh();
-        }));
-        document.querySelectorAll('#tier-options .option').forEach(btn => btn.addEventListener('click', () => {
-            if (btn.disabled) return;
-            state.tiers = Number(btn.dataset.tiers);
-            selectIn(btn.parentElement, btn);
-            renderSizes();
-            renderItems();
-            refresh();
-        }));
-        document.querySelectorAll('#style-toggle button').forEach(btn => btn.addEventListener('click', () => {
-            if (btn.disabled) return;
-            state.style = btn.dataset.style;
-            document.querySelectorAll('#style-toggle button').forEach(b => b.classList.toggle('active', b === btn));
-            refresh();
-        }));
+        $('ar-btn').addEventListener('click', () => {
+            const v = $('viewer');
+            if (v.canActivateAR) v.activateAR();
+            else alert('افتحي الصفحة من الجوال عشان تشوفين الكيكة على طاولتك (AR).');
+        });
 
         // ===== التبويبات =====
         const tabs = [...document.querySelectorAll('.tab')];
@@ -618,10 +655,10 @@
         $('ai-generate').addEventListener('click', async () => {
             if (!aiRef.files[0]) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
             const form = new FormData();
-            form.append('shape', state.shape);
+            form.append('shape', shape());
             form.append('size', state.size);
             form.append('layers', state.layers);
-            form.append('style', isPlainOnly() ? 'plain' : state.style);
+            form.append('style', STYLE);
             form.append('note', $('ai-note').value.trim());
             form.append('reference', aiRef.files[0]);
 
@@ -724,11 +761,10 @@
         }
         function renderSummary(box) {
             const rows = [
-                ['الشكل', SHAPE_LABELS[state.shape]],
-                ['الأدوار', TIER_LABELS[state.tiers]],
+                ['الشكل', state.card.name],
+                ['الأدوار', TIER_LABELS[state.card.tiers]],
                 ['الحجم', `${sizeLabel(state.size)} (${people(state.size) || '—'} أشخاص)`],
-                ...(state.shape === 'cone' ? [] : [['الطبقات', `${state.layers} طبقات`]]),
-                ['الستايل', !isPlainOnly() && state.style === 'vintage' ? 'فنتج' : 'سادة'],
+                ...(shape() === 'cone' ? [] : [['الطبقات', `${state.layers} طبقات`]]),
                 ['النكهة', state.flavor?.name || '—'],
                 ['الحشوة', state.filling?.name || '—'],
                 ['الكتابة على الكيكة', $('cake-text').value.trim() || '—'],
@@ -756,6 +792,7 @@
         });
         $('close-modal').addEventListener('click', () => $('done-modal').classList.remove('show'));
 
+        renderShapes();
         renderSizes();
         renderItems();
         renderRemaining();
