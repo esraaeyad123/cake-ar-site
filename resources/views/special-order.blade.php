@@ -146,7 +146,16 @@
         }
         .upload input { display: none; }
         .thumbs { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-        .thumbs img { width: 58px; height: 58px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); }
+        .thumbs img { width: 58px; height: 58px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); display: block; }
+        .thumb { position: relative; }
+        .thumb .remove {
+            position: absolute; top: -7px; left: -7px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
+            background: var(--ink); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; padding: 0;
+        }
+        /* الصور اللي طلعت قبل: تختار منها وحدة */
+        .ai-history { margin-top: 10px; }
+        .ai-history .thumbs img { width: 64px; height: 64px; cursor: pointer; }
+        .ai-history .thumbs img.current { outline: 3px solid var(--pink); outline-offset: 1px; }
         textarea, input[type="text"], input[type="date"] {
             width: 100%; border: 1.5px solid #EFDDE4; border-radius: 12px; padding: 11px 12px;
             font-size: 15px; font-family: inherit; color: var(--ink); background: #fff;
@@ -333,6 +342,10 @@
                         <button type="button" class="btn light" id="ai-reject">ما عجبني</button>
                     </div>
                     <div class="approved">✓ تم اعتماد التصميم، بيظهر في ملخص الطلب</div>
+                </div>
+                <div class="ai-history" id="ai-history" hidden>
+                    <div class="hint">صورك اللي طلعت (اضغطي على صورة عشان تختارينها):</div>
+                    <div class="thumbs" id="ai-history-thumbs"></div>
                 </div>
             </div>
 
@@ -630,14 +643,44 @@
                 : 'خلصت صور الذكاء الاصطناعي. كمّلي بالوصف والصور تحت.';
             $('ai-generate').disabled = !HAS_KEY || state.aiRemaining <= 0;
         }
-        aiRef.addEventListener('change', () => {
+        // صورة مصغّرة عليها ✕ للحذف
+        function thumb(file, onRemove) {
+            const box = document.createElement('div');
+            box.className = 'thumb';
+            box.innerHTML = `<img src="${URL.createObjectURL(file)}" alt=""><button type="button" class="remove" aria-label="حذف الصورة">✕</button>`;
+            box.querySelector('.remove').addEventListener('click', onRemove);
+            return box;
+        }
+
+        let refFile = null;
+        function renderRef() {
             $('ai-thumb').innerHTML = '';
-            if (aiRef.files[0]) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(aiRef.files[0]);
-                $('ai-thumb').appendChild(img);
-            }
+            if (refFile) $('ai-thumb').appendChild(thumb(refFile, () => { refFile = null; renderRef(); }));
+        }
+        aiRef.addEventListener('change', () => {
+            refFile = aiRef.files[0] || refFile;
+            aiRef.value = ''; // حتى يقدر يختار نفس الصورة مرة ثانية بعد الحذف
+            renderRef();
         });
+
+        // كل الصور اللي طلعت، والمعروضة الحين
+        const aiImages = [];
+        function showAiImage(url) {
+            state.aiImage = url;
+            state.aiApproved = false;
+            $('ai-image').src = url;
+            $('ai-result').className = 'ai-result show';
+            $('ai-history').hidden = aiImages.length < 2;
+            $('ai-history-thumbs').innerHTML = '';
+            aiImages.forEach(u => {
+                const img = document.createElement('img');
+                img.src = u;
+                img.alt = '';
+                img.className = u === url ? 'current' : '';
+                img.addEventListener('click', () => { showAiImage(u); renderSummary($('summary')); });
+                $('ai-history-thumbs').appendChild(img);
+            });
+        }
         // صورة المجسم بالمواصفات المختارة من الأمام، تنرسل تلقائيًا مع صورة الزبون حتى ياخذ الذكاء الاصطناعي الشكل منها
         async function snapshotModel() {
             try {
@@ -676,14 +719,14 @@
         }
 
         $('ai-generate').addEventListener('click', async () => {
-            if (!aiRef.files[0]) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
+            if (!refFile) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
             const form = new FormData();
             form.append('shape', shape());
             form.append('size', state.size);
             form.append('layers', state.layers);
             form.append('style', STYLE);
             form.append('note', $('ai-note').value.trim());
-            form.append('reference', aiRef.files[0]);
+            form.append('reference', refFile);
             // رقم التوليد: إذا انقطع الطلب نسأل السيرفر عن نتيجته بهذا الرقم
             const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
             form.append('job', job);
@@ -715,10 +758,9 @@
                     const firstError = data.errors && Object.values(data.errors)[0]?.[0];
                     throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
                 }
-                state.aiImage = data.image;
-                state.aiApproved = false;
-                $('ai-image').src = data.image;
-                $('ai-result').className = 'ai-result show';
+                aiImages.push(data.image);
+                showAiImage(data.image);
+                $('ai-generate').textContent = '✨ ولّدي صورة ثانية';
                 showAiMessage('هذي كيكتك بالمواصفات اللي اخترتيها. عجبتك؟', 'info');
             } catch (e) {
                 showAiMessage(e.message, 'error');
@@ -739,21 +781,27 @@
             state.aiApproved = false;
             $('ai-result').className = 'ai-result';
             showAiMessage(state.aiRemaining > 0
-                ? 'تقدري تغيّري الملاحظة وتولّدي مرة ثانية، أو تكمّلي بالوصف والصور تحت.'
+                ? 'اكتبي في الملاحظة اللي تبين يتغيّر (مثلًا: خلي الشكل أوضح) واضغطي "ولّدي صورة ثانية"، أو كمّلي بالوصف والصور تحت.'
                 : 'كمّلي بالوصف والصور تحت.', 'info');
             renderSummary($('summary'));
+            if (state.aiRemaining > 0) {
+                $('ai-note').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                $('ai-note').focus({ preventScroll: true });
+            }
         });
 
         // ===== الصور والوصف الصوتي =====
         const designInput = $('design-images');
-        designInput.addEventListener('change', () => {
+        const designFiles = [];
+        function renderDesign() {
             $('design-thumbs').innerHTML = '';
-            [...designInput.files].forEach(f => {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(f);
-                $('design-thumbs').appendChild(img);
-            });
+            designFiles.forEach((f, i) => $('design-thumbs').appendChild(thumb(f, () => { designFiles.splice(i, 1); renderDesign(); })));
             renderSummary($('summary'));
+        }
+        designInput.addEventListener('change', () => {
+            designFiles.push(...designInput.files); // الصور الجديدة تنضاف للي قبل
+            designInput.value = '';
+            renderDesign();
         });
 
         let recorder = null, chunks = [];
@@ -806,7 +854,7 @@
             ];
             const images = [];
             if (state.aiImage && state.aiApproved) images.push(`<figure><img src="${state.aiImage}" alt=""><div>تصميم الذكاء الاصطناعي</div></figure>`);
-            [...designInput.files].forEach(f => images.push(`<figure><img src="${URL.createObjectURL(f)}" alt=""><div>صورة مرفقة</div></figure>`));
+            designFiles.forEach(f => images.push(`<figure><img src="${URL.createObjectURL(f)}" alt=""><div>صورة مرفقة</div></figure>`));
             const price = total();
             box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join('')}
                 ${state.voice ? `<div class="line"><dt>وصف صوتي</dt><dd><audio controls src="${state.voice}" style="height:30px;max-width:180px"></audio></dd></div>` : ''}
@@ -817,7 +865,7 @@
         $('submit').addEventListener('click', () => {
             const missing = [];
             if (!$('delivery-date').value) missing.push('تاريخ الاستلام');
-            if (!$('description').value.trim() && !state.voice && !state.aiApproved && !designInput.files.length) missing.push('وصف التصميم أو صورة');
+            if (!$('description').value.trim() && !state.voice && !state.aiApproved && !designFiles.length) missing.push('وصف التصميم أو صورة');
             if (missing.length) { $('submit-message').textContent = 'كمّلي: ' + missing.join('، '); return; }
             $('submit-message').textContent = '';
             renderSummary($('modal-summary'));
