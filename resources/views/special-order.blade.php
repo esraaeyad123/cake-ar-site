@@ -378,7 +378,8 @@
     </div>
 
     <script type="module">
-        import { composeCake } from "{{ asset('js/cake-composer.js') }}";
+        // رقم النسخة = وقت آخر تعديل للملف، حتى ما يستخدم المتصفح (أو كاش الاستضافة) نسخة قديمة بعد التحديث
+        import { composeCake } from "{{ asset('js/cake-composer.js') }}?v={{ filemtime(public_path('js/cake-composer.js')) }}";
 
         const options = @json($options);
         const prices = @json((object) $prices);

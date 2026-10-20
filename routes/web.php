@@ -1,11 +1,9 @@
 <?php
 
+use App\Http\Controllers\CakeArController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
-use App\Http\Controllers\CakeArController;
+Route::get('/', [CakeArController::class, 'show'])->defaults('slug', 'signature-cake');
 
 Route::get('/cake/{slug}/ar', [CakeArController::class, 'show'])
     ->name('cake.ar.show');

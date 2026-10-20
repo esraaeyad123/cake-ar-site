@@ -55,6 +55,16 @@ class CakeArPreviewTest extends TestCase
             ->assertSee('"6in":[2,3,4]', false);
     }
 
+    public function test_home_opens_the_preview_with_a_versioned_composer(): void
+    {
+        Http::fake(['*' => Http::response(null, 500)]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-shape="wall"', false)
+            ->assertSee('js/cake-composer.js?v='.filemtime(public_path('js/cake-composer.js')), false);
+    }
+
     public function test_fallback_prices_are_used_when_api_is_down(): void
     {
         Http::fake(['*' => Http::response(null, 500)]);
