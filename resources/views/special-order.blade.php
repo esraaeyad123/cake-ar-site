@@ -178,6 +178,11 @@
         .ai-result { display: none; margin-top: 12px; }
         .ai-result.show { display: block; }
         .ai-result img { width: 100%; border-radius: 14px; border: 1px solid var(--pink-line); }
+        .download-btn {
+            display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; text-decoration: none;
+            border: 1.5px solid var(--pink-line); border-radius: 30px; padding: 11px; font-size: 14px; font-weight: 800;
+            color: var(--pink-dark); background: #fff;
+        }
         .ai-result .approved { display: none; text-align: center; font-size: 13px; font-weight: 800; color: #2E7D32; margin-top: 8px; }
         .ai-result.is-approved .approved { display: block; }
         .ai-result.is-approved .row { display: none; }
@@ -337,6 +342,7 @@
 
                 <div class="ai-result" id="ai-result">
                     <img id="ai-image" alt="صورة الكيكة بالذكاء الاصطناعي">
+                    <a class="download-btn" id="ai-download" href="#" download>⬇️ تحميل الصورة</a>
                     <div class="row">
                         <button type="button" class="btn" id="ai-approve">👍 اعتمدي هذا التصميم</button>
                         <button type="button" class="btn light" id="ai-reject">ما عجبني</button>
@@ -688,6 +694,8 @@
             state.aiImage = url;
             state.aiApproved = false;
             $('ai-image').src = url;
+            $('ai-download').href = url;
+            $('ai-download').download = `jomacake-${aiImages.indexOf(url) + 1}.png`;
             $('ai-result').className = 'ai-result show';
             $('ai-history').hidden = aiImages.length < 2;
             $('ai-history-thumbs').innerHTML = '';
@@ -799,6 +807,7 @@
         $('ai-reject').addEventListener('click', () => {
             state.aiApproved = false;
             $('ai-result').className = 'ai-result';
+            $('ai-history').hidden = !aiImages.length; // حتى يقدر يرجع لها أو يحمّلها
             showAiMessage(state.aiRemaining > 0
                 ? 'اكتبي في الملاحظة اللي تبين يتغيّر (مثلًا: خلي الشكل أوضح) واضغطي "ولّدي صورة ثانية"، أو كمّلي بالوصف والصور تحت.'
                 : 'كمّلي بالوصف والصور تحت.', 'info');
