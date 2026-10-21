@@ -674,16 +674,17 @@
             renderRef();
         });
 
-        // نصغّر الصورة (أطول ضلع 1600 بكسل) قبل الرفع: 6 صور جوال ممكن تكون ثقيلة على السيرفر
+        // نصغّر الصورة (أطول ضلع 2048 بكسل) قبل الرفع: 6 صور جوال ممكن تكون ثقيلة على السيرفر،
+        // وبهذا الحجم تبقى التفاصيل (البتلات، الكتابة) واضحة للذكاء الاصطناعي
         async function shrink(file) {
             try {
                 const bitmap = await createImageBitmap(file);
-                const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+                const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
                 const canvas = document.createElement('canvas');
                 canvas.width = Math.round(bitmap.width * scale);
                 canvas.height = Math.round(bitmap.height * scale);
                 canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-                const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+                const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
                 return blob ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file;
             } catch (e) {
                 return file;
@@ -711,6 +712,25 @@
             });
         }
         // صورة المجسم بالمواصفات المختارة من الأمام، تنرسل تلقائيًا مع صورة الزبون حتى ياخذ الذكاء الاصطناعي الشكل منها
+        // نحوّل صورة المجسم لرمادي (مثل مجسم طين) حتى ما ياخذ الذكاء الاصطناعي لونها الكريمي:
+        // هي للشكل بس، واللون والزينة من صور الزبون. الخلفية البيضاء تبقى بيضاء
+        async function greyClay(blob) {
+            const bitmap = await createImageBitmap(blob);
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bitmap, 0, 0);
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height), d = img.data;
+            for (let i = 0; i < d.length; i += 4) {
+                if (d[i + 3] < 10 || (d[i] > 250 && d[i + 1] > 250 && d[i + 2] > 250)) continue;
+                const g = Math.round((0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) * 0.68);
+                d[i] = d[i + 1] = d[i + 2] = g;
+            }
+            ctx.putImageData(img, 0, 0);
+            return await new Promise(res => canvas.toBlob(b => res(b || blob), 'image/png'));
+        }
+
         async function snapshotModel() {
             try {
                 await Promise.race([modelReady, new Promise(res => setTimeout(res, 15000))]);
@@ -724,7 +744,7 @@
                 const blob = await v.toBlob({ mimeType: 'image/png' });
                 v.cameraOrbit = `${orbit.theta}rad ${orbit.phi}rad ${orbit.radius}m`;
                 v.autoRotate = auto;
-                return blob;
+                return await greyClay(blob);
             } catch (e) {
                 console.error(e);
                 return null;

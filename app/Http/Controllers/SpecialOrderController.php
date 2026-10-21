@@ -225,10 +225,12 @@ class SpecialOrderController extends Controller
         $specs = "Required cake: {$shape}; {$structure}. {$height}";
 
         $intro = $withShapeImage
-            ? 'Image 1 is a plain 3D model of the EXACT cake the customer ordered: copy its shape, outline, number of tiers, '
-                .'proportions and height exactly. The other images are the customer\'s reference photos: use them ONLY for the decoration, '
-                .'frosting colours, toppings, flowers, figures and writing (combine them if there are several), and re-arrange them to fit the new shape. '
-                .'Do NOT keep the shape or number of tiers of the reference photos. '
+            ? 'Image 1 is a GREY CLAY MOCK-UP of the exact cake the customer ordered. Use it ONLY for the shape, outline, number of tiers, '
+                .'proportions and height. Its grey colour, smooth surface and board are NOT part of the design: ignore them completely. '
+                .'The other images are the customer\'s reference photos: the frosting colour, surface texture and ALL decorations must come only from them. '
+                .'Reproduce the reference decoration as faithfully as possible, including how much of the cake it covers: if the reference cake\'s '
+                .'sides and top are covered (petals, flowers, texture), cover the sides and top of the new cake the same way. '
+                .'Combine the reference photos if there are several. Do NOT keep the shape or number of tiers of the reference photos. '
             : 'The attached photos are the customer\'s reference photos. Copy their decoration, frosting colours, toppings and writing '
                 .'(combine them if there are several), but do NOT keep their shape: rebuild the cake with the required shape below. ';
 

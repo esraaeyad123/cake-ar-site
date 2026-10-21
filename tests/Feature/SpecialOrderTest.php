@@ -108,7 +108,7 @@ class SpecialOrderTest extends TestCase
             $images = $parts->where('name', 'image[]')->pluck('filename')->values()->all();
 
             return $images === ['shape.png', 'cake.jpg']
-                && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'Image 1 is a plain 3D model')
+                && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'Image 1 is a GREY CLAY MOCK-UP')
                 && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'heart-shaped');
         });
     }
