@@ -74,7 +74,7 @@ class SpecialOrderController extends Controller
             ]);
         }
 
-        if ($this->remaining() <= 0) {
+        if ($this->remaining() === 0) {
             return response()->json(['message' => 'استخدمتِ كل محاولات التوليد ('.config('special_order.ai_limit').'). كمّلي الطلب بالوصف والصور.', 'remaining' => 0], 429);
         }
 
@@ -185,9 +185,12 @@ class SpecialOrderController extends Controller
         return session('special_order.visitor');
     }
 
-    private function remaining(): int
+    // null = بدون حد
+    private function remaining(): ?int
     {
-        return max(0, config('special_order.ai_limit') - (int) Cache::get($this->usedKey(), 0));
+        $limit = (int) config('special_order.ai_limit');
+
+        return $limit > 0 ? max(0, $limit - (int) Cache::get($this->usedKey(), 0)) : null;
     }
 
     private function prompt(array $data, bool $withShapeImage): string

@@ -143,6 +143,22 @@ class SpecialOrderTest extends TestCase
         $send()->assertOk()->assertJson(['remaining' => 4]);
     }
 
+    public function test_limit_zero_means_unlimited_for_testing(): void
+    {
+        $this->withoutMiddleware(ThrottleRequests::class);
+        config(['special_order.ai_limit' => 0]);
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+
+        foreach (range(1, 7) as $i) {
+            $this->post('/special-order/ai', [
+                'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain',
+                'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
+            ], ['Accept' => 'application/json'])->assertOk()->assertJson(['remaining' => null]);
+        }
+        $this->get('/special-order')->assertSee('aiRemaining: null', false);
+    }
+
     public function test_result_can_be_fetched_by_job_if_the_request_was_cut(): void
     {
         Storage::fake('public');

@@ -336,7 +336,7 @@
                 <div class="section-title">ملاحظة <small>(اختياري)</small></div>
                 <textarea id="ai-note" maxlength="500" placeholder="مثال: غيّري لون الورد إلى أبيض"></textarea>
 
-                <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining > 0 ? '' : 'disabled' }}>✨ ولّدي الصورة</button>
+                <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining !== 0 ? '' : 'disabled' }}>✨ ولّدي الصورة</button>
                 <div class="hint" id="ai-remaining"></div>
                 <div class="message {{ $hasKey ? 'info' : 'error' }}" id="ai-message">{{ $hasKey ? '' : 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear' }}</div>
 
@@ -446,7 +446,7 @@
         const state = {
             card: SHAPE_CARDS[0], size: sizesByTier[1][0], layers: 2,
             flavor: options.flavors[0] || null, filling: options.fillings[0] || null,
-            aiImage: null, aiApproved: false, aiRemaining: {{ $aiRemaining }},
+            aiImage: null, aiApproved: false, aiRemaining: @json($aiRemaining), // null = بدون حد
             voice: null, tab: 0,
         };
         const shape = () => state.card.model;
@@ -644,10 +644,11 @@
         function showAiMessage(text, type) { $('ai-message').textContent = text; $('ai-message').className = 'message ' + type; }
         function renderRemaining() {
             // المحاولة الفاشلة ما تنحسب، فالعدد = الصور اللي باقية
-            $('ai-remaining').textContent = state.aiRemaining > 0
+            $('ai-remaining').textContent = state.aiRemaining === null ? ''
+                : state.aiRemaining > 0
                 ? `باقي لك ${state.aiRemaining === 1 ? 'صورة وحدة' : state.aiRemaining + ' صور'}.`
                 : 'خلصت صور الذكاء الاصطناعي. كمّلي بالوصف والصور تحت.';
-            $('ai-generate').disabled = !HAS_KEY || state.aiRemaining <= 0;
+            $('ai-generate').disabled = !HAS_KEY || !canGenerate();
         }
         // صورة مصغّرة عليها ✕ للحذف
         function thumb(file, onRemove) {
@@ -658,6 +659,7 @@
             return box;
         }
 
+        const canGenerate = () => state.aiRemaining === null || state.aiRemaining > 0;
         const MAX_REFS = 6;
         const refFiles = [];
         function renderRef() {
@@ -793,7 +795,7 @@
                 showAiMessage(e.message, 'error');
             } finally {
                 clearInterval(timer);
-                $('ai-generate').disabled = !HAS_KEY || state.aiRemaining <= 0;
+                $('ai-generate').disabled = !HAS_KEY || !canGenerate();
                 renderRemaining();
                 renderSummary($('summary'));
             }
@@ -808,11 +810,11 @@
             state.aiApproved = false;
             $('ai-result').className = 'ai-result';
             $('ai-history').hidden = !aiImages.length; // حتى يقدر يرجع لها أو يحمّلها
-            showAiMessage(state.aiRemaining > 0
+            showAiMessage(canGenerate()
                 ? 'اكتبي في الملاحظة اللي تبين يتغيّر (مثلًا: خلي الشكل أوضح) واضغطي "ولّدي صورة ثانية"، أو كمّلي بالوصف والصور تحت.'
                 : 'كمّلي بالوصف والصور تحت.', 'info');
             renderSummary($('summary'));
-            if (state.aiRemaining > 0) {
+            if (canGenerate()) {
                 $('ai-note').scrollIntoView({ behavior: 'smooth', block: 'center' });
                 $('ai-note').focus({ preventScroll: true });
             }
