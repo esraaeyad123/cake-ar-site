@@ -713,7 +713,8 @@
         }
         // صورة المجسم بالمواصفات المختارة من الأمام، تنرسل تلقائيًا مع صورة الزبون حتى ياخذ الذكاء الاصطناعي الشكل منها
         // نحوّل صورة المجسم لرمادي (مثل مجسم طين) حتى ما ياخذ الذكاء الاصطناعي لونها الكريمي:
-        // هي للشكل بس، واللون والزينة من صور الزبون. الخلفية البيضاء تبقى بيضاء
+        // هي للشكل بس، واللون والزينة من صور الزبون. الكيكة (الكريمي الدافي) رمادي غامق، والبورد
+        // واللوجو رمادي فاتح حتى يبان محيط الكيكة، والخلفية البيضاء تبقى بيضاء
         async function greyClay(blob) {
             const bitmap = await createImageBitmap(blob);
             const canvas = document.createElement('canvas');
@@ -724,7 +725,8 @@
             const img = ctx.getImageData(0, 0, canvas.width, canvas.height), d = img.data;
             for (let i = 0; i < d.length; i += 4) {
                 if (d[i + 3] < 10 || (d[i] > 250 && d[i + 1] > 250 && d[i + 2] > 250)) continue;
-                const g = Math.round((0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) * 0.68);
+                const cake = d[i] - d[i + 2] > 14 && d[i + 1] >= d[i + 2];
+                const g = Math.round((0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) * (cake ? 0.5 : 0.85));
                 d[i] = d[i + 1] = d[i + 2] = g;
             }
             ctx.putImageData(img, 0, 0);

@@ -108,7 +108,7 @@ class SpecialOrderTest extends TestCase
             $images = $parts->where('name', 'image[]')->pluck('filename')->values()->all();
 
             return $images === ['shape.png', 'cake.jpg']
-                && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'Image 1 is a GREY CLAY MOCK-UP')
+                && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'Image 1 is a grey clay mock-up')
                 && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'heart-shaped');
         });
     }
@@ -244,6 +244,29 @@ class SpecialOrderTest extends TestCase
 
         Http::assertSent(fn ($request) => collect($request->data())->where('name', 'image[]')->pluck('filename')->values()->all()
             === ['shape.png', 'ref1.jpg', 'ref2.jpg', 'ref3.jpg', 'ref4.jpg', 'ref5.jpg', 'ref6.jpg']);
+    }
+
+    public function test_chosen_shape_is_a_hard_rule_over_the_reference_shape(): void
+    {
+        Storage::fake('public');
+        config(['special_order.image_quality' => 'high', 'services.openai.image_quality' => 'medium']);
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+
+        $this->post('/special-order/ai', [
+            'shape' => 'round', 'size' => '10in', 'layers' => 2, 'style' => 'plain', 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('heart-cake.jpg')],
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        Http::assertSent(function ($request) {
+            $parts = collect($request->data());
+            $prompt = $parts->firstWhere('name', 'prompt')['contents'];
+
+            return str_starts_with($prompt, 'HARD RULE (most important): the cake must be perfectly ROUND')
+                && str_contains($prompt, 'exactly ONE tier, NOT heart-shaped, NOT square')
+                && str_ends_with($prompt, 'Remember: perfectly ROUND (a circle when seen from above), exactly ONE tier.')
+                // جودة الكعكة الخاصة لحالها
+                && $parts->firstWhere('name', 'quality')['contents'] === 'high';
+        });
     }
 
     public function test_ai_requires_a_reference_photo(): void

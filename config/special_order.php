@@ -11,6 +11,9 @@ return [
     // بعد الربط بنظام الطلبات: لكل رقم جوال، ويتجدد لما ينطلب الطلب
     'ai_limit' => (int) env('SPECIAL_ORDER_AI_LIMIT', 5),
 
+    // جودة صور الذكاء الاصطناعي في الكعكة الخاصة (low / medium / high)، وإذا فاضي تاخذ OPENAI_IMAGE_QUALITY
+    'image_quality' => env('SPECIAL_ORDER_IMAGE_QUALITY'),
+
     'cache_minutes' => 60,
 
     // عدد الأشخاص لكيكات الأدوار (الـ API يعطي المقاسات المفردة فقط)
