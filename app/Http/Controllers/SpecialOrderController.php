@@ -25,6 +25,15 @@ class SpecialOrderController extends Controller
 
     private const MAX_REFERENCES = 6;
 
+    // الشكل من فوق، والأشكال اللي لازم ما يطلع عليها (لو صورة الزبون شكلها مختلف)
+    private const OUTLINES = [
+        'round' => ['perfectly ROUND (a circle when seen from above)', 'NOT heart-shaped, NOT square, NOT oval'],
+        'heart' => ['HEART-shaped when seen from above', 'NOT round, NOT square'],
+        'cone' => ['a tall CONE tapering to a point', 'NOT a cylinder, NOT round-topped'],
+        'sunset' => ['a HALF-CIRCLE standing upright on its flat edge', 'NOT a full round cake, NOT heart-shaped'],
+        'wall' => ['the FRONT HALF of a round tiered cake mounted on a standing board', 'NOT a full free-standing cake, NOT heart-shaped'],
+    ];
+
     private const SHAPES = [
         'round' => 'round',
         'heart' => 'heart-shaped',
@@ -101,7 +110,7 @@ class SpecialOrderController extends Controller
                     'model' => config('services.openai.image_model'),
                     'prompt' => $this->prompt($data, (bool) $shapeImage),
                     'size' => '1024x1024',
-                    'quality' => config('services.openai.image_quality'),
+                    'quality' => config('special_order.image_quality') ?: config('services.openai.image_quality'),
                     'n' => 1,
                 ]);
         } catch (ConnectionException) {
@@ -224,19 +233,27 @@ class SpecialOrderController extends Controller
 
         $specs = "Required cake: {$shape}; {$structure}. {$height}";
 
-        $intro = $withShapeImage
-            ? 'Image 1 is a GREY CLAY MOCK-UP of the exact cake the customer ordered. Use it ONLY for the shape, outline, number of tiers, '
-                .'proportions and height. Its grey colour, smooth surface and board are NOT part of the design: ignore them completely. '
-                .'The other images are the customer\'s reference photos: the frosting colour, surface texture and ALL decorations must come only from them. '
-                .'Reproduce the reference decoration as faithfully as possible, including how much of the cake it covers: if the reference cake\'s '
-                .'sides and top are covered (petals, flowers, texture), cover the sides and top of the new cake the same way. '
-                .'Combine the reference photos if there are several. Do NOT keep the shape or number of tiers of the reference photos. '
-            : 'The attached photos are the customer\'s reference photos. Copy their decoration, frosting colours, toppings and writing '
-                .'(combine them if there are several), but do NOT keep their shape: rebuild the cake with the required shape below. ';
+        // الشكل شرط أول وثابت: لما نطلب نسخ الزينة "بالضبط" كان ينسخ شكل صورة الزبون (قلب بدل دائري)
+        [$outline, $notShapes] = self::OUTLINES[$data['shape']];
+        $tiers = $data['shape'] === 'wall' ? 2 : count($inches);
+        $tierText = $tiers === 1 ? 'exactly ONE tier' : "exactly {$tiers} tiers";
+        $rule = "HARD RULE (most important): the cake must be {$outline}, with {$tierText}, {$notShapes}, "
+            .'even if the customer\'s reference photos show a different shape or number of tiers. '
+            .'Never copy the outline or tier count of the reference photos. ';
 
-        return $intro.'Create a realistic professional bakery photo of ONE cake. '
+        $intro = $withShapeImage
+            ? 'Image 1 is a grey clay mock-up of this exact required cake: use it ONLY for the shape, outline, number of tiers, proportions and height. '
+                .'Its grey colour, smooth surface and board are NOT part of the design: ignore them completely. '
+            : '';
+        $intro .= 'The '.($withShapeImage ? 'other images are' : 'attached photos are').' the customer\'s reference photos: take the frosting colours, '
+            .'surface patterns and textures and every decorative element from them (for example cherries, ribbons, piping, flowers, figures and writing), '
+            .'combine them if there are several, and re-arrange them on the required shape, covering the cake as much as the reference does '
+            .'(if the reference sides and top are covered, cover the sides and top). ';
+
+        return $rule.$intro.'Create a realistic professional bakery photo of ONE cake. '
             .$specs.$finish.$note
-            .'Show the whole cake on a simple cake board, front three-quarter view, on a plain light background. No people, no hands.';
+            .'Show the whole cake on a simple cake board, front three-quarter view, on a plain light background. No people, no hands. '
+            ."Remember: {$outline}, {$tierText}.";
     }
 
     private function failed(string $message)
