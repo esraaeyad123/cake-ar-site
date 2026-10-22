@@ -229,7 +229,10 @@ class SpecialOrderController extends Controller
             : 'No vintage piped borders. ';
 
         $shape = self::SHAPES[$data['shape']];
-        $note = filled($data['note'] ?? null) ? "Customer changes to apply: {$data['note']}. " : '';
+        // خانة "الوصف": تعديلات الزبون، وممكن فيها عبارة يبيها مكتوبة على الكيكة (مثل: كل عام وانتم بخير)
+        $note = filled($data['note'] ?? null)
+            ? "Customer description (apply it; if it contains a greeting or words to write, write them on the cake exactly as given): {$data['note']}. "
+            : '';
 
         $specs = "Required cake: {$shape}; {$structure}. {$height}";
 

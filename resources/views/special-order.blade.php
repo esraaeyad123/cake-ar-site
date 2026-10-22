@@ -323,7 +323,7 @@
         {{-- 4) الكتابة والوصف --}}
         <section class="panel" data-panel="3">
             <div class="ai-box">
-                <h3>✨ شوفي كيكتك قبل الطلب <span class="badge">اختياري</span></h3>
+                <h3>✨ شوفي كيكتك قبل الطلب</h3>
                 <div class="hint" style="margin-top:0">ارفعي صور كيكة عاجبتك (لين 6 صور: مثلًا صورة للزينة وصورة للورد وصورة للكتابة)، والذكاء الاصطناعي يسوي لك صورتها بنفس المواصفات اللي اخترتيها (الشكل، الحجم، الأدوار، الطبقات).</div>
 
                 <div class="section-title">صور الكيكة <small>(لين 6)</small></div>
@@ -333,8 +333,12 @@
                 </label>
                 <div class="thumbs" id="ai-thumb"></div>
 
-                <div class="section-title">ملاحظة <small>(اختياري)</small></div>
-                <textarea id="ai-note" maxlength="500" placeholder="مثال: غيّري لون الورد إلى أبيض"></textarea>
+                <div class="section-title">الوصف</div>
+                <textarea id="ai-note" maxlength="500" placeholder="مثال: كل عام وانتم بخير"></textarea>
+                <div class="voice">
+                    <button type="button" id="voice-btn">🎤 سجّلي وصف صوتي</button>
+                    <audio id="voice-audio" controls hidden></audio>
+                </div>
 
                 <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining !== 0 ? '' : 'disabled' }}>✨ ولّدي الصورة</button>
                 <div class="hint" id="ai-remaining"></div>
@@ -355,22 +359,6 @@
                 </div>
             </div>
 
-            <div class="section-title">صور التصميم <small>(اختياري)</small></div>
-            <label class="upload">
-                <input type="file" id="design-images" accept="image/png,image/jpeg,image/webp" multiple>
-                🖼️ أضيفي صور للتصميم
-            </label>
-            <div class="thumbs" id="design-thumbs"></div>
-
-            <div class="section-title">وصف التصميم</div>
-            <textarea id="description" maxlength="1000" placeholder="اكتبي وصف الكيكة: الألوان، الزينة، الفكرة…"></textarea>
-            <div class="voice">
-                <button type="button" id="voice-btn">🎤 سجّلي وصف صوتي</button>
-                <audio id="voice-audio" controls hidden></audio>
-            </div>
-
-            <div class="section-title">الكتابة على الكيكة <small>(اختياري)</small></div>
-            <input type="text" id="cake-text" maxlength="40" placeholder="مثال: كل عام وأنتِ بخير">
         </section>
 
         {{-- 5) التاريخ والتأكيد --}}
@@ -647,7 +635,7 @@
             $('ai-remaining').textContent = state.aiRemaining === null ? ''
                 : state.aiRemaining > 0
                 ? `باقي لك ${state.aiRemaining === 1 ? 'صورة وحدة' : state.aiRemaining + ' صور'}.`
-                : 'خلصت صور الذكاء الاصطناعي. كمّلي بالوصف والصور تحت.';
+                : 'خلصت صور الذكاء الاصطناعي. تقدرين تكمّلين الطلب بالوصف والصور.';
             $('ai-generate').disabled = !HAS_KEY || !canGenerate();
         }
         // صورة مصغّرة عليها ✕ للحذف
@@ -665,6 +653,7 @@
         function renderRef() {
             $('ai-thumb').innerHTML = '';
             refFiles.forEach((f, i) => $('ai-thumb').appendChild(thumb(f, () => { refFiles.splice(i, 1); renderRef(); })));
+            renderSummary($('summary')); // صور الكيكة تظهر في الملخص
         }
         aiRef.addEventListener('change', () => {
             const picked = [...aiRef.files], room = MAX_REFS - refFiles.length;
@@ -833,8 +822,8 @@
             $('ai-result').className = 'ai-result';
             $('ai-history').hidden = !aiImages.length; // حتى يقدر يرجع لها أو يحمّلها
             showAiMessage(canGenerate()
-                ? 'اكتبي في الملاحظة اللي تبين يتغيّر (مثلًا: خلي الشكل أوضح) واضغطي "ولّدي صورة ثانية"، أو كمّلي بالوصف والصور تحت.'
-                : 'كمّلي بالوصف والصور تحت.', 'info');
+                ? 'اكتبي في الوصف اللي تبين يتغيّر (مثلًا: خلي الشكل أوضح) واضغطي "ولّدي صورة ثانية"، أو كمّلي الطلب بالوصف والصور.'
+                : 'تقدرين تكمّلين الطلب بالوصف والصور.', 'info');
             renderSummary($('summary'));
             if (canGenerate()) {
                 $('ai-note').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -843,19 +832,6 @@
         });
 
         // ===== الصور والوصف الصوتي =====
-        const designInput = $('design-images');
-        const designFiles = [];
-        function renderDesign() {
-            $('design-thumbs').innerHTML = '';
-            designFiles.forEach((f, i) => $('design-thumbs').appendChild(thumb(f, () => { designFiles.splice(i, 1); renderDesign(); })));
-            renderSummary($('summary'));
-        }
-        designInput.addEventListener('change', () => {
-            designFiles.push(...designInput.files); // الصور الجديدة تنضاف للي قبل
-            designInput.value = '';
-            renderDesign();
-        });
-
         let recorder = null, chunks = [];
         $('voice-btn').addEventListener('click', async () => {
             if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
@@ -881,7 +857,7 @@
             }
         });
 
-        ['description', 'cake-text', 'delivery-date'].forEach(id => $(id).addEventListener('input', () => renderSummary($('summary'))));
+        ['ai-note', 'delivery-date'].forEach(id => $(id).addEventListener('input', () => renderSummary($('summary'))));
 
         // أقرب تاريخ: بعد يومين
         const minDate = new Date();
@@ -900,13 +876,12 @@
                 ...(shape() === 'cone' ? [] : [['الطبقات', `${state.layers} طبقات`]]),
                 ['النكهة', state.flavor?.name || '—'],
                 ['الحشوة', state.filling?.name || '—'],
-                ['الكتابة على الكيكة', $('cake-text').value.trim() || '—'],
-                ['الوصف', $('description').value.trim() || (state.voice ? 'وصف صوتي' : '—')],
+                ['الوصف', $('ai-note').value.trim() || (state.voice ? 'وصف صوتي' : '—')],
                 ['تاريخ الاستلام', $('delivery-date').value || '—'],
             ];
             const images = [];
             if (state.aiImage && state.aiApproved) images.push(`<figure><img src="${state.aiImage}" alt=""><div>تصميم الذكاء الاصطناعي</div></figure>`);
-            designFiles.forEach(f => images.push(`<figure><img src="${URL.createObjectURL(f)}" alt=""><div>صورة مرفقة</div></figure>`));
+            refFiles.forEach(f => images.push(`<figure><img src="${URL.createObjectURL(f)}" alt=""><div>صورة مرفقة</div></figure>`));
             const price = total();
             box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join('')}
                 ${state.voice ? `<div class="line"><dt>وصف صوتي</dt><dd><audio controls src="${state.voice}" style="height:30px;max-width:180px"></audio></dd></div>` : ''}
@@ -917,7 +892,7 @@
         $('submit').addEventListener('click', () => {
             const missing = [];
             if (!$('delivery-date').value) missing.push('تاريخ الاستلام');
-            if (!$('description').value.trim() && !state.voice && !state.aiApproved && !designFiles.length) missing.push('وصف التصميم أو صورة');
+            if (!$('ai-note').value.trim() && !state.voice && !state.aiApproved && !refFiles.length) missing.push('الوصف أو صورة');
             if (missing.length) { $('submit-message').textContent = 'كمّلي: ' + missing.join('، '); return; }
             $('submit-message').textContent = '';
             renderSummary($('modal-summary'));
