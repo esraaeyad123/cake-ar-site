@@ -8,6 +8,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -96,11 +97,12 @@ class SpecialOrderController extends Controller
 
         // نكمّل حتى لو انقطع الاتصال مع الصفحة، عشان تقدر تاخذ النتيجة من status
         ignore_user_abort(true);
-        set_time_limit(180);
+        // الجودة العالية ممكن تاخذ 4-5 دقايق
+        set_time_limit(330);
 
         $shapeImage = $request->file('shape_image');
         try {
-            $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(170);
+            $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300);
             // الترتيب مهم: الصورة الأولى للشكل، والثانية للزينة
             foreach (array_filter([$shapeImage, ...$request->file('references')]) as $file) {
                 $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
@@ -165,6 +167,16 @@ class SpecialOrderController extends Controller
 
     private function finish(Request $request, string $job, int $status, array $payload)
     {
+        // كم أخذ التوليد وبأي جودة، عشان نعرف وين البطء (storage/logs/laravel.log)
+        if (defined('LARAVEL_START')) {
+            Log::info('special-order AI image', [
+                'ok' => $status === 200,
+                'seconds' => round(microtime(true) - LARAVEL_START),
+                'quality' => config('special_order.image_quality') ?: config('services.openai.image_quality'),
+                'references' => count($request->file('references', [])),
+            ]);
+        }
+
         Cache::put($this->jobKey($job), $payload + [
             'status' => $status === 200 ? 'done' : 'failed',
             'owner' => $this->visitor(),

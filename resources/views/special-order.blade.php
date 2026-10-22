@@ -213,6 +213,12 @@
         .modal.show { display: flex; }
         .modal .sheet { background: #fff; width: 100%; max-width: 520px; max-height: 88vh; overflow: auto; border-radius: 20px 20px 0 0; padding: 18px 16px 26px; }
         .modal h2 { margin: 0 0 4px; font-size: 18px; }
+        /* شاشة الانتظار وقت التوليد: في نص الشاشة، والزبون ما يقدر يغيّر شي إلا بعد الإلغاء */
+        .modal.center { align-items: center; padding: 16px; }
+        .modal.center .sheet { border-radius: 20px; text-align: center; padding: 26px 18px 18px; }
+        .wait-icon { font-size: 40px; animation: tilt 1.6s ease-in-out infinite; display: inline-block; }
+        @keyframes tilt { 50% { transform: rotate(180deg); } }
+        .wait-time { font-size: 26px; font-weight: 800; color: var(--pink); margin: 8px 0 2px; }
     </style>
 </head>
 <body>
@@ -377,6 +383,16 @@
             <button type="button" class="btn" id="next">التالي</button>
         </div>
     </main>
+
+    <div class="modal center" id="ai-wait-modal" role="dialog" aria-live="polite">
+        <div class="sheet">
+            <div class="wait-icon">⏳</div>
+            <h2>الرجاء الانتظار، جاري التوليد</h2>
+            <div class="wait-time" id="ai-wait-time">0 ثانية</div>
+            <div class="hint">الذكاء الاصطناعي يجهّز صورة كيكتك، ممكن ياخذ دقيقة أو أكثر.</div>
+            <button type="button" class="btn light" id="ai-cancel">إلغاء</button>
+        </div>
+    </div>
 
     <div class="modal" id="done-modal">
         <div class="sheet">
@@ -743,23 +759,39 @@
         }
 
         // نسأل عن نتيجة التوليد كل 4 ثواني (لين 4 دقايق). إذا ما وصل الطلب للسيرفر أصلًا نوقف بعد 20 ثانية
-        async function waitForJob(job) {
+        // نسأل لين 6 دقايق (الجودة العالية ممكن تاخذ 5)، ونوقف إذا الزبون ضغط إلغاء
+        async function waitForJob(job, signal) {
             const started = Date.now();
-            while (Date.now() - started < 240000) {
+            while (Date.now() - started < 360000) {
                 await new Promise(res => setTimeout(res, 4000));
+                if (signal.aborted) throw new DOMException('cancelled', 'AbortError');
                 try {
-                    const res = await fetch(`${aiUrl}/${job}`, { headers: { 'Accept': 'application/json' } });
+                    const res = await fetch(`${aiUrl}/${job}`, { headers: { 'Accept': 'application/json' }, signal });
                     const data = await res.json();
                     if (data.status === 'done') return { data, ok: true };
                     if (data.status === 'failed') return { data, ok: false };
                     if (data.status === 'missing' && Date.now() - started > 20000) break;
-                } catch (e) { /* نجرب مرة ثانية */ }
+                } catch (e) {
+                    if (signal.aborted) throw e;
+                    /* نجرب مرة ثانية */
+                }
             }
             return { data: { message: 'انقطع الاتصال قبل ما توصل الصورة، وما انحسبت المحاولة. جربي مرة ثانية.' }, ok: false };
         }
 
+        // الإلغاء: نوقف الانتظار ونرجّع الزبون للخيارات (التوليد ممكن يكمّل عند OpenAI، بس نتجاهل نتيجته)
+        let aiAbort = null;
+        $('ai-cancel').addEventListener('click', () => aiAbort?.abort());
+
         $('ai-generate').addEventListener('click', async () => {
             if (!refFiles.length) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
+            const abort = aiAbort = new AbortController();
+            const started = Date.now();
+            const tick = () => { $('ai-wait-time').textContent = `${Math.round((Date.now() - started) / 1000)} ثانية`; };
+            tick();
+            const timer = setInterval(tick, 1000);
+            $('ai-wait-modal').classList.add('show');
+            showAiMessage('', 'info');
             const form = new FormData();
             form.append('shape', shape());
             form.append('size', state.size);
@@ -772,25 +804,24 @@
             form.append('job', job);
 
             $('ai-generate').disabled = true;
-            const shot = await snapshotModel();
-            if (shot) form.append('shape_image', shot, 'shape.png');
-            const started = Date.now();
-            const tick = () => showAiMessage(`الذكاء الاصطناعي يجهّز صورة كيكتك… ⏳ ${Math.round((Date.now() - started) / 1000)} ثانية`, 'info');
-            tick();
-            const timer = setInterval(tick, 1000);
             try {
+                const shot = await snapshotModel();
+                if (shot) form.append('shape_image', shot, 'shape.png');
+                if (abort.signal.aborted) throw new DOMException('cancelled', 'AbortError');
                 let data, ok;
                 try {
                     const res = await fetch(aiUrl, {
                         method: 'POST',
                         headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
                         body: form,
+                        signal: abort.signal,
                     });
                     data = await res.json();
                     ok = res.ok;
                 } catch (cut) {
+                    if (abort.signal.aborted) throw cut;
                     // الاستضافة قطعت الانتظار (أو رجعت صفحة خطأ)، والتوليد مكمّل في السيرفر: ننتظر نتيجته
-                    ({ data, ok } = await waitForJob(job));
+                    ({ data, ok } = await waitForJob(job, abort.signal));
                 }
                 clearInterval(timer);
                 if (data.remaining !== undefined) state.aiRemaining = data.remaining;
@@ -803,9 +834,11 @@
                 $('ai-generate').textContent = '✨ ولّدي صورة ثانية';
                 showAiMessage('هذي كيكتك بالمواصفات اللي اخترتيها. عجبتك؟', 'info');
             } catch (e) {
-                showAiMessage(e.message, 'error');
+                showAiMessage(abort.signal.aborted ? 'تم الإلغاء. غيّري اللي تبين وولّدي من جديد.' : e.message, abort.signal.aborted ? 'info' : 'error');
             } finally {
                 clearInterval(timer);
+                $('ai-wait-modal').classList.remove('show');
+                if (aiAbort === abort) aiAbort = null;
                 $('ai-generate').disabled = !HAS_KEY || !canGenerate();
                 renderRemaining();
                 renderSummary($('summary'));
