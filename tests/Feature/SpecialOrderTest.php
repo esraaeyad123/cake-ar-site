@@ -269,6 +269,27 @@ class SpecialOrderTest extends TestCase
         });
     }
 
+    public function test_prompt_keeps_real_size_and_square_jomacake_board(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+
+        $this->post('/special-order/ai', [
+            'shape' => 'round', 'size' => '4in', 'layers' => 2, 'style' => 'plain', 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')],
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        Http::assertSent(function ($request) {
+            $prompt = collect($request->data())->firstWhere('name', 'prompt')['contents'];
+
+            return str_contains($prompt, 'a small mini cake for 1-2 people. The cake is 6 cm tall')
+                && str_contains($prompt, '10 cm wide')
+                && str_contains($prompt, 'WIDER THAN IT IS TALL')
+                && str_contains($prompt, 'SQUARE flat very light pink cake board (NOT round)')
+                && str_contains($prompt, '"JOMACAKE"');
+        });
+    }
+
     public function test_ai_requires_a_reference_photo(): void
     {
         Http::fake();
