@@ -172,6 +172,27 @@ function heartPoints(r, count = 240) {
     return pts;
 }
 
+// نجمة بخمس رؤوس بعرض 2r، رأس للورا (-z) ورأسين للقدام، وزواياها مدوّرة شوي (تنعيم Chaikin)
+function starPoints(r) {
+    let pts = [];
+    for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i / 10) * Math.PI * 2, rad = i % 2 ? r * 0.5 : r;
+        pts.push({ x: Math.cos(a) * rad, z: Math.sin(a) * rad });
+    }
+    // تقطيع خفيف للزوايا (مو 0.25 حتى ما تصير مثل الوردة)، ثم نقاط متقاربة على كل ضلع للزخرفة
+    for (let k = 0; k < 2; k++) {
+        const next = [];
+        pts.forEach((p, i) => {
+            const q = pts[(i + 1) % pts.length];
+            next.push({ x: p.x * 0.9 + q.x * 0.1, z: p.z * 0.9 + q.z * 0.1 }, { x: p.x * 0.1 + q.x * 0.9, z: p.z * 0.1 + q.z * 0.9 });
+        });
+        pts = next;
+    }
+    // التنعيم يقصّر الرؤوس، فنرجّع أبعد رأس لنص القطر
+    const scale = r / Math.max(...pts.map(p => Math.hypot(p.x, p.z)));
+    return pts.map(p => ({ x: p.x * scale, z: p.z * scale }));
+}
+
 // نص دائرة من قدام (z ≥ 0) مع الظهر المستقيم — محيط الوال كيك الملصوق على البورد
 function halfCirclePoints(r) {
     const pts = [];
@@ -211,11 +232,11 @@ function roundBody(tier, material, half = false) {
     return new THREE.Mesh(g, material);
 }
 
-// قلب ممدود للأعلى بحافة علوية دائرية
-function heartBody(tier, material) {
+// شكل ممدود للأعلى (قلب، نجمة) بحافة علوية دائرية
+function extrudedBody(tier, material, outlinePoints) {
     const { r, y0, y1 } = tier;
     const e = bevelSize(tier);
-    const shape = new THREE.Shape(heartPoints(r - e).map(p => new THREE.Vector2(p.x, -p.z)));
+    const shape = new THREE.Shape(outlinePoints(r - e).map(p => new THREE.Vector2(p.x, -p.z)));
     const g = new THREE.ExtrudeGeometry(shape, {
         depth: (y1 - y0) - 2 * e, bevelEnabled: true, bevelThickness: e, bevelSize: e, bevelSegments: 5, curveSegments: 1,
     });
@@ -413,7 +434,7 @@ function vintage(tiers, piping, beads) {
 
 /**
  * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي والسن ست والوال كيك نموذج دور واحد
- * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'cone'|'sunset'|'wall', style?: 'plain'|'vintage', extraHeight?: number}} options
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'star'|'cone'|'sunset'|'wall', style?: 'plain'|'vintage', extraHeight?: number}} options
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
  */
@@ -425,6 +446,7 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     const isWall = shape === 'wall';
     tiers.forEach(t => {
         t.outline = shape === 'heart' ? makeOutline(heartPoints(t.r))
+            : shape === 'star' ? makeOutline(starPoints(t.r))
             : isWall ? makeOutline(halfCirclePoints(t.r))
             : circleOutline(t.r);
     });
@@ -460,7 +482,14 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
     }
 
     const cakeMat = creamMat('CakeMaterial', color, 0.35);
-    const body = { round: roundBody, heart: heartBody, cone: coneBody, sunset: sunsetBody, wall: (t, m) => roundBody(t, m, true) }[shape] || roundBody;
+    const body = {
+        round: roundBody,
+        heart: (t, m) => extrudedBody(t, m, heartPoints),
+        star: (t, m) => extrudedBody(t, m, starPoints),
+        cone: coneBody,
+        sunset: sunsetBody,
+        wall: (t, m) => roundBody(t, m, true),
+    }[shape] || roundBody;
     tiers.forEach(t => {
         const mesh = body(t, cakeMat);
         mesh.name = 'CakeTier';
