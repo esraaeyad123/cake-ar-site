@@ -232,8 +232,8 @@ class SpecialOrderController extends Controller
 
         $height = match ($data['shape']) {
             'cone' => '',
-            'sunset' => 'The half-circle is '."{$inches[0]} inches (".round($inches[0] * 2.54).' cm) wide and about '.($data['layers'] * 4 + 2).' cm thick from front to back. ',
-            default => "Each tier has {$data['layers']} sponge layers, about ".($data['layers'] * 4 + 2).' cm tall. ',
+            'sunset' => 'The half-circle is '."{$inches[0]} inches (".round($inches[0] * 2.54).' cm) wide and about '.($data['layers'] * 4).' cm thick from front to back. ',
+            default => $this->sizeText($inches, $data['layers']),
         };
 
         $finish = $data['style'] === 'vintage' && config("cake_ar.shapes.{$data['shape']}.vintage", $data['shape'] !== 'cone')
@@ -258,7 +258,7 @@ class SpecialOrderController extends Controller
 
         $intro = $withShapeImage
             ? 'Image 1 is a grey clay mock-up of this exact required cake: use it ONLY for the shape, outline, number of tiers, proportions and height. '
-                .'Its grey colour, smooth surface and board are NOT part of the design: ignore them completely. '
+                .'Its grey colour and smooth surface are NOT part of the design: ignore them completely (keep only its square board shape). '
             : '';
         $intro .= 'The '.($withShapeImage ? 'other images are' : 'attached photos are').' the customer\'s reference photos: take the frosting colours, '
             .'surface patterns and textures and every decorative element from them (for example cherries, ribbons, piping, flowers, figures and writing), '
@@ -267,8 +267,39 @@ class SpecialOrderController extends Controller
 
         return $rule.$intro.'Create a realistic professional bakery photo of ONE cake. '
             .$specs.$finish.$note
-            .'Show the whole cake on a simple cake board, front three-quarter view, on a plain light background. No people, no hands. '
+            .$this->boardText($data)
+            .'Show the whole cake and board, front three-quarter view, on a plain light background. No people, no hands. '
             ."Remember: {$outline}, {$tierText}.";
+    }
+
+    /**
+     * المقاس الحقيقي بالسنتيمتر (نفس النموذج 3D: الطبقة 4 سم، و3 سم في 4 إنش)، حتى ما تطلع الكيكة
+     * أكبر أو أطول من المختار. الكيكة الصغيرة أعرض من طولها
+     */
+    private function sizeText(array $inches, int $layers): string
+    {
+        $width = round($inches[0] * 2.54);
+        $height = $layers * ($inches[0] <= 4 ? 3 : 4);
+        $people = ['4' => 'a small mini cake for 1-2 people', '6' => 'a small cake for 4-6 people', '8' => 'a medium cake for 8-10 people', '10' => 'a large cake for 12-15 people'][$inches[0]] ?? 'a cake';
+        $tiers = count($inches) > 1 ? 'Each tier is' : 'The cake is';
+
+        return "Real size: {$people}. {$tiers} {$height} cm tall ({$layers} sponge layers); the bottom tier is {$width} cm wide, "
+            .'so the cake is clearly WIDER THAN IT IS TALL, with the same proportions as image 1. Do not make it taller or bigger. ';
+    }
+
+    /**
+     * بورد جوماكيك: مربع (مو دائري)، وردي فاتح لـ 4 إنش وأبيض مكسور لغيره، وعليه شعار JOMACAKE
+     */
+    private function boardText(array $data): string
+    {
+        $logo = 'a small white rectangular label with "JOMACAKE" in pink serif capital letters';
+        if ($data['shape'] === 'wall') {
+            return "The square white board stands upright behind the cake, with {$logo} at its bottom-left corner. ";
+        }
+        $colour = $data['size'] === '4in' ? 'very light pink' : 'off-white';
+
+        return "Put the cake on a SQUARE flat {$colour} cake board (NOT round), about 1.4 times wider than the bottom tier, "
+            ."with {$logo} at the front-left corner of the board. ";
     }
 
     private function failed(string $message)
