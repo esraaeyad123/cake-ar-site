@@ -31,6 +31,7 @@ class SpecialOrderController extends Controller
         'round' => ['perfectly ROUND (a circle when seen from above)', 'NOT heart-shaped, NOT square, NOT oval'],
         'heart' => ['HEART-shaped when seen from above', 'NOT round, NOT square'],
         'star' => ['a FIVE-POINTED STAR when seen from above', 'NOT round, NOT heart-shaped'],
+        'dome' => ['a smooth DOME (half-sphere), round when seen from above', 'NOT a flat-topped cylinder, NOT heart-shaped, with NO ears'],
         'cone' => ['a tall CONE tapering to a point', 'NOT a cylinder, NOT round-topped'],
         'sunset' => ['a HALF-CIRCLE standing upright on its flat edge', 'NOT a full round cake, NOT heart-shaped'],
         'wall' => ['the FRONT HALF of a round tiered cake mounted on a standing board', 'NOT a full free-standing cake, NOT heart-shaped'],
@@ -40,6 +41,7 @@ class SpecialOrderController extends Controller
         'round' => 'round',
         'heart' => 'heart-shaped',
         'star' => 'five-pointed star-shaped (with softly rounded points)',
+        'dome' => 'dome-shaped: a smooth half-sphere, round when seen from above, with no ears, face or figure shapes',
         'cone' => 'tall cone-shaped (tapering to a point at the top)',
         'sunset' => 'sunset-shaped: a half-circle (semicircle) cake standing upright on its flat edge, like a setting sun, with the round face to the front',
         'wall' => 'wall cake: the FRONT HALF of a round tiered cake, cut vertically through the middle, with its flat back mounted on a square white cake board that stands upright and leans slightly back like a picture frame',
@@ -235,7 +237,7 @@ class SpecialOrderController extends Controller
         $height = match ($data['shape']) {
             'cone' => '',
             'sunset' => 'The half-circle is '."{$inches[0]} inches (".round($inches[0] * 2.54).' cm) wide and about '.($data['layers'] * 4).' cm thick from front to back. ',
-            default => $this->sizeText($inches, $data['layers']),
+            default => $this->sizeText($inches, $data['layers'], $data['shape']),
         };
 
         $finish = $data['style'] === 'vintage' && config("cake_ar.shapes.{$data['shape']}.vintage", $data['shape'] !== 'cone')
@@ -278,10 +280,14 @@ class SpecialOrderController extends Controller
      * المقاس الحقيقي بالسنتيمتر (نفس النموذج 3D: الطبقة 4 سم، و3 سم في 4 إنش)، حتى ما تطلع الكيكة
      * أكبر أو أطول من المختار. الكيكة الصغيرة أعرض من طولها
      */
-    private function sizeText(array $inches, int $layers): string
+    private function sizeText(array $inches, int $layers, string $shape): string
     {
         $width = round($inches[0] * 2.54);
         $height = $layers * ($inches[0] <= 4 ? 3 : 4);
+        if ($shape === 'dome') {
+            // نفس المجسم: القبة ما تطول أكثر من نص قطرها
+            $height = min($height, (int) round($width / 2));
+        }
         $people = ['4' => 'a small mini cake for 1-2 people', '6' => 'a small cake for 4-6 people', '8' => 'a medium cake for 8-10 people', '10' => 'a large cake for 12-15 people'][$inches[0]] ?? 'a cake';
         $tiers = count($inches) > 1 ? 'Each tier is' : 'The cake is';
 

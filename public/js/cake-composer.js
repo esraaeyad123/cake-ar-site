@@ -257,6 +257,18 @@ function coneBody(tier, material) {
     return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
 }
 
+// قبة: نص كرة قاعدتها دائرة المقاس. ارتفاعها ارتفاع الطبقات بس ما يزيد عن نص القطر (حتى ما تصير مثل البيضة)
+function domeBody(tier, material) {
+    const { r, y0 } = tier;
+    const y1 = y0 + Math.min(tier.y1 - tier.y0, r);
+    const pts = [new THREE.Vector2(0, y0)];
+    for (let i = 0; i <= 48; i++) {
+        const a = (i / 48) * Math.PI / 2;
+        pts.push(new THREE.Vector2(Math.max(0, r * Math.cos(a)), y0 + (y1 - y0) * Math.sin(a)));
+    }
+    return new THREE.Mesh(new THREE.LatheGeometry(pts, 96), material);
+}
+
 // سن ست: نص دائرة واقفة على البورد (مثل الشمس وقت الغروب)، العرض = قطر المقاس،
 // والسماكة من قدام لورا = ارتفاع الطبقات
 function sunsetBody(tier, material) {
@@ -434,7 +446,7 @@ function vintage(tiers, piping, beads) {
 
 /**
  * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي والسن ست والوال كيك نموذج دور واحد
- * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'star'|'cone'|'sunset'|'wall', style?: 'plain'|'vintage', extraHeight?: number}} options
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'star'|'cone'|'dome'|'sunset'|'wall', style?: 'plain'|'vintage', extraHeight?: number}} options
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
  */
@@ -487,6 +499,7 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         heart: (t, m) => extrudedBody(t, m, heartPoints),
         star: (t, m) => extrudedBody(t, m, starPoints),
         cone: coneBody,
+        dome: domeBody,
         sunset: sunsetBody,
         wall: (t, m) => roundBody(t, m, true),
     }[shape] || roundBody;
@@ -501,7 +514,7 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         // المخروطي: صدف على القاعدة فقط (مثل كيكة قبعة الحفلة)
         const t = tiers[0], bs = Math.max(0.005, Math.min(0.008, t.r * 0.075));
         shellBorder(t.outline, t.y0 + bs * 0.9, bs, piping);
-    } else if (style === 'vintage' && shape !== 'sunset') {
+    } else if (style === 'vintage' && shape !== 'sunset' && shape !== 'dome') {
         vintage(tiers, piping, beads);
     }
     const cream = creamMat('PipingMaterial', color, 0.08);

@@ -411,6 +411,7 @@
             <div class="tier-option shape-option" data-shape="cone" role="button" aria-label="مخروطي" title="مخروطي"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z"/></svg></div>
             <div class="tier-option shape-option" data-shape="sunset" role="button" aria-label="سن ست" title="سن ست"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0"/></svg></div>
             <div class="tier-option shape-option" data-shape="wall" role="button" aria-label="وال كيك" title="وال كيك"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5h16v-7H4zM7 12.5h10V7H7z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="dome" role="button" aria-label="قبة" title="قبة"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17.5c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5M4.5 17.5a7.5 8 0 0 1 15 0"/></svg></div>
             <div class="tier-option shape-option" data-shape="star" role="button" aria-label="نجمة" title="نجمة"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 16.5l-5.3 2.8 1.1-5.8-4.3-4.1 5.9-.8z"/></svg></div>
         </div>
     </div>
@@ -688,7 +689,7 @@
 
         // الشكل: الدائري كل الأدوار، القلب والمخروطي دور واحد، والأشكال الخاصة حسب إعداداتها.
         // المخروطي ارتفاعه ثابت (بدون طبقات)، والمخروطي والسن ست بدون فنتج
-        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك', star: 'نجمة' };
+        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك', star: 'نجمة', dome: 'قبة' };
         const SHAPE_ICONS = Object.fromEntries([...document.querySelectorAll('.shape-option')]
             .map(o => [o.dataset.shape, o.querySelector('path').getAttribute('d')]));
         document.querySelectorAll('.shape-option').forEach(opt => {

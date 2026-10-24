@@ -443,6 +443,7 @@
             { key: 'sunset', name: 'سن ست', model: 'sunset', tiers: SHAPES.sunset.tiers },
             { key: 'wall', name: 'وال كيك', model: 'wall', tiers: SHAPES.wall.tiers },
             { key: 'star', name: 'نجمة', model: 'star', tiers: SHAPES.star.tiers },
+            { key: 'dome', name: 'قبة', model: 'dome', tiers: SHAPES.dome.tiers },
         ];
         const SHAPE_IMAGES = "{{ asset('images/shapes') }}";
         // الفنتج موقّف في هذي الصفحة (كيك سادة فقط)، وكوده باقي في المركّب لاستخدامات ثانية
@@ -517,6 +518,7 @@
             heart: 'M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z',
             cone: 'M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z',
             sunset: 'M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0',
+            dome: 'M4.5 17.5c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5M4.5 17.5a7.5 8 0 0 1 15 0',
             star: 'M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 16.5l-5.3 2.8 1.1-5.8-4.3-4.1 5.9-.8z',
         };
         // رسمة المقاس: الشكل يكبر مع الإنش، وكيك الأدوار أدوار فوق بعض بعرض كل دور

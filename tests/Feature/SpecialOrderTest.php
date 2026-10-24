@@ -307,6 +307,23 @@ class SpecialOrderTest extends TestCase
         $this->get('/special-order')->assertSee('"star":{"sizes":["6in","8in"],"layers":[2,3],"tiers":1,"price_factor":1,"vintage":true}', false);
     }
 
+    public function test_dome_shape_is_3_layers_6_to_10_inch_plain(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $send = fn ($size, $layers) => $this->post('/special-order/ai', [
+            'shape' => 'dome', 'size' => $size, 'layers' => $layers, 'style' => 'plain', 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('dome.jpg')],
+        ], ['Accept' => 'application/json']);
+
+        $send('4in', 3)->assertStatus(422)->assertJsonValidationErrors('size');
+        $send('10in', 2)->assertStatus(422)->assertJsonValidationErrors('layers');
+        $send('10in', 3)->assertOk();
+
+        Http::assertSent(fn ($request) => str_contains(collect($request->data())->firstWhere('name', 'prompt')['contents'], 'a smooth DOME (half-sphere)'));
+        $this->get('/special-order')->assertSee('"dome":{"sizes":["6in","8in","10in"],"layers":3,"tiers":1,"price_factor":1,"vintage":false}', false);
+    }
+
     public function test_ai_requires_a_reference_photo(): void
     {
         Http::fake();
