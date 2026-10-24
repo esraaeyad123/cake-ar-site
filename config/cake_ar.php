@@ -37,6 +37,8 @@ return [
     'shapes' => [
         'sunset' => ['sizes' => ['6in', '8in'], 'layers' => 2, 'tiers' => 1, 'price_factor' => 1, 'vintage' => false],
         // الوال كيك: نص كيكة دورين 8/6 ملصوقة على بورد واقف، بنص سعر الكعكة الخاصة (سعر الدور السفلي)
+        // القبة: نص كرة بدون أذنين، 3 طبقات، سادة فقط
+        'dome' => ['sizes' => ['6in', '8in', '10in'], 'layers' => 3, 'tiers' => 1, 'price_factor' => 1, 'vintage' => false],
         'star' => ['sizes' => ['6in', '8in'], 'layers' => [2, 3], 'tiers' => 1, 'price_factor' => 1, 'vintage' => true],
         'wall' => ['sizes' => ['tier2_8-6'], 'layers' => 2, 'tiers' => 2, 'price_factor' => 0.5, 'vintage' => true],
     ],

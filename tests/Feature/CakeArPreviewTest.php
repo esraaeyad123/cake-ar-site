@@ -48,6 +48,7 @@ class CakeArPreviewTest extends TestCase
             // الأشكال الخاصة: السن ست (سادة) والوال كيك (دورين، نص السعر، فيه فنتج)، وأيقونات بدون كلمات
             ->assertSee('data-shape="sunset"', false)
             ->assertSee('data-shape="star"', false)
+            ->assertSee('data-shape="dome"', false)
             ->assertSee('data-shape="wall"', false)
             ->assertSee('"wall":{"sizes":["tier2_8-6"],"layers":2,"tiers":2,"price_factor":0.5,"vintage":true}', false)
             ->assertDontSee('data-shape="heart">قلب</div>', false)
