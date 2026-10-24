@@ -30,6 +30,7 @@ class SpecialOrderController extends Controller
     private const OUTLINES = [
         'round' => ['perfectly ROUND (a circle when seen from above)', 'NOT heart-shaped, NOT square, NOT oval'],
         'heart' => ['HEART-shaped when seen from above', 'NOT round, NOT square'],
+        'star' => ['a FIVE-POINTED STAR when seen from above', 'NOT round, NOT heart-shaped'],
         'cone' => ['a tall CONE tapering to a point', 'NOT a cylinder, NOT round-topped'],
         'sunset' => ['a HALF-CIRCLE standing upright on its flat edge', 'NOT a full round cake, NOT heart-shaped'],
         'wall' => ['the FRONT HALF of a round tiered cake mounted on a standing board', 'NOT a full free-standing cake, NOT heart-shaped'],
@@ -38,6 +39,7 @@ class SpecialOrderController extends Controller
     private const SHAPES = [
         'round' => 'round',
         'heart' => 'heart-shaped',
+        'star' => 'five-pointed star-shaped (with softly rounded points)',
         'cone' => 'tall cone-shaped (tapering to a point at the top)',
         'sunset' => 'sunset-shaped: a half-circle (semicircle) cake standing upright on its flat edge, like a setting sun, with the round face to the front',
         'wall' => 'wall cake: the FRONT HALF of a round tiered cake, cut vertically through the middle, with its flat back mounted on a square white cake board that stands upright and leans slightly back like a picture frame',
@@ -80,7 +82,7 @@ class SpecialOrderController extends Controller
         if ($special = config("cake_ar.shapes.{$data['shape']}")) {
             $request->validate([
                 'size' => ['in:'.implode(',', $special['sizes'])],
-                'layers' => ['in:'.$special['layers']],
+                'layers' => ['in:'.implode(',', (array) $special['layers'])],
             ]);
         }
 

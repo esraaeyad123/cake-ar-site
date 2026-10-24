@@ -290,6 +290,23 @@ class SpecialOrderTest extends TestCase
         });
     }
 
+    public function test_star_shape_allows_6_8_inch_and_2_3_layers(): void
+    {
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $send = fn ($size, $layers) => $this->post('/special-order/ai', [
+            'shape' => 'star', 'size' => $size, 'layers' => $layers, 'style' => 'plain', 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('star.jpg')],
+        ], ['Accept' => 'application/json']);
+
+        $send('4in', 2)->assertStatus(422)->assertJsonValidationErrors('size');
+        $send('8in', 4)->assertStatus(422)->assertJsonValidationErrors('layers');
+        $send('8in', 3)->assertOk();
+
+        Http::assertSent(fn ($request) => str_contains(collect($request->data())->firstWhere('name', 'prompt')['contents'], 'a FIVE-POINTED STAR when seen from above'));
+        $this->get('/special-order')->assertSee('"star":{"sizes":["6in","8in"],"layers":[2,3],"tiers":1,"price_factor":1,"vintage":true}', false);
+    }
+
     public function test_ai_requires_a_reference_photo(): void
     {
         Http::fake();
