@@ -17,6 +17,10 @@ class ShopController extends Controller
 
         abort_unless($product, 404);
 
-        return view('shop.show', compact('product'));
+        return view('shop.show', [
+            'product' => $product,
+            'aiRemaining' => app(ShopAiController::class)->remaining(),
+            'hasKey' => filled(config('services.openai.key')),
+        ]);
     }
 }

@@ -16,4 +16,9 @@ return [
     'per_page' => 60,
 
     'cache_minutes' => 30,
+
+    // تعديل صورة المنتج بالذكاء الاصطناعي: عدد الصور لكل زائر (0 = بدون حد)، والجودة متوسطة
+    // (المدير: الكعكة الخاصة أعلى جودة، ومنتجات جوماكيك متوسط)
+    'ai_limit' => (int) env('SHOP_AI_LIMIT', 5),
+    'image_quality' => env('SHOP_IMAGE_QUALITY', 'medium'),
 ];

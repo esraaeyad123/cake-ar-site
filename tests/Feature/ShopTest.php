@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ShopTest extends TestCase
@@ -95,5 +98,65 @@ class ShopTest extends TestCase
         Http::fake([self::API.'/shop*' => Http::response('down', 500)]);
 
         $this->get('/products')->assertOk()->assertSee('المتجر مو متاح الحين');
+    }
+
+    private function fakeOpenAi(): void
+    {
+        Http::fake([
+            'https://jomacake.com/api/public/products/*' => Http::response('jpeg-bytes', 200, ['Content-Type' => 'image/jpeg']),
+            'https://api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]]),
+        ]);
+    }
+
+    public function test_ai_edits_the_product_photo_with_the_customer_changes(): void
+    {
+        Storage::fake('public');
+        config(['services.openai.key' => 'test-key', 'shop.ai_limit' => 5]);
+        $this->fakeShop();
+        $this->fakeOpenAi();
+
+        $this->post('/products/1305/ai', [
+            'note' => 'خلي اللون وردي واكتبي Happy Birthday Sara',
+            'size' => 9,
+            'layers' => 3,
+            'references' => [UploadedFile::fake()->image('pink.jpg')],
+            'job' => 'job-12345678',
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('remaining', 4)
+            ->assertJsonStructure(['image']);
+
+        // صورة المنتج أول، وبعدها صور الزبون، والوصف والمقاس الحقيقي في الأمر
+        Http::assertSent(function ($request) {
+            if ($request->url() !== 'https://api.openai.com/v1/images/edits') {
+                return false;
+            }
+            $parts = collect($request->data());
+            $prompt = $parts->firstWhere('name', 'prompt')['contents'];
+
+            return $parts->where('name', 'image[]')->count() === 2
+                && $parts->firstWhere('name', 'image[]')['contents'] === 'jpeg-bytes'
+                && str_contains($prompt, 'Happy Birthday Sara')
+                && str_contains($prompt, '8 inches (20 cm)')
+                && $parts->firstWhere('name', 'quality')['contents'] === 'medium';
+        });
+
+        $this->getJson('/products/ai/job-12345678')->assertOk()->assertJsonPath('status', 'done');
+    }
+
+    public function test_ai_needs_a_description_and_respects_the_limit(): void
+    {
+        config(['services.openai.key' => 'test-key', 'shop.ai_limit' => 1]);
+        $this->fakeShop();
+        $this->fakeOpenAi();
+        Storage::fake('public');
+        $this->withoutMiddleware(ThrottleRequests::class);
+
+        $this->postJson('/products/1305/ai', ['size' => 9, 'layers' => 2, 'job' => 'job-aaaaaaaa'])
+            ->assertStatus(422)
+            ->assertSee(json_encode('اكتبي وش تبين تغيّرين في الكيكة.'), false);
+
+        $this->postJson('/products/1305/ai', ['note' => 'وردي', 'size' => 9, 'layers' => 2, 'job' => 'job-bbbbbbbb'])->assertOk();
+        $this->postJson('/products/1305/ai', ['note' => 'أزرق', 'size' => 9, 'layers' => 2, 'job' => 'job-cccccccc'])->assertStatus(429);
     }
 }
