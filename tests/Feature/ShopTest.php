@@ -78,6 +78,8 @@ class ShopTest extends TestCase
         $this->get('/products/1305')
             ->assertOk()
             ->assertSee('>الطلب<', false)
+            ->assertSee('شاهد على<br>طاولتك', false)
+            ->assertSeeInOrder(['الشكل', 'الحجم', 'النكهة', 'الكتابة', 'الطلب'])
             ->assertSee('S.N: 1305')
             // المقاسات بترتيب الموقع، وسعر الطبقة الزيادة
             ->assertSee('"sizes":[{"id":4,"inch":"6","people":"4-6","price":155,"min_layers":2,"max_layers":3,"layer_price":20,"discount":{"type":"percent","amount":25}}', false)
@@ -116,8 +118,11 @@ class ShopTest extends TestCase
         $this->fakeOpenAi();
 
         $this->post('/products/1305/ai', [
-            'note' => 'خلي اللون وردي واكتبي Happy Birthday Sara',
+            'shape' => 'heart',
+            'note' => 'خلي اللون وردي',
+            'writing' => 'Happy Birthday Sara',
             'size' => 9,
+            'shape_image' => UploadedFile::fake()->image('shape.png'),
             'layers' => 3,
             'references' => [UploadedFile::fake()->image('pink.jpg')],
             'job' => 'job-12345678',
@@ -134,9 +139,11 @@ class ShopTest extends TestCase
             $parts = collect($request->data());
             $prompt = $parts->firstWhere('name', 'prompt')['contents'];
 
-            return $parts->where('name', 'image[]')->count() === 2
+            return $parts->where('name', 'image[]')->count() === 3
                 && $parts->firstWhere('name', 'image[]')['contents'] === 'jpeg-bytes'
                 && str_contains($prompt, 'Happy Birthday Sara')
+                && str_contains($prompt, 'HEART-shaped')
+                && str_contains($prompt, 'خلي اللون وردي')
                 && str_contains($prompt, '8 inches (20 cm)')
                 && $parts->firstWhere('name', 'quality')['contents'] === 'medium';
         });
@@ -144,7 +151,7 @@ class ShopTest extends TestCase
         $this->getJson('/products/ai/job-12345678')->assertOk()->assertJsonPath('status', 'done');
     }
 
-    public function test_ai_needs_a_description_and_respects_the_limit(): void
+    public function test_ai_needs_a_shape_and_respects_the_limit(): void
     {
         config(['services.openai.key' => 'test-key', 'shop.ai_limit' => 1]);
         $this->fakeShop();
@@ -152,11 +159,11 @@ class ShopTest extends TestCase
         Storage::fake('public');
         $this->withoutMiddleware(ThrottleRequests::class);
 
-        $this->postJson('/products/1305/ai', ['size' => 9, 'layers' => 2, 'job' => 'job-aaaaaaaa'])
+        $this->postJson('/products/1305/ai', ['shape' => 'square', 'size' => 9, 'layers' => 2, 'job' => 'job-aaaaaaaa'])
             ->assertStatus(422)
-            ->assertSee(json_encode('اكتبي وش تبين تغيّرين في الكيكة.'), false);
+            ->assertJsonValidationErrors('shape');
 
-        $this->postJson('/products/1305/ai', ['note' => 'وردي', 'size' => 9, 'layers' => 2, 'job' => 'job-bbbbbbbb'])->assertOk();
-        $this->postJson('/products/1305/ai', ['note' => 'أزرق', 'size' => 9, 'layers' => 2, 'job' => 'job-cccccccc'])->assertStatus(429);
+        $this->postJson('/products/1305/ai', ['shape' => 'round', 'size' => 9, 'layers' => 2, 'job' => 'job-bbbbbbbb'])->assertOk();
+        $this->postJson('/products/1305/ai', ['shape' => 'round', 'note' => 'أزرق', 'size' => 9, 'layers' => 2, 'job' => 'job-cccccccc'])->assertStatus(429);
     }
 }
