@@ -227,15 +227,25 @@
         .price-card .off { display: inline-block; background: var(--pink); color: #fff; border-radius: 8px; padding: 1px 6px; font-size: 10px; font-weight: 800; margin-top: 2px; }
         .photo-view { position: absolute; inset: 0; background: #fff; display: none; z-index: 2; }
         .photo-view.show { display: block; }
+        .photo-view { background: #F7F2F4; }
         .photo-view img { width: 100%; height: 100%; object-fit: contain; }
-        .photo-view button { position: absolute; top: 10px; left: 10px; border: none; background: var(--ink); color: #fff; border-radius: 16px; padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .product-head { max-width: 520px; margin: 0 auto; padding: 12px 16px 2px; }
+        .photo-view button { position: absolute; top: 12px; left: 12px; border: none; background: var(--ink); color: #fff; border-radius: 18px; padding: 8px 14px; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+        .viewer-wrap .price-card { z-index: 3; }
+        .product-head { max-width: 520px; margin: 0 auto; padding: 12px 16px 14px; }
         .product-head h1 { font-size: 20px; margin: 0 0 2px; }
         .product-head .sn { font-size: 13px; color: var(--pink-dark); }
         @media (min-width: 860px) {
-            .order-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1200px; margin: 0 auto; padding: 18px 24px 40px; align-items: start; }
+            .order-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; max-width: 1240px; margin: 0 auto; padding: 18px 24px 40px; align-items: start; }
             .visual { top: 14px; border: 1px solid #F3E3E9; border-radius: 18px; overflow: hidden; box-shadow: none; }
-            .visual model-viewer { height: 62vh; max-height: 560px; min-height: 380px; }
+            .visual model-viewer { height: auto; aspect-ratio: 1; max-height: 640px; }
+            .visual .photo-view img { object-fit: cover; }
+            .visual .spec-bar { padding: 14px 16px; }
+            .visual .specs { padding: 12px 14px; }
+            .visual .spec-bar .spec { font-size: 15px; gap: 6px; }
+            .visual .spec-bar .spec svg { width: 26px; height: 26px; }
+            .visual .ar-btn { font-size: 14px; padding: 10px 16px; }
+            .visual .ar-btn svg { width: 22px; height: 22px; }
+            .product-head { padding-bottom: 22px; }
             .steps main, .steps .product-head { max-width: none; padding-left: 0; padding-right: 0; }
             .steps .tabs { border-radius: 14px; border: 1px solid #F3E3E9; overflow: hidden; }
             .product-head h1 { font-size: 26px; }
@@ -303,9 +313,9 @@
         <div class="float-card photo-card" id="photo-card" title="صورة المنتج">
             <img id="photo-thumb" src="{{ $product['image'] }}" alt="{{ $title }}">
         </div>
-        <div class="photo-view" id="photo-view">
+        <div class="photo-view show" id="photo-view">
             <img id="photo-big" src="{{ $product['image'] }}" alt="{{ $title }}">
-            <button type="button" id="photo-close">المجسم 3D</button>
+            <button type="button" id="photo-close">🧊 شوفيها 3D</button>
         </div>
     </div>
 
