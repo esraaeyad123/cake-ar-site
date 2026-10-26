@@ -21,6 +21,8 @@ class ShopController extends Controller
             'product' => $product,
             'aiRemaining' => app(ShopAiController::class)->remaining(),
             'hasKey' => filled(config('services.openai.key')),
+            'shapes' => config('cake_ar.shapes'),
+            'layerLimits' => config('cake_ar.layers'),
         ]);
     }
 }

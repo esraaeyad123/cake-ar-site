@@ -21,20 +21,32 @@ class ShopAiController extends Controller
     private const DIR = 'ai-cakes';
     private const MAX_REFERENCES = 6;
 
+    // الشكل المطلوب من فوق، والأشكال اللي لازم ما يطلع عليها (لو صورة المنتج شكلها مختلف)
+    private const OUTLINES = [
+        'round' => ['perfectly ROUND (a circle when seen from above)', 'NOT heart-shaped, NOT square, NOT oval'],
+        'heart' => ['HEART-shaped when seen from above', 'NOT round, NOT square'],
+        'star' => ['a FIVE-POINTED STAR when seen from above', 'NOT round, NOT heart-shaped'],
+        'dome' => ['a smooth DOME (half-sphere), round when seen from above', 'NOT a flat-topped cylinder, NOT heart-shaped, with NO ears'],
+        'cone' => ['a tall CONE tapering to a point', 'NOT a cylinder, NOT round-topped'],
+        'sunset' => ['a HALF-CIRCLE standing upright on its flat edge', 'NOT a full round cake, NOT heart-shaped'],
+    ];
+
     public function generate(Request $request, int $id, ShopProducts $shop)
     {
         $product = $shop->find($id);
         abort_unless($product, 404);
 
         $data = $request->validate([
-            'note' => ['required', 'string', 'max:500'],
+            'shape' => ['required', 'in:'.implode(',', array_keys(self::OUTLINES))],
+            'note' => ['nullable', 'string', 'max:500'],
+            'writing' => ['nullable', 'string', 'max:40'],
+            'shape_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
             'size' => ['required', 'integer'],
             'layers' => ['required', 'integer', 'between:1,4'],
             'references' => ['nullable', 'array', 'max:'.self::MAX_REFERENCES],
             'references.*' => ['image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ], [
-            'note.required' => 'اكتبي وش تبين تغيّرين في الكيكة.',
             'note.max' => 'الوصف طويل، الحد 500 حرف.',
             'references.max' => 'الحد '.self::MAX_REFERENCES.' صور.',
         ]);
@@ -63,13 +75,14 @@ class ShopAiController extends Controller
             $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300)
                 ->attach('image[]', $photo->body(), 'product.jpg', ['Content-Type' => $photo->header('Content-Type') ?: 'image/jpeg']);
 
-            foreach ($request->file('references', []) as $file) {
+            // الترتيب: صورة المنتج (التصميم)، صورة المجسم (الشكل والمقاس)، صور الزبون (التعديل)
+            foreach (array_filter([$request->file('shape_image'), ...$request->file('references', [])]) as $file) {
                 $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
             }
 
             $response = $pending->post('https://api.openai.com/v1/images/edits', [
                 'model' => config('services.openai.image_model'),
-                'prompt' => $this->prompt($data['note'], $size, (int) $data['layers'], (bool) $request->file('references')),
+                'prompt' => $this->prompt($data, $size, (bool) $request->file('shape_image'), (bool) $request->file('references')),
                 'size' => '1024x1024',
                 'quality' => config('shop.image_quality') ?: config('services.openai.image_quality'),
                 'n' => 1,
@@ -112,19 +125,28 @@ class ShopAiController extends Controller
         return response()->json(collect($result)->except('owner')->all() + ['remaining' => $this->remaining()]);
     }
 
-    private function prompt(string $note, array $size, int $layers, bool $withReferences): string
+    private function prompt(array $data, array $size, bool $withShapeImage, bool $withReferences): string
     {
+        $layers = (int) $data['layers'];
         $width = round((int) $size['inch'] * 2.54);
         $height = $layers * ((int) $size['inch'] <= 4 ? 3 : 4);
+        [$outline, $notShapes] = self::OUTLINES[$data['shape']];
+        $refIndex = $withShapeImage ? 3 : 2;
 
-        return 'Image 1 is a real cake from the JOMACAKE bakery. Edit THIS cake: keep the same cake, the same shape, '
-            .'the same board with its JOMACAKE label, the same camera angle and background, and keep every part of the design '
-            .'that the customer does not ask to change. '
-            ."Real size: {$size['inch']} inches ({$width} cm) wide and about {$height} cm tall ({$layers} sponge layers). "
-            .'Customer changes (apply them exactly; if they include words or a greeting to write, write them on the cake exactly as given, '
-            ."in the same language): {$note}. "
-            .($withReferences ? 'The other images are the customer\'s reference photos for the requested changes: take the elements, colours or style they ask for from them, but do NOT copy their cake shape. ' : '')
-            .'Result: a realistic professional bakery photo of ONE cake. No people, no hands.';
+        // نفس درس الطلب الخاص: الشكل شرط أول، وإلا ينسخ شكل صورة المنتج
+        return "HARD RULE (most important): the cake must be {$outline}, with exactly ONE tier, {$notShapes}, "
+            .'even if image 1 shows a different shape. '
+            .'Image 1 is a real cake from the JOMACAKE bakery: copy its design onto the required shape: the frosting colours, '
+            .'textures and every decoration (drawings, figures, piping, fruit…), re-arranged to fit the new shape. '
+            .($withShapeImage ? 'Image 2 is a grey clay mock-up of the required cake: use it ONLY for the shape, outline, proportions and height; ignore its grey colour. ' : '')
+            .($withReferences ? "Images {$refIndex} and after are the customer's reference photos for the requested changes: take the elements, colours or style they ask for, but do NOT copy their cake shape. " : '')
+            ."Real size: {$size['inch']} inches ({$width} cm) wide and about {$height} cm tall ({$layers} sponge layers), clearly wider than tall. "
+            .(filled($data['note'] ?? null) ? "Customer changes (apply them exactly): {$data['note']}. " : 'Keep the design of image 1 as it is. ')
+            .(filled($data['writing'] ?? null) ? "Write exactly this text on the cake, in the same language: \"{$data['writing']}\". " : '')
+            .'Put the cake on a SQUARE flat '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board (NOT round), '
+            .'with a small white rectangular label with "JOMACAKE" in pink serif capital letters at the front-left corner. '
+            .'A realistic professional bakery photo of ONE cake, front three-quarter view, plain light background. No people, no hands. '
+            ."Remember: {$outline}.";
     }
 
     private function finish(Request $request, string $job, int $status, array $payload)
