@@ -65,6 +65,40 @@ class SpecialOrderTest extends TestCase
             ->assertSee('"wall":{"sizes":["tier2_8-6"],"layers":2,"tiers":2,"price_factor":0.5,"vintage":true}', false);
     }
 
+    public function test_prices_come_from_jomacake_api_and_tiers_use_the_bottom_tier(): void
+    {
+        Http::fake([
+            self::API.'/special-request/sizes' => Http::response(['success' => true, 'data' => [
+                ['id' => 2, 'name' => '4 Inch', 'people_number' => '1-2 people', 'price' => '70.00'],
+                ['id' => 4, 'name' => '6 Inch', 'people_number' => '4-6 people', 'price' => '110.00'],
+            ]]),
+            self::API.'/cakes-pricing' => Http::response([
+                ['type' => 'layer', 'layer_id' => '2', 'size_id' => '2', 'price' => '0.00'],
+                ['type' => 'layer', 'layer_id' => '3', 'size_id' => '2', 'price' => '10.00'],
+                ['type' => 'layer', 'layer_id' => '2', 'size_id' => '4', 'price' => '0.00'],
+                ['type' => 'layer', 'layer_id' => '3', 'size_id' => '4', 'price' => '20.00'],
+                ['type' => 'layer', 'layer_id' => '13', 'size_id' => '4', 'price' => '40.00'], // 4 طبقات
+            ]),
+            self::API.'/cake-items/*' => Http::response([]),
+        ]);
+
+        // دورين 6/4 = سعر 6 إنش (الدور السفلي) بنفس عدد الطبقات
+        $this->get('/special-order')
+            ->assertOk()
+            ->assertSee('const prices = {"4in":{"2":70,"3":80},"6in":{"2":110,"3":130,"4":150},"tier2_6-4":{"2":110,"3":130}}', false);
+    }
+
+    public function test_fallback_prices_when_api_is_down(): void
+    {
+        Http::fake(['*' => Http::response(null, 500)]);
+
+        // 8 إنش 155 + 4 طبقات 50، و3 أدوار 10/8/6 بسعر 10 إنش
+        $this->get('/special-order')
+            ->assertOk()
+            ->assertSee('"8in":{"2":155,"3":180,"4":205}', false)
+            ->assertSee('"tier3_10-8-6":{"2":200,"3":230}', false);
+    }
+
     public function test_ai_image_uses_reference_photo_and_selected_specs(): void
     {
         Storage::fake('public');

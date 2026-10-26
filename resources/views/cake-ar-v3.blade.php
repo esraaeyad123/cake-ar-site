@@ -56,21 +56,6 @@
             white-space: nowrap;
         }
 
-        /* السعر المبدئي */
-        .price-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: #fff;
-            border: 1.5px solid #F4C0D1;
-            border-radius: 14px;
-            padding: 8px 14px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-        }
-        .price-badge[hidden] { display: none; }
-        .price-badge .amount { font-size: 18px; font-weight: 800; color: #4B1528; white-space: nowrap; }
-        .price-badge .caption { font-size: 11px; font-weight: 700; color: #993556; }
-
         /* سادة / فنتج */
         .style-switch {
             position: absolute;
@@ -312,22 +297,6 @@
             margin-bottom: 6px;
         }
         .layer-chip .bars div { border-radius: 2px; }
-        /* سعر صغير تحت المقاس والطبقة */
-        .size-card .card-price, .layer-chip .chip-price {
-            font-size: 10px;
-            font-weight: 700;
-            color: #D4537E;
-            margin-top: 3px;
-            white-space: nowrap;
-        }
-        /* رمز الريال السعودي */
-        .riyal {
-            width: 0.85em;
-            height: 0.85em;
-            vertical-align: -0.08em;
-            margin-inline-start: 2px;
-        }
-
         .layer-chip .lnum {
             font-size: 14px;
             font-weight: 700;
@@ -378,11 +347,6 @@
         </model-viewer>
 
         <div class="viewer-loading" id="viewer-loading">جاري تجهيز الكيكة…</div>
-
-        <div class="price-badge" id="price-badge" hidden>
-            <div class="amount" id="price-amount"></div>
-            <div class="caption">السعر المبدئي</div>
-        </div>
 
         <div class="style-switch" id="style-switch">
             <div class="style-option" data-style="vintage">فنتج</div>
@@ -478,26 +442,16 @@
 
         // المدى المسموح بعدد الطبقات لكل مقاس/كومبو (من config/cake_ar.php)
         const layerLimits = @json($layerLimits);
-        // السعر المبدئي لكل مقاس/كومبو وعدد طبقات
-        const prices = @json((object) $prices);
         const CAKE_COLOR = @json(config('cake_ar.cake_color'));
         const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
         const BOARD_COLORS = @json(config('cake_ar.board_colors'));
         // النماذج الجاهزة فيها طبقتين و3 طبقات — أكثر من ذلك يُبنى من نموذج 3 طبقات + ارتفاع إضافي
         const MAX_MODEL_LAYERS = 3;
 
-        // رمز الريال السعودي الجديد (SVG حتى يظهر على كل الأجهزة)
-        const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
-        const money = n => `${Math.round(n * 10) / 10}${RIYAL}`;
-
-        // أشكال خاصة (السن ست، الوال كيك) من config/cake_ar.php: مقاساتها وطبقاتها وأدوارها ثابتة،
-        // وسعرها = سعر الكعكة الخاصة لنفس المقاس × price_factor (الوال كيك نص السعر)
+        // صفحة معاينة فقط (بدون أسعار). أشكال خاصة (السن ست، الوال كيك…) من config/cake_ar.php:
+        // مقاساتها وطبقاتها وأدوارها ثابتة
         const SHAPES = @json(config('cake_ar.shapes'));
         const special = () => SHAPES[currentShape];
-        const priceOf = (sizeKey, layers) => {
-            const p = prices[sizeKey]?.[layers];
-            return p === undefined ? undefined : p * (special()?.price_factor ?? 1);
-        };
         const allowedLayers = sizeKey => special() ? [].concat(special().layers) : (layerLimits[sizeKey] || [1,2,3,4,5,6,7]);
         const isPlainOnly = () => currentShape === 'cone' || (!!special() && !special().vintage);
 
@@ -513,8 +467,6 @@
             }
 
             allowed.forEach(n => {
-                // زيادة السعر عن أقل عدد طبقات (مثل موقع جوماكيك: 2 طبقة +0، 3 طبقات +20...)
-                const extra = priceOf(sizeKey, n) !== undefined ? priceOf(sizeKey, n) - priceOf(sizeKey, allowed[0]) : null;
                 const chip = document.createElement('div');
                 chip.className = 'layer-chip' + (n === currentLayers ? ' active' : '');
                 chip.dataset.layers = n;
@@ -529,7 +481,6 @@
                     <div class="check">✓</div>
                     <div class="bars">${barsHtml}</div>
                     <div class="lnum">${n}</div>
-                    ${extra !== null ? `<div class="chip-price">+${money(extra)}</div>` : ''}
                 `;
 
                 chip.addEventListener('click', () => {
@@ -550,7 +501,6 @@
         const loadingEl = document.getElementById('viewer-loading');
 
         async function updateModel() {
-            updatePrice();
             const token = ++composeToken;
             const modelLayers = Math.min(currentLayers, MAX_MODEL_LAYERS);
             const base = `${modelsBaseUrl}/cake_${currentSizeKey}_layers${modelLayers}_${MODEL_VERSION}.glb`;
@@ -574,15 +524,6 @@
                 return;
             }
             loadingEl.hidden = true;
-        }
-
-        function updatePrice() {
-            const badge = document.getElementById('price-badge');
-            const price = priceOf(currentSizeKey, currentLayers);
-            badge.hidden = price === undefined;
-            if (price !== undefined) {
-                document.getElementById('price-amount').innerHTML = money(price);
-            }
         }
 
         document.querySelectorAll('.style-option').forEach(opt => {
@@ -633,14 +574,11 @@
                 card.dataset.serves = s.serves;
 
                 const circleSize = 26 + i * 8;
-                // سعر المقاس/الكومبو بأقل عدد طبقات
-                const basePrice = priceOf(s.sizeKey, allowedLayers(s.sizeKey)[0]);
                 card.innerHTML = `
                     ${s.badge ? '<div class="badge">الأكثر طلبًا</div>' : ''}
                     <div class="check">✓</div>
                     <div class="circle" style="width:${circleSize}px;height:${circleSize}px;"></div>
                     <div class="num">${s.label} إنش</div>
-                    ${basePrice !== undefined ? `<div class="card-price">${money(basePrice)}</div>` : ''}
                 `;
 
                 card.addEventListener('click', () => {
