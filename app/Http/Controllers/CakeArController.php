@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cake;
-use App\Services\CakePricing;
 
 class CakeArController extends Controller
 {
-    public function show(string $slug, CakePricing $pricing)
+    public function show(string $slug)
     {
         $cake = Cake::where('slug', $slug)
             ->where('is_active', true)
@@ -20,9 +19,8 @@ class CakeArController extends Controller
 
         $defaultVariant = $variants->firstWhere('size_label', '4') ?? $variants->first();
 
-        $prices = $pricing->startingPrices();
         $layerLimits = config('cake_ar.layers');
 
-        return view('cake-ar-v3', compact('cake', 'variants', 'defaultVariant', 'prices', 'layerLimits'));
+        return view('cake-ar-v3', compact('cake', 'variants', 'defaultVariant', 'layerLimits'));
     }
 }
