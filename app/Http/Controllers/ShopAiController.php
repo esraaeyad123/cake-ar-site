@@ -96,9 +96,11 @@ class ShopAiController extends Controller
         if ($response->failed()) {
             $code = $response->json('error.code');
             $message = (string) $response->json('error.message');
+            // السبب الحقيقي في السجل (مثلًا شخصيات محمية بحقوق مثل سبايدر مان)
+            Log::warning('shop AI image refused', ['product' => $product['id'], 'code' => $code, 'message' => $message]);
 
             return $this->finish($request, $job, 422, ['message' => $code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
-                ? 'الذكاء الاصطناعي رفض هذا الطلب. غيّري الوصف أو الصور وجربي.'
+                ? 'الذكاء الاصطناعي رفض هذي الصورة، غالبًا لأن فيها شخصية مشهورة محمية بحقوق (مثل سبايدر مان). جربي كيكة ثانية أو اكتبي تعديل بدون الشخصية.'
                 : "خطأ من OpenAI ({$response->status()}): {$message}"]);
         }
 

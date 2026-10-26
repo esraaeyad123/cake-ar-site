@@ -234,6 +234,14 @@
         .product-head { max-width: 520px; margin: 0 auto; padding: 12px 16px 14px; }
         .product-head h1 { font-size: 20px; margin: 0 0 2px; }
         .product-head .sn { font-size: 13px; color: var(--pink-dark); }
+        /* الجوال: صورة المنتج مربعة بعرض الشاشة مثل صفحة جوماكيك (مو ثابتة فوق حتى تاخذ حجمها) */
+        @media (max-width: 859px) {
+            .visual { position: static; box-shadow: none; padding: 12px 16px 0; }
+            .visual .viewer-wrap { border-radius: 16px; overflow: hidden; }
+            .visual model-viewer { height: auto; aspect-ratio: 1; max-height: none; }
+            .visual .photo-view img { object-fit: cover; }
+            .visual .spec-bar { border-top: none; padding: 10px 0; }
+        }
         @media (min-width: 860px) {
             .order-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; max-width: 1240px; margin: 0 auto; padding: 18px 24px 40px; align-items: start; }
             .visual { top: 14px; border: 1px solid #F3E3E9; border-radius: 18px; overflow: hidden; box-shadow: none; }
@@ -670,7 +678,7 @@
             $('prev').style.visibility = i === 0 ? 'hidden' : 'visible';
             $('next').style.display = i === tabs.length - 1 ? 'none' : '';
             renderSummary($('summary'));
-            if (scroll) window.scrollTo({ top: $('tabs').getBoundingClientRect().top + window.scrollY - (matchMedia('(min-width: 860px)').matches ? 14 : $('top-fixed').offsetHeight), behavior: 'smooth' });
+            if (scroll) window.scrollTo({ top: $('tabs').getBoundingClientRect().top + window.scrollY - (matchMedia('(min-width: 860px)').matches ? 14 : 8), behavior: 'smooth' });
         }
         tabs.forEach((t, i) => t.addEventListener('click', () => goTo(i)));
         $('prev').addEventListener('click', () => goTo(Math.max(0, state.tab - 1)));
