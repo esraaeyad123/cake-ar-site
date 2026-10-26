@@ -229,6 +229,17 @@
         .photo-view.show { display: block; }
         .photo-view img { width: 100%; height: 100%; object-fit: contain; }
         .photo-view button { position: absolute; top: 10px; left: 10px; border: none; background: var(--ink); color: #fff; border-radius: 16px; padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .product-head { max-width: 520px; margin: 0 auto; padding: 12px 16px 2px; }
+        .product-head h1 { font-size: 20px; margin: 0 0 2px; }
+        .product-head .sn { font-size: 13px; color: var(--pink-dark); }
+        @media (min-width: 860px) {
+            .order-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1200px; margin: 0 auto; padding: 18px 24px 40px; align-items: start; }
+            .visual { top: 14px; border: 1px solid #F3E3E9; border-radius: 18px; overflow: hidden; box-shadow: none; }
+            .visual model-viewer { height: 62vh; max-height: 560px; min-height: 380px; }
+            .steps main, .steps .product-head { max-width: none; padding-left: 0; padding-right: 0; }
+            .steps .tabs { border-radius: 14px; border: 1px solid #F3E3E9; overflow: hidden; }
+            .product-head h1 { font-size: 26px; }
+        }
         .ar-btn { font-size: 11px; line-height: 1.25; padding: 7px 11px; text-align: center; }
         .spec-bar .spec { font-size: 10px; }
         .spec-bar .spec svg { width: 15px; height: 15px; }
@@ -243,7 +254,7 @@
         $title = $product['name'] ?? 'S.N: '.$product['id'];
     @endphp
 
-    <div class="top-fixed" id="top-fixed">
+    <div class="site-top">
     <header class="site-header">
         <a href="https://jomacake.com"><img src="{{ asset('images/icons/logo.png') }}" alt="JOMACAKE" class="logo"></a>
         <nav>
@@ -257,6 +268,11 @@
     </header>
     <div class="sample-tag">عينة تجريبية — الطلب ما يُرسل لموقع جوماكيك</div>
 
+    </div>
+
+    {{-- على الكمبيوتر: نص للكيكة (المجسم والصورة) ونص لخطوات الطلب، وعلى الجوال الكيكة ثابتة فوق --}}
+    <div class="order-layout">
+    <div class="top-fixed visual" id="top-fixed">
     <div class="viewer-wrap">
         <model-viewer
             id="viewer"
@@ -305,6 +321,12 @@
             <span>شاهد على<br>طاولتك</span>
         </button>
     </div>
+    </div>
+
+    <div class="steps">
+    <div class="product-head">
+        @if ($product['name'])<h1>{{ $product['name'] }}</h1>@endif
+        <div class="sn">الرقم التسلسلي: <b>{{ $product['id'] }}</b></div>
     </div>
 
     <div class="tabs" id="tabs">
@@ -395,6 +417,9 @@
             <button type="button" class="btn" id="next">التالي</button>
         </div>
     </main>
+    </main>
+    </div>
+    </div>
 
     <div class="modal center" id="ai-wait-modal" role="dialog" aria-live="polite">
         <div class="sheet">
@@ -635,7 +660,7 @@
             $('prev').style.visibility = i === 0 ? 'hidden' : 'visible';
             $('next').style.display = i === tabs.length - 1 ? 'none' : '';
             renderSummary($('summary'));
-            if (scroll) window.scrollTo({ top: $('tabs').offsetTop - $('top-fixed').offsetHeight, behavior: 'smooth' });
+            if (scroll) window.scrollTo({ top: $('tabs').getBoundingClientRect().top + window.scrollY - (matchMedia('(min-width: 860px)').matches ? 14 : $('top-fixed').offsetHeight), behavior: 'smooth' });
         }
         tabs.forEach((t, i) => t.addEventListener('click', () => goTo(i)));
         $('prev').addEventListener('click', () => goTo(Math.max(0, state.tab - 1)));
