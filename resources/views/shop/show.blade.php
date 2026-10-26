@@ -25,8 +25,8 @@
         .price-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 2px; }
         .price-line .amount { font-size: 26px; font-weight: 800; white-space: nowrap; }
         .price-line .old { font-size: 14px; }
-        .info .specs { margin: 18px 0 4px; background: #FAF5F7; border-radius: 14px; padding: 10px; }
-        .info .spec { font-size: 12px; }
+        .photo .specs { margin-top: 10px; background: #FAF5F7; border-radius: 14px; padding: 10px 12px; }
+        .photo .spec { font-size: 12px; }
 
         .section-title { font-size: 16px; font-weight: 800; color: var(--pink-dark); margin: 20px 0 10px; }
         .section-title small { font-weight: 600; color: var(--muted); font-size: 12px; }
@@ -136,6 +136,7 @@
                     <button type="button" class="active" data-photo="original">الصورة الأصلية</button>
                     <button type="button" data-photo="ai">✨ تصميمك</button>
                 </div>
+                @include('shop.partials.specs', ['size' => $first, 'id' => 'specs'])
             </div>
 
             <div class="info">
@@ -172,8 +173,6 @@
                 <div class="section-title">الطبقة</div>
                 <div class="row" id="layers"></div>
 
-                @include('shop.partials.specs', ['size' => $first, 'id' => 'specs'])
-
                 <div class="ai-box">
                     <h3>✨ تبين تغيّرين شي في الكيكة؟</h3>
                     <div class="hint">اكتبي التعديل (لون، كتابة، إضافة…)، وارفعي صور للي تبينه إذا عندك، والذكاء الاصطناعي يوريك الكيكة بعد التعديل.</div>
@@ -193,7 +192,7 @@
                             <button type="button" class="btn choose" id="ai-approve">👍 اعتمدي التعديل</button>
                             <button type="button" class="btn light choose" id="ai-reject">ما عجبني</button>
                         </div>
-                        <div class="approved">✓ تم اعتماد التعديل، بيظهر في ملخص الطلب</div>
+                        <div class="approved">✓ تم اعتماد التعديل، بيظهر في طلبك</div>
                         <a class="download" id="ai-download" href="#" download>⬇️ تحميل الصورة</a>
                     </div>
                     <div id="ai-history" hidden>
@@ -202,12 +201,8 @@
                     </div>
                 </div>
 
-                <div class="section-title">تاريخ الاستلام</div>
-                <input type="date" id="delivery-date" min="{{ now()->toDateString() }}">
-
-                <div class="summary" id="summary"></div>
                 <div class="message error" id="message"></div>
-                <button type="button" class="btn" id="review">مراجعة الطلب</button>
+                <button type="button" class="btn" id="review">الطلب</button>
             </div>
         </div>
     </div>
@@ -331,19 +326,17 @@
                 lines.push(['التعديل', esc($('ai-note').value.trim())]);
                 lines.push(['التصميم', `<span class="design"><img src="${state.aiImage}" alt=""></span>`]);
             }
-            lines.push(['التاريخ', $('delivery-date').value || '—']);
             if (final < before) lines.push(['قبل الخصم', `<span class="old">${before}</span>`]);
             el.innerHTML = `<dl>${lines.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
                 <div class="line total"><dt>الإجمالي</dt><dd>${final}${RIYAL}</dd></div></dl>`;
         }
 
         function render() {
-            renderOptions(); renderPrice(); renderSummary($('summary'));
+            renderOptions(); renderPrice();
             $('message').textContent = '';
         }
 
-        $('writing').addEventListener('input', () => { $('writing-count').textContent = $('writing').value.length; renderSummary($('summary')); });
-        $('delivery-date').addEventListener('input', () => renderSummary($('summary')));
+        $('writing').addEventListener('input', () => { $('writing-count').textContent = $('writing').value.length; $('message').textContent = ''; });
 
         // ===== تعديل الكيكة بالذكاء الاصطناعي =====
         let refFiles = [];
@@ -418,7 +411,7 @@
                 const img = document.createElement('img');
                 img.src = u;
                 img.className = u === url ? 'current' : '';
-                img.addEventListener('click', () => { showAiImage(u); renderSummary($('summary')); });
+                img.addEventListener('click', () => showAiImage(u));
                 $('ai-history-thumbs').appendChild(img);
             });
         }
@@ -493,7 +486,6 @@
                 $('ai-wait-modal').classList.remove('show');
                 if (aiAbort === abort) aiAbort = null;
                 renderRemaining();
-                renderSummary($('summary'));
             }
         });
 
@@ -502,7 +494,6 @@
             $('ai-result').classList.add('is-approved');
             $('photo-switch').hidden = false;
             showPhoto('ai');
-            renderSummary($('summary'));
         });
         $('ai-reject').addEventListener('click', () => {
             state.aiApproved = false;
@@ -510,14 +501,12 @@
             $('ai-history').hidden = !aiImages.length;
             aiMessage('غيّري الوصف أو الصور وجربي مرة ثانية.');
             $('ai-note').focus();
-            renderSummary($('summary'));
         });
 
         $('review').addEventListener('click', () => {
             const missing = [];
             if (product.stuffings.length && !state.stuffing) missing.push('الحشوة');
             if (product.requires_text && !$('writing').value.trim()) missing.push('الكتابة على الكعكة');
-            if (!$('delivery-date').value) missing.push('تاريخ الاستلام');
             if (missing.length) { $('message').textContent = 'باقي: ' + missing.join('، '); return; }
             $('modal-photo').src = state.aiApproved ? state.aiImage : product.image;
             renderSummary($('modal-summary'));

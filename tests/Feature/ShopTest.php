@@ -77,7 +77,7 @@ class ShopTest extends TestCase
 
         $this->get('/products/1305')
             ->assertOk()
-            ->assertSee('مراجعة الطلب')
+            ->assertSee('>الطلب<', false)
             ->assertSee('S.N: 1305')
             // المقاسات بترتيب الموقع، وسعر الطبقة الزيادة
             ->assertSee('"sizes":[{"id":4,"inch":"6","people":"4-6","price":155,"min_layers":2,"max_layers":3,"layer_price":20,"discount":{"type":"percent","amount":25}}', false)
