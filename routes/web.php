@@ -22,3 +22,16 @@ Route::get('/special-order/ai/{job}', [SpecialOrderController::class, 'status'])
 Route::post('/special-order/review', [SpecialOrderController::class, 'review'])
     ->middleware('throttle:10,1')
     ->name('special-order.review');
+
+// عينة طلب منتجات جوماكيك الجاهزة: صفحات مستقلة، "مراجعة الطلب" تعرض الملخص فقط
+use App\Http\Controllers\ShopController;
+
+Route::get('/products', [ShopController::class, 'index'])->name('shop.index');
+Route::get('/products/{id}', [ShopController::class, 'show'])->whereNumber('id')->name('shop.show');
+Route::post('/products/{id}/ai', [\App\Http\Controllers\ShopAiController::class, 'generate'])
+    ->whereNumber('id')
+    ->middleware('throttle:5,1')
+    ->name('shop.ai');
+Route::get('/products/ai/{job}', [\App\Http\Controllers\ShopAiController::class, 'status'])
+    ->middleware('throttle:60,1')
+    ->name('shop.ai.status');
