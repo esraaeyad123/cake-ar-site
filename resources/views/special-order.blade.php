@@ -187,6 +187,18 @@
         .ai-result.is-approved .approved { display: block; }
         .ai-result.is-approved .row { display: none; }
 
+        /* المحادثة مع الذكاء الاصطناعي بعد أول صورة */
+        .ai-chat { margin-top: 14px; border-top: 1px dashed var(--pink-line); padding-top: 12px; }
+        .ai-chat h4 { margin: 0 0 2px; font-size: 14px; }
+        .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; max-height: 360px; overflow-y: auto; padding: 2px; }
+        .bubble { max-width: 85%; padding: 9px 12px; border-radius: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+        .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
+        .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
+        .bubble.typing { color: var(--muted); }
+        .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
+        .chat-input { display: flex; gap: 8px; align-items: flex-end; }
+        .chat-input textarea { min-height: 46px; height: 46px; flex: 1; }
+        .chat-input .btn { width: auto; margin: 0; padding: 12px 18px; flex-shrink: 0; }
         .voice { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
         .voice button {
             border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); border-radius: 20px;
@@ -205,6 +217,15 @@
         .summary dt { color: var(--muted); font-weight: 700; }
         .summary dd { margin: 0; font-weight: 800; text-align: left; }
         .summary .total dd { font-size: 17px; color: var(--pink); }
+        .summary .line { align-items: center; }
+        .summary .vis { display: inline-flex; align-items: center; gap: 10px; }
+        .summary .vis-pic { width: 44px; height: 44px; border-radius: 10px; background: #FAF3F5; display: inline-flex; align-items: center; justify-content: center; color: var(--pink); flex-shrink: 0; overflow: hidden; font-size: 20px; }
+        .summary .vis-pic img { width: 100%; height: 100%; object-fit: cover; }
+        .summary .vis-pic img.fit { object-fit: contain; }
+        .summary .vis-pic svg { max-width: 34px; max-height: 34px; }
+        .summary .vis-icon { font-size: 22px; }
+        .summary .vis-bars { display: flex; flex-direction: column-reverse; gap: 2px; width: 26px; }
+        .summary .vis-bars i { display: block; height: 6px; border-radius: 2px; }
         .summary-images { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 0 12px; }
         .summary-images img { width: 76px; height: 76px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); }
         .summary-images figure { margin: 0; text-align: center; font-size: 10px; font-weight: 700; color: var(--pink-dark); }
@@ -362,6 +383,17 @@
                 <div class="ai-history" id="ai-history" hidden>
                     <div class="hint">صورك اللي طلعت (اضغطي على صورة عشان تختارينها):</div>
                     <div class="thumbs" id="ai-history-thumbs"></div>
+                </div>
+
+                <div class="ai-chat" id="ai-chat" hidden>
+                    <h4>💬 تبين تعديل؟ اكتبي للذكاء الاصطناعي</h4>
+                    <div class="hint" style="margin-top:0">يعدّل على الصورة اللي قدامك، ويلتزم بالشكل والحجم والطبقات اللي اخترتيها.</div>
+                    <div class="chat-thread" id="chat-thread"></div>
+                    <div class="chat-input">
+                        <textarea id="chat-input" maxlength="500" placeholder="مثال: خلي الورد أبيض وزيدي لمسة ذهبي"></textarea>
+                        <button type="button" class="btn" id="chat-send">إرسال</button>
+                    </div>
+                    <div class="message error" id="chat-message"></div>
                 </div>
             </div>
 
@@ -702,6 +734,8 @@
 
         // كل الصور اللي طلعت، والمعروضة الحين
         const aiImages = [];
+        // كل صورة والتعديلات اللي طلعت منها (الوصف الأول + طلبات المحادثة)، ترسل مع التعديل الجاي حتى ما تضيع
+        const imageEdits = {};
         function showAiImage(url) {
             state.aiImage = url;
             state.aiApproved = false;
@@ -710,6 +744,7 @@
             $('ai-download').download = `jomacake-${aiImages.indexOf(url) + 1}.png`;
             $('ai-result').className = 'ai-result show';
             $('ai-history').hidden = aiImages.length < 2;
+            $('ai-chat').hidden = false;
             $('ai-history-thumbs').innerHTML = '';
             aiImages.forEach(u => {
                 const img = document.createElement('img');
@@ -834,6 +869,7 @@
                     throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
                 }
                 aiImages.push(data.image);
+                imageEdits[data.image] = [$('ai-note').value.trim()].filter(Boolean);
                 showAiImage(data.image);
                 $('ai-generate').textContent = '✨ ولّدي صورة ثانية';
                 showAiMessage('هذي كيكتك بالمواصفات اللي اخترتيها. عجبتك؟', 'info');
@@ -848,6 +884,104 @@
                 renderSummary($('summary'));
             }
         });
+        // ===== المحادثة: الزبون يكتب، الذكاء يرد أو يسأل، والتعديل على الصورة اللي قدامه =====
+        const chatUrl = "{{ route('special-order.ai.chat') }}";
+        const editUrl = "{{ route('special-order.ai.edit') }}";
+        const chatMessages = [];
+        function bubble(role, text, image) {
+            const b = document.createElement('div');
+            b.className = 'bubble ' + role;
+            b.textContent = text;
+            if (image) {
+                const img = document.createElement('img');
+                img.src = image;
+                img.alt = 'التصميم بعد التعديل';
+                img.addEventListener('click', () => { showAiImage(image); $('ai-image').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+                b.appendChild(img);
+            }
+            $('chat-thread').appendChild(b);
+            $('chat-thread').scrollTop = $('chat-thread').scrollHeight;
+            return b;
+        }
+        const specs = () => ({ shape: shape(), size: state.size, layers: state.layers, style: STYLE });
+
+        async function editImage(instruction) {
+            const base = state.aiImage;
+            const abort = aiAbort = new AbortController();
+            const started = Date.now();
+            const tick = () => { $('ai-wait-time').textContent = `${Math.round((Date.now() - started) / 1000)} ثانية`; };
+            tick();
+            const timer = setInterval(tick, 1000);
+            $('ai-wait-modal').classList.add('show');
+            const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+            try {
+                let data, ok;
+                try {
+                    const res = await fetch(editUrl, {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: JSON.stringify({ ...specs(), image: base.split('/').pop(), instruction, previous: imageEdits[base] || [], job }),
+                        signal: abort.signal,
+                    });
+                    data = await res.json();
+                    ok = res.ok;
+                } catch (cut) {
+                    if (abort.signal.aborted) throw cut;
+                    ({ data, ok } = await waitForJob(job, abort.signal));
+                }
+                if (data.remaining !== undefined) state.aiRemaining = data.remaining;
+                if (!ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || 'ما طلع التعديل، جربي مرة ثانية.');
+                aiImages.push(data.image);
+                imageEdits[data.image] = [...(imageEdits[base] || []), instruction].slice(-12);
+                showAiImage(data.image);
+                bubble('assistant', 'هذي كيكتك بعد التعديل 👇 تقدرين تعتمدينها أو تطلبين تعديل ثاني.', data.image);
+            } catch (e) {
+                bubble('assistant', abort.signal.aborted ? 'وقّفت التعديل. اكتبي لي لو تبين شي ثاني.' : e.message);
+            } finally {
+                clearInterval(timer);
+                $('ai-wait-modal').classList.remove('show');
+                if (aiAbort === abort) aiAbort = null;
+                renderRemaining();
+                renderSummary($('summary'));
+            }
+        }
+
+        async function sendChat() {
+            const text = $('chat-input').value.trim();
+            if (!text || $('chat-send').disabled) return;
+            $('chat-message').textContent = '';
+            $('chat-input').value = '';
+            bubble('user', text);
+            chatMessages.push({ role: 'user', content: text });
+            const typing = bubble('assistant typing', '…');
+            $('chat-send').disabled = true;
+            try {
+                const res = await fetch(chatUrl, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                    body: JSON.stringify({ ...specs(), messages: chatMessages.slice(-12) }),
+                });
+                const data = await res.json();
+                typing.remove();
+                if (!res.ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || 'صار خطأ، جربي مرة ثانية.');
+                bubble('assistant', data.reply);
+                chatMessages.push({ role: 'assistant', content: data.reply });
+                if (data.action === 'edit') {
+                    if (!canGenerate()) bubble('assistant', 'خلصت محاولات الصور، كمّلي الطلب بالتصميم اللي اخترتيه.');
+                    else await editImage(data.instruction);
+                }
+            } catch (e) {
+                typing.remove();
+                chatMessages.pop();
+                $('chat-message').textContent = e.message;
+                $('chat-input').value = text;
+            } finally {
+                $('chat-send').disabled = false;
+            }
+        }
+        $('chat-send').addEventListener('click', sendChat);
+        $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+
         $('ai-approve').addEventListener('click', () => {
             state.aiApproved = true;
             $('ai-result').classList.add('is-approved');
@@ -859,12 +993,12 @@
             $('ai-result').className = 'ai-result';
             $('ai-history').hidden = !aiImages.length; // حتى يقدر يرجع لها أو يحمّلها
             showAiMessage(canGenerate()
-                ? 'اكتبي في الوصف اللي تبين يتغيّر (مثلًا: خلي الشكل أوضح) واضغطي "ولّدي صورة ثانية"، أو كمّلي الطلب بالوصف والصور.'
+                ? 'اكتبي في المحادثة تحت وش تبين يتغيّر، والذكاء الاصطناعي يعدّل على الصورة. أو كمّلي الطلب بالوصف والصور.'
                 : 'تقدرين تكمّلين الطلب بالوصف والصور.', 'info');
             renderSummary($('summary'));
             if (canGenerate()) {
-                $('ai-note').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                $('ai-note').focus({ preventScroll: true });
+                $('chat-input').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                $('chat-input').focus({ preventScroll: true });
             }
         });
 
@@ -905,22 +1039,28 @@
         function escapeHtml(text) {
             return text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
+        // الملخص بدلائل بصرية: صورة الشكل، رسمة المقاس والطبقات، صورة النكهة والحشوة
+        const visual = (pic, text) => `<span class="vis"><span class="vis-pic">${pic}</span><span>${escapeHtml(String(text))}</span></span>`;
+        const imgPic = (url, icon) => url ? `<img src="${url}" alt="">` : `<span class="vis-icon">${icon}</span>`;
+        const layersPic = n => `<span class="vis-bars">${Array.from({ length: n }, (_, i) => `<i style="background:${LAYER_COLORS[i % LAYER_COLORS.length]}"></i>`).join('')}</span>`;
+        const TIER_ICON = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 20h16v-5H4zM6.5 15v-4h11v4M9 11V8h6v3M12 8V5.5"/></svg>';
+
         function renderSummary(box) {
             const rows = [
-                ['الشكل', state.card.name],
-                ['الأدوار', TIER_LABELS[state.card.tiers]],
-                ['الحجم', `${sizeLabel(state.size)} (${people(state.size) || '—'} أشخاص)`],
-                ...(shape() === 'cone' ? [] : [['الطبقات', `${state.layers} طبقات`]]),
-                ['النكهة', state.flavor?.name || '—'],
-                ['الحشوة', state.filling?.name || '—'],
-                ['الوصف', $('ai-note').value.trim() || (state.voice ? 'وصف صوتي' : '—')],
-                ['تاريخ الاستلام', $('delivery-date').value || '—'],
+                ['الشكل', visual(`<img class="fit" src="${SHAPE_IMAGES}/${state.card.key}.webp" alt="">`, state.card.name)],
+                ['الأدوار', visual(TIER_ICON, TIER_LABELS[state.card.tiers])],
+                ['الحجم', visual(sizePicture(state.size), `${sizeLabel(state.size)} (${people(state.size) || '—'} أشخاص)`)],
+                ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
+                ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
+                ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
+                ['الوصف', escapeHtml($('ai-note').value.trim() || (state.voice ? 'وصف صوتي' : '—'))],
+                ['تاريخ الاستلام', visual('📅', $('delivery-date').value || '—')],
             ];
             const images = [];
             if (state.aiImage && state.aiApproved) images.push(`<figure><img src="${state.aiImage}" alt=""><div>تصميم الذكاء الاصطناعي</div></figure>`);
             refFiles.forEach(f => images.push(`<figure><img src="${URL.createObjectURL(f)}" alt=""><div>صورة مرفقة</div></figure>`));
             const price = total();
-            box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join('')}
+            box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
                 ${state.voice ? `<div class="line"><dt>وصف صوتي</dt><dd><audio controls src="${state.voice}" style="height:30px;max-width:180px"></audio></dd></div>` : ''}
                 <div class="line total"><dt>السعر المبدئي</dt><dd>${price === undefined ? '—' : money(price)}</dd></div></dl>
                 ${images.length ? `<div class="summary-images">${images.join('')}</div>` : ''}`;

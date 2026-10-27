@@ -367,4 +367,83 @@ class SpecialOrderTest extends TestCase
             ->assertJsonValidationErrors('references');
         Http::assertNothingSent();
     }
+
+    private function chatReply(array $answer)
+    {
+        return Http::response(['choices' => [['message' => ['content' => json_encode($answer, JSON_UNESCAPED_UNICODE)]]]]);
+    }
+
+    public function test_chat_turns_the_request_into_an_edit_and_keeps_the_fixed_specs(): void
+    {
+        Http::fake(['api.openai.com/v1/chat/completions' => $this->chatReply([
+            'reply' => 'تمام، بخلي الورد أبيض',
+            'action' => 'edit',
+            'instruction' => 'Make the flowers white.',
+        ])]);
+
+        $this->postJson('/special-order/ai/chat', [
+            'shape' => 'heart', 'size' => '8in', 'layers' => 3, 'style' => 'plain',
+            'messages' => [['role' => 'user', 'content' => 'خلي الورد أبيض']],
+        ])
+            ->assertOk()
+            ->assertJsonPath('action', 'edit')
+            ->assertJsonPath('instruction', 'Make the flowers white.')
+            ->assertJsonPath('reply', 'تمام، بخلي الورد أبيض');
+
+        // الموديل يعرف المواصفات الثابتة، ورسالة الزبون توصله مثل ما هي
+        Http::assertSent(function ($request) {
+            $system = $request['messages'][0]['content'] ?? '';
+
+            return str_contains($request->url(), 'chat/completions')
+                && str_contains($system, 'HEART-shaped')
+                && str_contains($system, '8 inches')
+                && str_contains($system, '3 sponge layers')
+                && $request['messages'][1] === ['role' => 'user', 'content' => 'خلي الورد أبيض'];
+        });
+    }
+
+    public function test_chat_has_a_message_limit(): void
+    {
+        config(['special_order.chat_limit' => 1]);
+        $this->withoutMiddleware(ThrottleRequests::class);
+        Http::fake(['api.openai.com/*' => $this->chatReply(['reply' => 'أهلًا', 'action' => 'chat'])]);
+        $payload = ['shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain', 'messages' => [['role' => 'user', 'content' => 'هلا']]];
+
+        $this->postJson('/special-order/ai/chat', $payload)->assertOk()->assertJsonPath('action', 'chat');
+        $this->postJson('/special-order/ai/chat', $payload)->assertStatus(429);
+    }
+
+    public function test_edit_changes_the_last_image_with_the_fixed_specs(): void
+    {
+        Storage::fake('public');
+        $this->withoutMiddleware(ThrottleRequests::class);
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $specs = ['shape' => 'heart', 'size' => '6in', 'layers' => 2, 'style' => 'plain'];
+
+        $first = $this->post('/special-order/ai', $specs + [
+            'references' => [UploadedFile::fake()->image('cake.jpg')], 'job' => 'job-'.Str::random(10),
+        ], ['Accept' => 'application/json'])->assertOk();
+        $name = basename($first->json('image'));
+
+        $this->postJson('/special-order/ai/edit', $specs + [
+            'image' => $name, 'instruction' => 'Write "Happy Birthday" in gold.', 'job' => 'job-'.Str::random(10),
+        ])->assertOk()->assertJsonPath('remaining', 3);
+
+        $this->assertCount(2, Storage::disk('public')->files('ai-cakes'));
+        Http::assertSent(function ($request) {
+            $parts = collect($request->data());
+            $prompt = $parts->firstWhere('name', 'prompt')['contents'] ?? '';
+
+            return str_contains($prompt, 'Apply ONLY these new changes: Write "Happy Birthday" in gold.')
+                && str_contains($prompt, 'HARD RULE')
+                && str_contains($prompt, 'HEART-shaped')
+                && $parts->where('name', 'image[]')->count() === 1;
+        });
+
+        // صورة مو من نفس الزائر ما تنعدّل
+        $this->postJson('/special-order/ai/edit', $specs + [
+            'image' => '20260101-000000-abcdef-special.png', 'instruction' => 'x', 'job' => 'job-'.Str::random(10),
+        ])->assertStatus(422);
+    }
 }
+

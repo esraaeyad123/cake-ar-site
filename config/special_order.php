@@ -14,6 +14,9 @@ return [
     // جودة صور الذكاء الاصطناعي في الكعكة الخاصة (low / medium / high)، وإذا فاضي تاخذ OPENAI_IMAGE_QUALITY
     'image_quality' => env('SPECIAL_ORDER_IMAGE_QUALITY'),
 
+    // عدد رسائل المحادثة مع الذكاء الاصطناعي لكل زائر (0 = بدون حد). الصور المعدّلة تنحسب من ai_limit
+    'chat_limit' => (int) env('SPECIAL_ORDER_CHAT_LIMIT', 30),
+
     'cache_minutes' => 60,
 
     // عدد الأشخاص لكيكات الأدوار (الـ API يعطي المقاسات المفردة فقط)

@@ -16,6 +16,13 @@ Route::get('/special-order', [SpecialOrderController::class, 'show'])->name('spe
 Route::post('/special-order/ai', [SpecialOrderController::class, 'generate'])
     ->middleware('throttle:5,1')
     ->name('special-order.ai');
+// المحادثة بعد أول صورة: الذكاء يرد ويسأل، والتعديل يكون على آخر صورة طلعت
+Route::post('/special-order/ai/chat', [SpecialOrderController::class, 'chat'])
+    ->middleware('throttle:20,1')
+    ->name('special-order.ai.chat');
+Route::post('/special-order/ai/edit', [SpecialOrderController::class, 'edit'])
+    ->middleware('throttle:5,1')
+    ->name('special-order.ai.edit');
 Route::get('/special-order/ai/{job}', [SpecialOrderController::class, 'status'])
     ->middleware('throttle:60,1')
     ->name('special-order.ai.status');
@@ -32,6 +39,14 @@ Route::post('/products/{id}/ai', [\App\Http\Controllers\ShopAiController::class,
     ->whereNumber('id')
     ->middleware('throttle:5,1')
     ->name('shop.ai');
+Route::post('/products/{id}/ai/chat', [\App\Http\Controllers\ShopAiController::class, 'chat'])
+    ->whereNumber('id')
+    ->middleware('throttle:20,1')
+    ->name('shop.ai.chat');
+Route::post('/products/{id}/ai/edit', [\App\Http\Controllers\ShopAiController::class, 'edit'])
+    ->whereNumber('id')
+    ->middleware('throttle:5,1')
+    ->name('shop.ai.edit');
 Route::get('/products/ai/{job}', [\App\Http\Controllers\ShopAiController::class, 'status'])
     ->middleware('throttle:60,1')
     ->name('shop.ai.status');
