@@ -290,6 +290,14 @@
         .writing-count { font-size: 11px; color: var(--muted); text-align: left; margin-top: 4px; }
         .summary .design img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); }
         .summary .old { color: var(--muted); text-decoration: line-through; }
+        .summary .line { align-items: center; }
+        .summary .vis { display: inline-flex; align-items: center; gap: 10px; }
+        .summary .vis-pic { width: 44px; height: 44px; border-radius: 10px; background: #FAF3F5; display: inline-flex; align-items: center; justify-content: center; color: var(--pink); flex-shrink: 0; overflow: hidden; }
+        .summary .vis-pic img { width: 100%; height: 100%; object-fit: cover; }
+        .summary .vis-pic img.fit { object-fit: contain; }
+        .summary .vis-icon { font-size: 22px; }
+        .summary .vis-bars { display: flex; flex-direction: column-reverse; gap: 2px; width: 26px; }
+        .summary .vis-bars i { display: block; height: 6px; border-radius: 2px; }
     </style>
 </head>
 <body>
@@ -1015,18 +1023,29 @@
         });
 
         // ===== الطلب =====
+        // الملخص بدلائل بصرية: صورة الشكل، رسمة المقاس والطبقات، صورة النكهة والحشوة
+        function visual(pic, text) {
+            return `<span class="vis"><span class="vis-pic">${pic}</span><span>${esc(text)}</span></span>`;
+        }
+        const imgPic = (url, icon) => url ? `<img src="${url}" alt="">` : `<span class="vis-icon">${icon}</span>`;
+        function sizePic(inch) {
+            const px = 18 + (inch - 4) * 4;
+            return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${SHAPE_PATHS[shape()]}"/></svg>`;
+        }
+        const layersPic = n => `<span class="vis-bars">${Array.from({ length: n }, (_, i) => `<i style="background:${LAYER_COLORS[i % LAYER_COLORS.length]}"></i>`).join('')}</span>`;
+
         function renderSummary(box) {
             const { before: b, final } = totals();
             const rows = [
-                ['المنتج', `S.N: ${product.id}`],
-                ['الشكل', state.card.name],
-                ['الحجم', `${state.size.inch} إنش (${state.size.people} أشخاص)`],
-                ...(shape() === 'cone' ? [] : [['الطبقات', `${state.layers} طبقات`]]),
-                ['النكهة', state.flavor?.name ?? '—'],
-                ['الحشوة', state.filling?.name ?? '—'],
-                ...(state.aiApproved && $('ai-note').value.trim() ? [['التعديل', $('ai-note').value.trim()]] : []),
+                ['المنتج', visual(`<img src="${product.image}" alt="">`, `S.N: ${product.id}`)],
+                ['الشكل', visual(`<img class="fit" src="${SHAPE_IMAGES}/${shape()}.webp" alt="">`, state.card.name)],
+                ['الحجم', visual(sizePic(state.size.inch), `${state.size.inch} إنش (${state.size.people} أشخاص)`)],
+                ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
+                ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
+                ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
+                ...(state.aiApproved && $('ai-note').value.trim() ? [['التعديل', esc($('ai-note').value.trim())]] : []),
             ];
-            box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}
+            box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
                 <div class="line"><dt>التصميم</dt><dd class="design"><img src="${state.aiApproved ? state.aiImage : product.image}" alt=""></dd></div>
                 ${final < b ? `<div class="line"><dt>قبل الخصم</dt><dd class="old">${b}</dd></div>` : ''}
                 <div class="line total"><dt>الإجمالي</dt><dd>${money(final)}</dd></div></dl>`;
