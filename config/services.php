@@ -33,6 +33,8 @@ return [
         'key' => env('OPENAI_API_KEY'),
         'image_model' => env('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
         'image_quality' => env('OPENAI_IMAGE_QUALITY', 'low'), // low = أسرع وأرخص، يكفي للمعاينة
+        // موديل المحادثة في الكعكة الخاصة (يرد على الزبون ويحوّل طلبه لتعديل على الصورة)
+        'chat_model' => env('OPENAI_CHAT_MODEL', 'gpt-5-mini'),
     ],
 
     'slack' => [

@@ -16,6 +16,13 @@ Route::get('/special-order', [SpecialOrderController::class, 'show'])->name('spe
 Route::post('/special-order/ai', [SpecialOrderController::class, 'generate'])
     ->middleware('throttle:5,1')
     ->name('special-order.ai');
+// المحادثة بعد أول صورة: الذكاء يرد ويسأل، والتعديل يكون على آخر صورة طلعت
+Route::post('/special-order/ai/chat', [SpecialOrderController::class, 'chat'])
+    ->middleware('throttle:20,1')
+    ->name('special-order.ai.chat');
+Route::post('/special-order/ai/edit', [SpecialOrderController::class, 'edit'])
+    ->middleware('throttle:5,1')
+    ->name('special-order.ai.edit');
 Route::get('/special-order/ai/{job}', [SpecialOrderController::class, 'status'])
     ->middleware('throttle:60,1')
     ->name('special-order.ai.status');
