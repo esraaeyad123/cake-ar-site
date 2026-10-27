@@ -217,6 +217,15 @@
         .summary dt { color: var(--muted); font-weight: 700; }
         .summary dd { margin: 0; font-weight: 800; text-align: left; }
         .summary .total dd { font-size: 17px; color: var(--pink); }
+        .summary .line { align-items: center; }
+        .summary .vis { display: inline-flex; align-items: center; gap: 10px; }
+        .summary .vis-pic { width: 44px; height: 44px; border-radius: 10px; background: #FAF3F5; display: inline-flex; align-items: center; justify-content: center; color: var(--pink); flex-shrink: 0; overflow: hidden; font-size: 20px; }
+        .summary .vis-pic img { width: 100%; height: 100%; object-fit: cover; }
+        .summary .vis-pic img.fit { object-fit: contain; }
+        .summary .vis-pic svg { max-width: 34px; max-height: 34px; }
+        .summary .vis-icon { font-size: 22px; }
+        .summary .vis-bars { display: flex; flex-direction: column-reverse; gap: 2px; width: 26px; }
+        .summary .vis-bars i { display: block; height: 6px; border-radius: 2px; }
         .summary-images { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 0 12px; }
         .summary-images img { width: 76px; height: 76px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); }
         .summary-images figure { margin: 0; text-align: center; font-size: 10px; font-weight: 700; color: var(--pink-dark); }
@@ -1030,22 +1039,28 @@
         function escapeHtml(text) {
             return text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
+        // الملخص بدلائل بصرية: صورة الشكل، رسمة المقاس والطبقات، صورة النكهة والحشوة
+        const visual = (pic, text) => `<span class="vis"><span class="vis-pic">${pic}</span><span>${escapeHtml(String(text))}</span></span>`;
+        const imgPic = (url, icon) => url ? `<img src="${url}" alt="">` : `<span class="vis-icon">${icon}</span>`;
+        const layersPic = n => `<span class="vis-bars">${Array.from({ length: n }, (_, i) => `<i style="background:${LAYER_COLORS[i % LAYER_COLORS.length]}"></i>`).join('')}</span>`;
+        const TIER_ICON = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 20h16v-5H4zM6.5 15v-4h11v4M9 11V8h6v3M12 8V5.5"/></svg>';
+
         function renderSummary(box) {
             const rows = [
-                ['الشكل', state.card.name],
-                ['الأدوار', TIER_LABELS[state.card.tiers]],
-                ['الحجم', `${sizeLabel(state.size)} (${people(state.size) || '—'} أشخاص)`],
-                ...(shape() === 'cone' ? [] : [['الطبقات', `${state.layers} طبقات`]]),
-                ['النكهة', state.flavor?.name || '—'],
-                ['الحشوة', state.filling?.name || '—'],
-                ['الوصف', $('ai-note').value.trim() || (state.voice ? 'وصف صوتي' : '—')],
-                ['تاريخ الاستلام', $('delivery-date').value || '—'],
+                ['الشكل', visual(`<img class="fit" src="${SHAPE_IMAGES}/${state.card.key}.webp" alt="">`, state.card.name)],
+                ['الأدوار', visual(TIER_ICON, TIER_LABELS[state.card.tiers])],
+                ['الحجم', visual(sizePicture(state.size), `${sizeLabel(state.size)} (${people(state.size) || '—'} أشخاص)`)],
+                ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
+                ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
+                ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
+                ['الوصف', escapeHtml($('ai-note').value.trim() || (state.voice ? 'وصف صوتي' : '—'))],
+                ['تاريخ الاستلام', visual('📅', $('delivery-date').value || '—')],
             ];
             const images = [];
             if (state.aiImage && state.aiApproved) images.push(`<figure><img src="${state.aiImage}" alt=""><div>تصميم الذكاء الاصطناعي</div></figure>`);
             refFiles.forEach(f => images.push(`<figure><img src="${URL.createObjectURL(f)}" alt=""><div>صورة مرفقة</div></figure>`));
             const price = total();
-            box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join('')}
+            box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
                 ${state.voice ? `<div class="line"><dt>وصف صوتي</dt><dd><audio controls src="${state.voice}" style="height:30px;max-width:180px"></audio></dd></div>` : ''}
                 <div class="line total"><dt>السعر المبدئي</dt><dd>${price === undefined ? '—' : money(price)}</dd></div></dl>
                 ${images.length ? `<div class="summary-images">${images.join('')}</div>` : ''}`;
