@@ -220,6 +220,8 @@ class SpecialOrderController extends Controller
         $data = $request->validate($this->specRules() + [
             'image' => ['required', 'string', 'regex:/^[A-Za-z0-9-]+-special\.png$/'],
             'instruction' => ['required', 'string', 'max:1000'],
+            'previous' => ['nullable', 'array', 'max:12'],
+            'previous.*' => ['string', 'max:1000'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ]);
         $this->validateSpecialShape($request, $data);
@@ -329,12 +331,28 @@ class SpecialOrderController extends Controller
         $f = $this->fixedSpecs($data);
 
         return "HARD RULE (most important): the cake must stay {$f['outline']}, with {$f['tiers']}, {$f['not']}. "
-            .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these changes: '.$data['instruction'].' '
+            .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
+            .$this->keepText($data['previous'] ?? [])
             .'Keep everything else exactly the same: the same cake shape, size and proportions, the same number of tiers and layers, '
             .'the same square board with the JOMACAKE label, the same camera angle, lighting and background. '
             .$f['height']
             .'A realistic professional bakery photo of ONE cake. No people, no hands. '
             ."Remember: {$f['outline']}, {$f['tiers']}.";
+    }
+
+    /**
+     * التعديلات السابقة اللي طلعت منها الصورة الحالية، وقاعدة إن أي شي ما انطلب ما يتغير
+     */
+    private function keepText(array $previous): string
+    {
+        $previous = array_values(array_filter(array_map('trim', $previous)));
+        $list = $previous
+            ? 'This image already includes these earlier customer changes, and ALL of them must stay exactly as they are now: '
+                .implode(' ', array_map(fn ($p, $i) => ($i + 1).') '.$p, $previous, array_keys($previous))).' '
+            : '';
+
+        return $list.'Do not add, remove or move anything that is not mentioned in the new changes: keep the exact NUMBER, position, '
+            .'colour, size and facing direction of every element (for example the number of balloons and which way each figure faces). ';
     }
 
     private function chatKey(): string

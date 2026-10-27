@@ -434,7 +434,7 @@ class SpecialOrderTest extends TestCase
             $parts = collect($request->data());
             $prompt = $parts->firstWhere('name', 'prompt')['contents'] ?? '';
 
-            return str_contains($prompt, 'Apply ONLY these changes: Write "Happy Birthday" in gold.')
+            return str_contains($prompt, 'Apply ONLY these new changes: Write "Happy Birthday" in gold.')
                 && str_contains($prompt, 'HARD RULE')
                 && str_contains($prompt, 'HEART-shaped')
                 && $parts->where('name', 'image[]')->count() === 1;

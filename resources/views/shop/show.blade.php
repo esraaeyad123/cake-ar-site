@@ -252,16 +252,18 @@
             .visual .spec-bar .spec { font-size: 16px; gap: 8px; }
             .visual .spec-bar .spec svg { width: 28px; height: 28px; }
             .visual .ar-btn { font-size: 14px; padding: 10px 16px; }
-            .visual .price-line { padding: 14px 16px 0; }
             .visual .ar-btn svg { width: 22px; height: 22px; }
             .product-head { padding-bottom: 22px; }
             .steps main, .steps .product-head { max-width: none; padding-left: 0; padding-right: 0; }
             .steps .tabs { border-radius: 14px; border: 1px solid #F3E3E9; overflow: hidden; }
             .product-head h1 { font-size: 26px; }
+            .product-head .sn { font-size: 16px; margin-top: 8px; }
+            .price-line .amount { font-size: 28px; }
         }
         .ar-btn { font-size: 12px; padding: 8px 12px; }
         /* السعر تحت الصورة، و"شاهد على طاولتك" على الصورة تحت يسار */
-        .price-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px 0; }
+        .price-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 0; }
+        .product-head .sn { margin-top: 4px; }
         .price-line .amount { font-size: 24px; font-weight: 800; white-space: nowrap; }
         .price-line .old { font-size: 14px; color: var(--muted); text-decoration: line-through; font-weight: 700; }
         .price-line .off { background: var(--pink); color: #fff; border-radius: 8px; padding: 2px 8px; font-size: 12px; font-weight: 800; }
@@ -346,13 +348,6 @@
         </button>
     </div>
 
-    {{-- السعر تحت الصورة مثل صفحة جوماكيك --}}
-    <div class="price-line">
-        <span class="amount" id="price-amount">—</span>
-        <span class="old" id="old-price"></span>
-        <span class="off" id="price-off" hidden></span>
-        <span class="tax">(شامل الضريبة)</span>
-    </div>
 
     <div class="spec-bar">
         <div class="specs">
@@ -368,6 +363,15 @@
     <div class="product-head">
         @if ($product['name'])<h1>{{ $product['name'] }}</h1>@endif
         <div class="sn">الرقم التسلسلي: <b>{{ $product['id'] }}</b></div>
+        {{-- المقاس والسعر في جهة الطلب مثل صفحة جوماكيك --}}
+        <div class="sn">المقاس: <b id="size-label"></b></div>
+        <div class="sn">السعر:</div>
+        <div class="price-line">
+            <span class="amount" id="price-amount">—</span>
+            <span class="old" id="old-price"></span>
+            <span class="off" id="price-off" hidden></span>
+            <span class="tax">(شامل الضريبة)</span>
+        </div>
     </div>
 
     <div class="tabs" id="tabs">
@@ -649,6 +653,7 @@
             $('price-off').textContent = offLabel(state.size.discount);
             $('spec-layers').textContent = shape() === 'cone' ? '—' : `${state.layers} طبقة`;
             $('spec-size').textContent = `${state.size.inch} إنش`;
+            $('size-label').textContent = `${state.size.inch} إنش`;
             $('spec-people').textContent = `${state.size.people} أشخاص`;
         }
 
@@ -717,6 +722,8 @@
         // ===== الذكاء الاصطناعي: صورة المنتج + شكل المجسم + تعديل الزبون =====
         let refFiles = [], aiAbort = null;
         const aiImages = [];
+        // كل صورة والتعديلات اللي طلعت منها (الوصف الأول + طلبات المحادثة)، ترسل مع التعديل الجاي حتى ما تضيع
+        const imageEdits = {};
         const canGenerate = () => state.aiRemaining === null || state.aiRemaining > 0;
         function aiMessage(text, type = 'info') { $('ai-message').textContent = text; $('ai-message').className = 'message ' + type; }
         function renderRemaining() {
@@ -877,6 +884,7 @@
                     throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
                 }
                 aiImages.push(data.image);
+                imageEdits[data.image] = [$('ai-note').value.trim()].filter(Boolean);
                 showAiImage(data.image);
                 $('ai-generate').textContent = '✨ جربي مرة ثانية';
                 aiMessage('هذي كيكتك بالشكل والمقاس اللي اخترتيها. عجبتك؟');
@@ -913,6 +921,7 @@
         const specs = () => ({ shape: shape(), size: state.size.id, layers: state.layers });
 
         async function editImage(instruction) {
+            const base = state.aiImage;
             const abort = aiAbort = new AbortController();
             const started = Date.now();
             const tick = () => { $('ai-wait-time').textContent = `${Math.round((Date.now() - started) / 1000)} ثانية`; };
@@ -926,7 +935,7 @@
                     const res = await fetch(editUrl, {
                         method: 'POST',
                         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                        body: JSON.stringify({ ...specs(), image: state.aiImage.split('/').pop(), instruction, job }),
+                        body: JSON.stringify({ ...specs(), image: base.split('/').pop(), instruction, previous: imageEdits[base] || [], job }),
                         signal: abort.signal,
                     });
                     data = await res.json();
@@ -938,6 +947,7 @@
                 if (data.remaining !== undefined) state.aiRemaining = data.remaining;
                 if (!ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || 'ما طلع التعديل، جربي مرة ثانية.');
                 aiImages.push(data.image);
+                imageEdits[data.image] = [...(imageEdits[base] || []), instruction].slice(-12);
                 showAiImage(data.image);
                 bubble('assistant', 'هذي كيكتك بعد التعديل 👇 تقدرين تعتمدينها أو تطلبين تعديل ثاني.', data.image);
             } catch (e) {

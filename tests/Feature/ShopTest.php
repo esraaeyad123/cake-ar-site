@@ -194,12 +194,16 @@ class ShopTest extends TestCase
         $first = $this->postJson('/products/1305/ai', $specs + ['job' => 'job-first123'])->assertOk();
         $this->postJson('/products/1305/ai/edit', $specs + [
             'image' => basename($first->json('image')), 'instruction' => 'Make the writing gold.', 'job' => 'job-edit1234',
+            'previous' => ['Replace the giraffe with an elephant.', 'Use 6 balloons.'],
         ])->assertOk()->assertJsonPath('remaining', 3);
 
         Http::assertSent(function ($r) {
             $prompt = collect($r->data())->firstWhere('name', 'prompt')['contents'] ?? '';
 
-            return str_contains($prompt, 'Apply ONLY these changes: Make the writing gold.') && str_contains($prompt, 'FIVE-POINTED STAR');
+            // التعديلات اللي قبل تبقى، وما يتغير عدد أو اتجاه شي ما انطلب
+            return str_contains($prompt, 'Apply ONLY these new changes: Make the writing gold.') && str_contains($prompt, 'FIVE-POINTED STAR')
+                && str_contains($prompt, '1) Replace the giraffe with an elephant. 2) Use 6 balloons.')
+                && str_contains($prompt, 'exact NUMBER');
         });
 
         // صورة مو من نفس الزائر ما تنعدّل

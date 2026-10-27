@@ -725,6 +725,8 @@
 
         // كل الصور اللي طلعت، والمعروضة الحين
         const aiImages = [];
+        // كل صورة والتعديلات اللي طلعت منها (الوصف الأول + طلبات المحادثة)، ترسل مع التعديل الجاي حتى ما تضيع
+        const imageEdits = {};
         function showAiImage(url) {
             state.aiImage = url;
             state.aiApproved = false;
@@ -858,6 +860,7 @@
                     throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
                 }
                 aiImages.push(data.image);
+                imageEdits[data.image] = [$('ai-note').value.trim()].filter(Boolean);
                 showAiImage(data.image);
                 $('ai-generate').textContent = '✨ ولّدي صورة ثانية';
                 showAiMessage('هذي كيكتك بالمواصفات اللي اخترتيها. عجبتك؟', 'info');
@@ -894,6 +897,7 @@
         const specs = () => ({ shape: shape(), size: state.size, layers: state.layers, style: STYLE });
 
         async function editImage(instruction) {
+            const base = state.aiImage;
             const abort = aiAbort = new AbortController();
             const started = Date.now();
             const tick = () => { $('ai-wait-time').textContent = `${Math.round((Date.now() - started) / 1000)} ثانية`; };
@@ -907,7 +911,7 @@
                     const res = await fetch(editUrl, {
                         method: 'POST',
                         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                        body: JSON.stringify({ ...specs(), image: state.aiImage.split('/').pop(), instruction, job }),
+                        body: JSON.stringify({ ...specs(), image: base.split('/').pop(), instruction, previous: imageEdits[base] || [], job }),
                         signal: abort.signal,
                     });
                     data = await res.json();
@@ -919,6 +923,7 @@
                 if (data.remaining !== undefined) state.aiRemaining = data.remaining;
                 if (!ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || 'ما طلع التعديل، جربي مرة ثانية.');
                 aiImages.push(data.image);
+                imageEdits[data.image] = [...(imageEdits[base] || []), instruction].slice(-12);
                 showAiImage(data.image);
                 bubble('assistant', 'هذي كيكتك بعد التعديل 👇 تقدرين تعتمدينها أو تطلبين تعديل ثاني.', data.image);
             } catch (e) {

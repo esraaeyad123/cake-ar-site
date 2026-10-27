@@ -165,6 +165,8 @@ class ShopAiController extends Controller
         [$product, $size, $data] = $this->specs($request, $id, $shop, [
             'image' => ['required', 'string', 'regex:/^[A-Za-z0-9-]+-product-\d+\.png$/'],
             'instruction' => ['required', 'string', 'max:1000'],
+            'previous' => ['nullable', 'array', 'max:12'],
+            'previous.*' => ['string', 'max:1000'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ]);
 
@@ -193,7 +195,8 @@ class ShopAiController extends Controller
                 ->post('https://api.openai.com/v1/images/edits', [
                     'model' => config('services.openai.image_model'),
                     'prompt' => "HARD RULE (most important): the cake must stay {$outline}, with exactly ONE tier, {$notShapes}. "
-                        .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these changes: '.$data['instruction'].' '
+                        .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
+                        .$this->keepText($data['previous'] ?? [])
                         .'Keep everything else exactly the same: the same cake shape, size and proportions, the same layers, '
                         .'the same square board with the JOMACAKE label, the same camera angle, lighting and background. '
                         ."Real size: {$size['inch']} inches wide. A realistic professional bakery photo of ONE cake. No people, no hands. "
@@ -244,6 +247,21 @@ class ShopAiController extends Controller
         abort_unless($size, 422, 'المقاس غير متاح لهذا المنتج.');
 
         return [$product, $size, $data];
+    }
+
+    /**
+     * التعديلات السابقة اللي طلعت منها الصورة الحالية، وقاعدة إن أي شي ما انطلب ما يتغير
+     */
+    private function keepText(array $previous): string
+    {
+        $previous = array_values(array_filter(array_map('trim', $previous)));
+        $list = $previous
+            ? 'This image already includes these earlier customer changes, and ALL of them must stay exactly as they are now: '
+                .implode(' ', array_map(fn ($p, $i) => ($i + 1).') '.$p, $previous, array_keys($previous))).' '
+            : '';
+
+        return $list.'Do not add, remove or move anything that is not mentioned in the new changes: keep the exact NUMBER, position, '
+            .'colour, size and facing direction of every element (for example the number of balloons and which way each figure faces). ';
     }
 
     private function chatKey(): string
