@@ -39,6 +39,14 @@ Route::post('/products/{id}/ai', [\App\Http\Controllers\ShopAiController::class,
     ->whereNumber('id')
     ->middleware('throttle:5,1')
     ->name('shop.ai');
+Route::post('/products/{id}/ai/chat', [\App\Http\Controllers\ShopAiController::class, 'chat'])
+    ->whereNumber('id')
+    ->middleware('throttle:20,1')
+    ->name('shop.ai.chat');
+Route::post('/products/{id}/ai/edit', [\App\Http\Controllers\ShopAiController::class, 'edit'])
+    ->whereNumber('id')
+    ->middleware('throttle:5,1')
+    ->name('shop.ai.edit');
 Route::get('/products/ai/{job}', [\App\Http\Controllers\ShopAiController::class, 'status'])
     ->middleware('throttle:60,1')
     ->name('shop.ai.status');

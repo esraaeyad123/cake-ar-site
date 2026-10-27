@@ -78,8 +78,10 @@ class ShopTest extends TestCase
         $this->get('/products/1305')
             ->assertOk()
             ->assertSee('>الطلب<', false)
-            ->assertSee('شاهد على<br>طاولتك', false)
-            ->assertSeeInOrder(['الشكل', 'الحجم', 'النكهة', 'الكتابة', 'الطلب'])
+            ->assertSee('شاهد على طاولتك')
+            ->assertDontSee('اكتب على الكعكة')
+            ->assertDontSee('شوفيها 3D')
+            ->assertSeeInOrder(['data-tab="0"', 'الشكل', 'data-tab="1"', 'الحجم', 'data-tab="2"', 'التعديل', 'data-tab="3"', 'النكهة', 'data-tab="4"', 'الطلب'], false)
             ->assertSee('S.N: 1305')
             // المقاسات بترتيب الموقع، وسعر الطبقة الزيادة
             ->assertSee('"sizes":[{"id":4,"inch":"6","people":"4-6","price":155,"min_layers":2,"max_layers":3,"layer_price":20,"discount":{"type":"percent","amount":25}}', false)
@@ -166,4 +168,44 @@ class ShopTest extends TestCase
         $this->postJson('/products/1305/ai', ['shape' => 'round', 'size' => 9, 'layers' => 2, 'job' => 'job-bbbbbbbb'])->assertOk();
         $this->postJson('/products/1305/ai', ['shape' => 'round', 'note' => 'أزرق', 'size' => 9, 'layers' => 2, 'job' => 'job-cccccccc'])->assertStatus(429);
     }
+
+    public function test_product_chat_knows_the_fixed_specs_and_edit_keeps_the_shape(): void
+    {
+        Storage::fake('public');
+        config(['services.openai.key' => 'test-key', 'shop.ai_limit' => 5]);
+        $this->withoutMiddleware(ThrottleRequests::class);
+        $this->fakeShop();
+        Http::fake([
+            'https://jomacake.com/api/public/products/*' => Http::response('jpeg-bytes', 200, ['Content-Type' => 'image/jpeg']),
+            'https://api.openai.com/v1/chat/completions' => Http::response(['choices' => [['message' => ['content' => json_encode(
+                ['reply' => 'تمام، بخليها ذهبي', 'action' => 'edit', 'instruction' => 'Make the writing gold.'], JSON_UNESCAPED_UNICODE)]]]]),
+            'https://api.openai.com/v1/images/edits' => Http::response(['data' => [['b64_json' => base64_encode('png')]]]),
+        ]);
+        $specs = ['shape' => 'star', 'size' => 4, 'layers' => 2];
+
+        $this->postJson('/products/1305/ai/chat', $specs + ['messages' => [['role' => 'user', 'content' => 'خلي الكتابة ذهبي']]])
+            ->assertOk()
+            ->assertJsonPath('action', 'edit')
+            ->assertJsonPath('instruction', 'Make the writing gold.');
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'chat/completions')
+            && str_contains($r['messages'][0]['content'], 'FIVE-POINTED STAR')
+            && str_contains($r['messages'][0]['content'], '6 inches'));
+
+        $first = $this->postJson('/products/1305/ai', $specs + ['job' => 'job-first123'])->assertOk();
+        $this->postJson('/products/1305/ai/edit', $specs + [
+            'image' => basename($first->json('image')), 'instruction' => 'Make the writing gold.', 'job' => 'job-edit1234',
+        ])->assertOk()->assertJsonPath('remaining', 3);
+
+        Http::assertSent(function ($r) {
+            $prompt = collect($r->data())->firstWhere('name', 'prompt')['contents'] ?? '';
+
+            return str_contains($prompt, 'Apply ONLY these changes: Make the writing gold.') && str_contains($prompt, 'FIVE-POINTED STAR');
+        });
+
+        // صورة مو من نفس الزائر ما تنعدّل
+        $this->postJson('/products/1305/ai/edit', $specs + [
+            'image' => '20260101-000000-abcdef-product-1305.png', 'instruction' => 'x', 'job' => 'job-edit5678',
+        ])->assertStatus(422);
+    }
 }
+

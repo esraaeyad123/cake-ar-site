@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AiCakeChat;
 use App\Services\ShopProducts;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
@@ -112,8 +113,152 @@ class ShopAiController extends Controller
         Cache::increment($this->usedKey());
         $path = self::DIR.'/'.now()->format('Ymd-His').'-'.Str::random(6)."-product-{$product['id']}.png";
         Storage::disk('public')->put($path, base64_decode($image));
+        $this->rememberImage($path);
 
         return $this->finish($request, $job, 200, ['image' => asset('storage/'.$path)]);
+    }
+
+    /**
+     * المحادثة بعد أول صورة (نفس الكعكة الخاصة): يرد ويسأل، أو يحوّل الطلب لتعديل
+     */
+    public function chat(Request $request, int $id, ShopProducts $shop)
+    {
+        [$product, $size, $data] = $this->specs($request, $id, $shop, [
+            'messages' => ['required', 'array', 'min:1', 'max:20'],
+            'messages.*.role' => ['required', 'in:user,assistant'],
+            'messages.*.content' => ['required', 'string', 'max:500'],
+        ]);
+
+        if (blank(config('services.openai.key'))) {
+            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+        }
+
+        $limit = (int) config('shop.chat_limit');
+        if ($limit > 0 && (int) Cache::get($this->chatKey(), 0) >= $limit) {
+            return response()->json(['message' => "وصلتِ لحد الرسائل ({$limit}). كمّلي الطلب بالتصميم اللي اخترتيه."], 429);
+        }
+
+        [$outline] = self::OUTLINES[$data['shape']];
+        try {
+            $answer = app(AiCakeChat::class)->reply(
+                "shape {$outline}; exactly ONE tier; size {$size['inch']} inches; {$data['layers']} sponge layers; a square JOMACAKE board with its logo label. The design comes from a JOMACAKE shop product.",
+                $data['messages'],
+            );
+        } catch (ConnectionException) {
+            return response()->json(['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.'], 422);
+        }
+
+        if (! $answer) {
+            return response()->json(['message' => 'ما قدر الذكاء الاصطناعي يرد الحين. جربي مرة ثانية.'], 422);
+        }
+
+        Cache::increment($this->chatKey());
+
+        return response()->json($answer);
+    }
+
+    /**
+     * تعديل على صورة طلعت قبل لنفس الزائر، مع الالتزام بالشكل والمقاس
+     */
+    public function edit(Request $request, int $id, ShopProducts $shop)
+    {
+        [$product, $size, $data] = $this->specs($request, $id, $shop, [
+            'image' => ['required', 'string', 'regex:/^[A-Za-z0-9-]+-product-\d+\.png$/'],
+            'instruction' => ['required', 'string', 'max:1000'],
+            'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
+        ]);
+
+        $path = self::DIR.'/'.$data['image'];
+        if (! in_array($path, Cache::get($this->imagesKey(), []), true) || ! Storage::disk('public')->exists($path)) {
+            return response()->json(['message' => 'الصورة مو موجودة. ولّدي صورة جديدة.'], 422);
+        }
+
+        if ($this->remaining() === 0) {
+            return response()->json(['message' => 'استخدمتِ كل محاولات التوليد ('.config('shop.ai_limit').').', 'remaining' => 0], 429);
+        }
+
+        if (blank(config('services.openai.key'))) {
+            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+        }
+
+        $job = $data['job'];
+        Cache::put($this->jobKey($job), ['status' => 'working', 'owner' => $this->visitor()], now()->addMinutes(15));
+        ignore_user_abort(true);
+        set_time_limit(330);
+
+        [$outline, $notShapes] = self::OUTLINES[$data['shape']];
+        try {
+            $response = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300)
+                ->attach('image[]', Storage::disk('public')->get($path), 'current.png', ['Content-Type' => 'image/png'])
+                ->post('https://api.openai.com/v1/images/edits', [
+                    'model' => config('services.openai.image_model'),
+                    'prompt' => "HARD RULE (most important): the cake must stay {$outline}, with exactly ONE tier, {$notShapes}. "
+                        .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these changes: '.$data['instruction'].' '
+                        .'Keep everything else exactly the same: the same cake shape, size and proportions, the same layers, '
+                        .'the same square board with the JOMACAKE label, the same camera angle, lighting and background. '
+                        ."Real size: {$size['inch']} inches wide. A realistic professional bakery photo of ONE cake. No people, no hands. "
+                        ."Remember: {$outline}.",
+                    'size' => '1024x1024',
+                    'quality' => config('shop.image_quality') ?: config('services.openai.image_quality'),
+                    'n' => 1,
+                ]);
+        } catch (ConnectionException) {
+            return $this->finish($request, $job, 422, ['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.']);
+        }
+
+        if ($response->failed() || ! ($image = $response->json('data.0.b64_json'))) {
+            $code = $response->json('error.code');
+            $message = (string) $response->json('error.message');
+            Log::warning('shop AI edit failed', ['product' => $product['id'], 'code' => $code, 'message' => $message]);
+
+            return $this->finish($request, $job, 422, ['message' => $code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
+                ? 'الذكاء الاصطناعي رفض هذا التعديل، غالبًا بسبب شخصية مشهورة محمية بحقوق. جربي تعديل ثاني.'
+                : 'ما طلع التعديل. جربي مرة ثانية.']);
+        }
+
+        Cache::increment($this->usedKey());
+        $newPath = self::DIR.'/'.now()->format('Ymd-His').'-'.Str::random(6)."-product-{$product['id']}.png";
+        Storage::disk('public')->put($newPath, base64_decode($image));
+        $this->rememberImage($newPath);
+
+        return $this->finish($request, $job, 200, ['image' => asset('storage/'.$newPath)]);
+    }
+
+    /**
+     * المنتج والمقاس والمواصفات المختارة (الشكل، المقاس، الطبقات) + حقول الطلب
+     */
+    private function specs(Request $request, int $id, ShopProducts $shop, array $rules): array
+    {
+        $product = $shop->find($id);
+        abort_unless($product, 404);
+
+        $data = $request->validate([
+            'shape' => ['required', 'in:'.implode(',', array_keys(self::OUTLINES))],
+            'size' => ['required', 'integer'],
+            'layers' => ['required', 'integer', 'between:1,4'],
+        ] + $rules, [
+            'messages.*.content.max' => 'الرسالة طويلة، الحد 500 حرف.',
+        ]);
+
+        $size = collect($product['sizes'])->firstWhere('id', (int) $data['size']);
+        abort_unless($size, 422, 'المقاس غير متاح لهذا المنتج.');
+
+        return [$product, $size, $data];
+    }
+
+    private function chatKey(): string
+    {
+        return 'shop.ai_chat.'.$this->visitor();
+    }
+
+    private function imagesKey(): string
+    {
+        return 'shop.ai_images.'.$this->visitor();
+    }
+
+    private function rememberImage(string $path): void
+    {
+        Cache::put($this->imagesKey(), [...array_slice(Cache::get($this->imagesKey(), []), -19), $path], now()->addHours(12));
     }
 
     public function status(string $job)

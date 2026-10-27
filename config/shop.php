@@ -21,4 +21,6 @@ return [
     // (المدير: الكعكة الخاصة أعلى جودة، ومنتجات جوماكيك متوسط)
     'ai_limit' => (int) env('SHOP_AI_LIMIT', 5),
     'image_quality' => env('SHOP_IMAGE_QUALITY', 'medium'),
+    // رسائل المحادثة مع الذكاء الاصطناعي لكل زائر (0 = بدون حد)
+    'chat_limit' => (int) env('SHOP_CHAT_LIMIT', 30),
 ];
