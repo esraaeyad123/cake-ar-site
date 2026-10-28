@@ -291,7 +291,9 @@
         .summary .design img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); }
         .summary .old { color: var(--muted); text-decoration: line-through; }
         .summary .line { align-items: center; }
-        .summary .vis { display: inline-flex; align-items: center; gap: 10px; }
+        /* الأيقونات عمود واحد على اليسار، والكلام على يمينها */
+        .summary .vis { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        .summary .line dd:has(.vis) { flex: 1; }
         .summary .vis-pic { width: 44px; height: 44px; border-radius: 10px; background: #FAF3F5; display: inline-flex; align-items: center; justify-content: center; color: var(--pink); flex-shrink: 0; overflow: hidden; }
         .summary .vis-pic img { width: 100%; height: 100%; object-fit: cover; }
         .summary .vis-pic img.fit { object-fit: contain; }
@@ -1025,7 +1027,7 @@
         // ===== الطلب =====
         // الملخص بدلائل بصرية: صورة الشكل، رسمة المقاس والطبقات، صورة النكهة والحشوة
         function visual(pic, text) {
-            return `<span class="vis"><span class="vis-pic">${pic}</span><span>${esc(text)}</span></span>`;
+            return `<span class="vis"><span>${esc(text)}</span><span class="vis-pic">${pic}</span></span>`;
         }
         const imgPic = (url, icon) => url ? `<img src="${url}" alt="">` : `<span class="vis-icon">${icon}</span>`;
         function sizePic(inch) {
@@ -1039,7 +1041,7 @@
             const rows = [
                 ['المنتج', visual(`<img src="${product.image}" alt="">`, `S.N: ${product.id}`)],
                 ['الشكل', visual(`<img class="fit" src="${SHAPE_IMAGES}/${shape()}.webp" alt="">`, state.card.name)],
-                ['الحجم', visual(sizePic(state.size.inch), `${state.size.inch} إنش (${state.size.people} أشخاص)`)],
+                ['الحجم', visual(sizePic(state.size.inch), `${state.size.inch} إنش`)],
                 ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
                 ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
                 ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
