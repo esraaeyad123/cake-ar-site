@@ -218,7 +218,9 @@
         .summary dd { margin: 0; font-weight: 800; text-align: left; }
         .summary .total dd { font-size: 17px; color: var(--pink); }
         .summary .line { align-items: center; }
-        .summary .vis { display: inline-flex; align-items: center; gap: 10px; }
+        /* الأيقونات عمود واحد على اليسار، والكلام على يمينها */
+        .summary .vis { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        .summary .line dd:has(.vis) { flex: 1; }
         .summary .vis-pic { width: 44px; height: 44px; border-radius: 10px; background: #FAF3F5; display: inline-flex; align-items: center; justify-content: center; color: var(--pink); flex-shrink: 0; overflow: hidden; font-size: 20px; }
         .summary .vis-pic img { width: 100%; height: 100%; object-fit: cover; }
         .summary .vis-pic img.fit { object-fit: contain; }
@@ -1040,7 +1042,7 @@
             return text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
         // الملخص بدلائل بصرية: صورة الشكل، رسمة المقاس والطبقات، صورة النكهة والحشوة
-        const visual = (pic, text) => `<span class="vis"><span class="vis-pic">${pic}</span><span>${escapeHtml(String(text))}</span></span>`;
+        const visual = (pic, text) => `<span class="vis"><span>${escapeHtml(String(text))}</span><span class="vis-pic">${pic}</span></span>`;
         const imgPic = (url, icon) => url ? `<img src="${url}" alt="">` : `<span class="vis-icon">${icon}</span>`;
         const layersPic = n => `<span class="vis-bars">${Array.from({ length: n }, (_, i) => `<i style="background:${LAYER_COLORS[i % LAYER_COLORS.length]}"></i>`).join('')}</span>`;
         const TIER_ICON = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 20h16v-5H4zM6.5 15v-4h11v4M9 11V8h6v3M12 8V5.5"/></svg>';
@@ -1049,7 +1051,7 @@
             const rows = [
                 ['الشكل', visual(`<img class="fit" src="${SHAPE_IMAGES}/${state.card.key}.webp" alt="">`, state.card.name)],
                 ['الأدوار', visual(TIER_ICON, TIER_LABELS[state.card.tiers])],
-                ['الحجم', visual(sizePicture(state.size), `${sizeLabel(state.size)} (${people(state.size) || '—'} أشخاص)`)],
+                ['الحجم', visual(sizePicture(state.size), sizeLabel(state.size))],
                 ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
                 ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
                 ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
