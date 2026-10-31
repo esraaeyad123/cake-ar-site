@@ -199,13 +199,27 @@
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
         .chat-input textarea { min-height: 46px; height: 46px; flex: 1; }
         .chat-input .btn { width: auto; margin: 0; padding: 12px 18px; flex-shrink: 0; }
-        .voice { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-        .voice button {
-            border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); border-radius: 20px;
-            padding: 8px 14px; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap;
-        }
-        .voice button.recording { background: #B3261E; border-color: #B3261E; color: #fff; }
-        .voice audio { height: 34px; flex: 1; min-width: 0; }
+        /* إرفاق صور للتوضيح أثناء المحادثة */
+        .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .chat-attach svg { width: 22px; height: 22px; }
+        .chat-attach input { display: none; }
+        #chat-thumbs { margin: 0 0 8px; }
+        #chat-thumbs .t { position: relative; }
+        #chat-thumbs img { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); display: block; }
+        #chat-thumbs button { position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--ink); color: #fff; font-size: 12px; line-height: 20px; padding: 0; cursor: pointer; }
+        .bubble .refs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+        .bubble .refs img { width: 56px; height: 56px; border-radius: 8px; margin: 0; border: 1px solid rgba(255,255,255,.6); cursor: default; }
+        /* فوق: مشبك الإرفاق والصورة المولّدة مكان المجسم، و"شاهد على طاولتك" على الصورة */
+        .top-view { position: absolute; inset: 0; z-index: 2; background: #fff; border: none; width: 100%; }
+        .top-view[hidden] { display: none; }
+        .attach-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer; color: #444; font-family: inherit; font-size: 18px; font-weight: 800; }
+        .attach-view svg { width: 30%; max-width: 120px; height: auto; transform: rotate(-35deg); }
+        .gen-view img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .viewer-wrap .price-card { z-index: 3; }
+        .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+        .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
+        .spec-bar .spec { font-size: 13px; gap: 6px; }
+        .spec-bar .spec svg { width: 22px; height: 22px; }
 
         .nav-buttons { display: flex; gap: 8px; margin-top: 22px; }
         .nav-buttons .btn { margin-top: 0; }
@@ -258,7 +272,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>
         </a>
     </header>
-    <div class="sample-tag">عينة تجريبية — الطلب ما يُرسل لموقع جوماكيك</div>
+    <div class="sample-tag">يمكنك إرسال تصميم الكعكة للمراجعة وتحديد السعر لاحقًا. لا يتم إنشاء طلب شراء أو خصم مبلغ في هذه المرحلة.</div>
 
     <div class="viewer-wrap">
         <model-viewer
@@ -286,6 +300,16 @@
             <div class="amount" id="price-amount">—</div>
             <div class="caption">السعر المبدئي</div>
         </div>
+        {{-- في الشكل والحجم: المجسم 3D. من خطوة الوصف: مشبك لإرفاق الصورة، وبعد التوليد الصورة المولّدة مكانه --}}
+        <button type="button" class="top-view attach-view" id="attach-view" hidden>
+            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M44 22 26.5 39.5a5 5 0 0 1-7-7L38 14a9 9 0 0 1 12.7 12.7L31 46.4a13 13 0 0 1-18.4-18.4L30 10.6"/></svg>
+            <span id="attach-text">ارفق الصورة المطلوبة</span>
+        </button>
+        <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="الكيكة المولّدة"></div>
+        <button type="button" class="ar-btn ar-float" id="ar-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
+            شاهد على طاولتك
+        </button>
     </div>
 
     <div class="spec-bar">
@@ -295,10 +319,6 @@
             <div class="spec"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="3.2"/><circle cx="5.5" cy="9" r="2.4"/><circle cx="18.5" cy="9" r="2.4"/><path d="M6.5 19c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5zM1.5 18c0-2.4 1.6-4 4-4 .8 0 1.5.2 2.1.5A7 7 0 0 0 5.4 18zM22.5 18c0-2.4-1.6-4-4-4-.8 0-1.5.2-2.1.5a7 7 0 0 1 2.2 3.5z"/></svg><span id="spec-people"></span></div>
             <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 20h16v-5H4zM6.5 15v-4h11v4M9 11V8h6v3M12 8V5.5"/><path d="M12 3.5c.8.6.8 1.4 0 2-.8-.6-.8-1.4 0-2z" fill="currentColor"/></svg><span id="spec-tiers"></span></div>
         </div>
-        <button type="button" class="ar-btn" id="ar-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
-            AR
-        </button>
     </div>
 
     </div>
@@ -311,11 +331,11 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="9.5" cy="10" rx="6.5" ry="2.3"/><path d="M3 10v6.5c0 1.3 2.9 2.3 6.5 2.3s6.5-1 6.5-2.3V10M3 4.5h13M3 3v3M16 3v3M20.5 9v9.5M19 9h3M19 18.5h3"/></svg>
             الحجم<br>والطبقات</button>
         <button type="button" class="tab" data-tab="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 4.5 3 3L9 16l-4 1 1-4z"/><path d="m13 6 3 3M3 21h9"/></svg>
+            الوصف</button>
+        <button type="button" class="tab" data-tab="3">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 11.5 19 6.5l2 5v7H3z"/><path d="M3 11.5h18M3 15c2 1 3.5-1 5.5 0s3.5 1 5.5 0 3.5-1 7 0"/></svg>
             النكهة<br>والحشوة</button>
-        <button type="button" class="tab" data-tab="3">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 4.5 3 3L9 16l-4 1 1-4z"/><path d="m13 6 3 3M3 21h9"/></svg>
-            الكتابة<br>والوصف</button>
         <button type="button" class="tab" data-tab="4">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M3 9.5h15M7 3v4M14 3v4M6.5 12.5h1M10 12.5h1M13.5 12.5h1M6.5 15.5h1M10 15.5h1"/><circle cx="18" cy="17.5" r="3.6" fill="#fff"/><path d="m16.4 17.6 1.1 1.1 2-2.2"/></svg>
             التاريخ<br>والتأكيد</button>
@@ -342,18 +362,9 @@
 
         {{-- 3) النكهة والحشوة --}}
         <section class="panel" data-panel="2">
-            <div class="section-title">النكهة <small>(لكل الكيكة)</small></div>
-            <div class="item-cards" id="flavor-cards"></div>
-
-            <div class="section-title">الحشوة <small>(لكل الكيكة)</small></div>
-            <div class="item-cards" id="filling-cards"></div>
-        </section>
-
-        {{-- 4) الكتابة والوصف --}}
-        <section class="panel" data-panel="3">
             <div class="ai-box">
                 <h3>✨ شوفي كيكتك قبل الطلب</h3>
-                <div class="hint" style="margin-top:0">ارفعي صور كيكة عاجبتك (لين 6 صور: مثلًا صورة للزينة وصورة للورد وصورة للكتابة)، والذكاء الاصطناعي يسوي لك صورتها بنفس المواصفات اللي اخترتيها (الشكل، الحجم، الأدوار، الطبقات).</div>
+                <div class="hint" style="margin-top:0">ارفقي صور كيكة عاجبتك من المشبك فوق (لين 6 صور). بعدها اضغطي "ولّدي الصورة"، أو اكتبي للذكاء الاصطناعي اللي تبينه (مثل الكتابة على الكيكة)، ويسوي صورتها بنفس الشكل والحجم والطبقات اللي اخترتيها.</div>
 
                 <div class="section-title">صور الكيكة <small>(لين 6)</small></div>
                 <label class="upload">
@@ -361,13 +372,6 @@
                     📷 اختاري صور
                 </label>
                 <div class="thumbs" id="ai-thumb"></div>
-
-                <div class="section-title">الوصف</div>
-                <textarea id="ai-note" maxlength="500" placeholder="مثال: كل عام وانتم بخير"></textarea>
-                <div class="voice">
-                    <button type="button" id="voice-btn">🎤 سجّلي وصف صوتي</button>
-                    <audio id="voice-audio" controls hidden></audio>
-                </div>
 
                 <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining !== 0 ? '' : 'disabled' }}>✨ ولّدي الصورة</button>
                 <div class="hint" id="ai-remaining"></div>
@@ -387,11 +391,16 @@
                     <div class="thumbs" id="ai-history-thumbs"></div>
                 </div>
 
-                <div class="ai-chat" id="ai-chat" hidden>
-                    <h4>💬 تبين تعديل؟ اكتبي للذكاء الاصطناعي</h4>
-                    <div class="hint" style="margin-top:0">يعدّل على الصورة اللي قدامك، ويلتزم بالشكل والحجم والطبقات اللي اخترتيها.</div>
+                <div class="ai-chat" id="ai-chat">
+                    <h4>💬 اكتبي للذكاء الاصطناعي</h4>
+                    <div class="hint" style="margin-top:0" id="chat-hint">أول رسالة تولّد الصورة (مثل: أبغاها مثل الصورة واكتبي كل عام وانتم بخير)، وبعدها كل رسالة تعدّل عليها. يلتزم بالشكل والحجم والطبقات اللي اخترتيها.</div>
                     <div class="chat-thread" id="chat-thread"></div>
+                    <div class="thumbs" id="chat-thumbs"></div>
                     <div class="chat-input">
+                        <label class="chat-attach" title="ارفقي صور للتوضيح" aria-label="ارفقي صور للتوضيح">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                            <input type="file" id="chat-files" accept="image/png,image/jpeg,image/webp" multiple>
+                        </label>
                         <textarea id="chat-input" maxlength="500" placeholder="مثال: خلي الورد أبيض وزيدي لمسة ذهبي"></textarea>
                         <button type="button" class="btn" id="chat-send">إرسال</button>
                     </div>
@@ -401,6 +410,15 @@
 
         </section>
 
+        <section class="panel" data-panel="3">
+            <div class="section-title">النكهة <small>(لكل الكيكة)</small></div>
+            <div class="item-cards" id="flavor-cards"></div>
+
+            <div class="section-title">الحشوة <small>(لكل الكيكة)</small></div>
+            <div class="item-cards" id="filling-cards"></div>
+        </section>
+
+        {{-- 4) الكتابة والوصف --}}
         {{-- 5) التاريخ والتأكيد --}}
         <section class="panel" data-panel="4">
             <div class="section-title">تاريخ الاستلام</div>
@@ -487,7 +505,7 @@
             card: SHAPE_CARDS[0], size: sizesByTier[1][0], layers: 2,
             flavor: options.flavors[0] || null, filling: options.fillings[0] || null,
             aiImage: null, aiApproved: false, aiRemaining: @json($aiRemaining), // null = بدون حد
-            voice: null, tab: 0,
+            tab: 0,
         };
         const shape = () => state.card.model;
         const special = () => SHAPES[shape()];
@@ -668,8 +686,19 @@
 
         // ===== التبويبات =====
         const tabs = [...document.querySelectorAll('.tab')];
+        // فوق حسب الخطوة: الشكل والحجم = المجسم، بعدها = الصورة المولّدة (أو المشبك إذا ما فيه صورة)
+        function updateTop() {
+            const after = state.tab >= 2;
+            $('gen-view').hidden = !(after && state.aiImage);
+            $('attach-view').hidden = !(after && !state.aiImage);
+            if (state.aiImage) $('gen-image').src = state.aiImage;
+            $('attach-text').textContent = refFiles.length ? `✓ ارفقتي ${refFiles.length} صور، اضغطي لإضافة المزيد` : 'ارفق الصورة المطلوبة';
+        }
+        $('attach-view').addEventListener('click', () => aiRef.click());
+
         function goTo(i, scroll = true) {
             state.tab = i;
+            updateTop();
             tabs.forEach((t, n) => { t.classList.toggle('active', n === i); t.classList.toggle('done', n < i); });
             document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', Number(p.dataset.panel) === i));
             $('prev').style.visibility = i === 0 ? 'hidden' : 'visible';
@@ -708,6 +737,7 @@
             $('ai-thumb').innerHTML = '';
             refFiles.forEach((f, i) => $('ai-thumb').appendChild(thumb(f, () => { refFiles.splice(i, 1); renderRef(); })));
             renderSummary($('summary')); // صور الكيكة تظهر في الملخص
+            updateTop();
         }
         aiRef.addEventListener('change', () => {
             const picked = [...aiRef.files], room = MAX_REFS - refFiles.length;
@@ -746,7 +776,7 @@
             $('ai-download').download = `jomacake-${aiImages.indexOf(url) + 1}.png`;
             $('ai-result').className = 'ai-result show';
             $('ai-history').hidden = aiImages.length < 2;
-            $('ai-chat').hidden = false;
+            updateTop();
             $('ai-history-thumbs').innerHTML = '';
             aiImages.forEach(u => {
                 const img = document.createElement('img');
@@ -824,8 +854,15 @@
         let aiAbort = null;
         $('ai-cancel').addEventListener('click', () => aiAbort?.abort());
 
-        $('ai-generate').addEventListener('click', async () => {
-            if (!refFiles.length) { showAiMessage('اختاري صورة الكيكة أول.', 'error'); return; }
+        $('ai-generate').addEventListener('click', () => generateFirst(''));
+
+        // أول صورة: من صور الزبون + أول رسالة في المحادثة (إذا كتب). ترجع true إذا طلعت
+        async function generateFirst(note) {
+            if (!refFiles.length) {
+                showAiMessage('ارفقي صورة الكيكة أول من المشبك فوق.', 'error');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return false;
+            }
             const abort = aiAbort = new AbortController();
             const started = Date.now();
             const tick = () => { $('ai-wait-time').textContent = `${Math.round((Date.now() - started) / 1000)} ثانية`; };
@@ -838,13 +875,14 @@
             form.append('size', state.size);
             form.append('layers', state.layers);
             form.append('style', STYLE);
-            form.append('note', $('ai-note').value.trim());
+            form.append('note', note);
             for (const f of await Promise.all(refFiles.map(shrink))) form.append('references[]', f);
             // رقم التوليد: إذا انقطع الطلب نسأل السيرفر عن نتيجته بهذا الرقم
             const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
             form.append('job', job);
 
             $('ai-generate').disabled = true;
+            let done = false;
             try {
                 const shot = await snapshotModel();
                 if (shot) form.append('shape_image', shot, 'shape.png');
@@ -871,8 +909,9 @@
                     throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
                 }
                 aiImages.push(data.image);
-                imageEdits[data.image] = [$('ai-note').value.trim()].filter(Boolean);
+                imageEdits[data.image] = [note].filter(Boolean);
                 showAiImage(data.image);
+                done = true;
                 $('ai-generate').textContent = '✨ ولّدي صورة ثانية';
                 showAiMessage('هذي كيكتك بالمواصفات اللي اخترتيها. عجبتك؟', 'info');
             } catch (e) {
@@ -885,11 +924,14 @@
                 renderRemaining();
                 renderSummary($('summary'));
             }
-        });
+            return done;
+        }
         // ===== المحادثة: الزبون يكتب، الذكاء يرد أو يسأل، والتعديل على الصورة اللي قدامه =====
         const chatUrl = "{{ route('special-order.ai.chat') }}";
         const editUrl = "{{ route('special-order.ai.edit') }}";
         const chatMessages = [];
+        // طلبات الزبون بالعربي (للملخص بدل خانة الوصف)
+        const userRequests = [];
         function bubble(role, text, image) {
             const b = document.createElement('div');
             b.className = 'bubble ' + role;
@@ -898,7 +940,7 @@
                 const img = document.createElement('img');
                 img.src = image;
                 img.alt = 'التصميم بعد التعديل';
-                img.addEventListener('click', () => { showAiImage(image); $('ai-image').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+                img.addEventListener('click', () => { showAiImage(image); renderSummary($('summary')); window.scrollTo({ top: 0, behavior: 'smooth' }); });
                 b.appendChild(img);
             }
             $('chat-thread').appendChild(b);
@@ -907,7 +949,7 @@
         }
         const specs = () => ({ shape: shape(), size: state.size, layers: state.layers, style: STYLE });
 
-        async function editImage(instruction) {
+        async function editImage(instruction, files = []) {
             const base = state.aiImage;
             const abort = aiAbort = new AbortController();
             const started = Date.now();
@@ -919,10 +961,18 @@
             try {
                 let data, ok;
                 try {
+                    const form = new FormData();
+                    Object.entries(specs()).forEach(([k, v]) => form.append(k, v));
+                    form.append('image', base.split('/').pop());
+                    form.append('instruction', instruction);
+                    (imageEdits[base] || []).forEach(p => form.append('previous[]', p));
+                    form.append('job', job);
+                    // صور الزبون للتوضيح مع هذي الرسالة
+                    for (const f of await Promise.all(files.map(shrink))) form.append('references[]', f);
                     const res = await fetch(editUrl, {
                         method: 'POST',
-                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                        body: JSON.stringify({ ...specs(), image: base.split('/').pop(), instruction, previous: imageEdits[base] || [], job }),
+                        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: form,
                         signal: abort.signal,
                     });
                     data = await res.json();
@@ -948,13 +998,61 @@
             }
         }
 
+        // صور يرفقها الزبون مع رسالته في المحادثة (لين 6)
+        let chatFiles = [];
+        function renderChatFiles() {
+            $('chat-thumbs').innerHTML = '';
+            chatFiles.forEach((f, i) => {
+                const t = document.createElement('div');
+                t.className = 't';
+                t.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><button type="button" aria-label="حذف الصورة">×</button>`;
+                t.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
+                $('chat-thumbs').appendChild(t);
+            });
+        }
+        $('chat-files').addEventListener('change', e => {
+            chatFiles = [...chatFiles, ...e.target.files].slice(0, 6);
+            e.target.value = '';
+            renderChatFiles();
+        });
+
         async function sendChat() {
-            const text = $('chat-input').value.trim();
-            if (!text || $('chat-send').disabled) return;
+            const files = chatFiles.slice();
+            let text = $('chat-input').value.trim();
+            if ((!text && !files.length) || $('chat-send').disabled) return;
+            if (!text) text = 'عدّلي حسب الصور المرفقة';
             $('chat-message').textContent = '';
             $('chat-input').value = '';
-            bubble('user', text);
-            chatMessages.push({ role: 'user', content: text });
+            chatFiles = [];
+            renderChatFiles();
+            const userBubble = bubble('user', text);
+            if (files.length) {
+                const refs = document.createElement('div');
+                refs.className = 'refs';
+                files.forEach(f => { const im = document.createElement('img'); im.src = URL.createObjectURL(f); im.alt = ''; refs.appendChild(im); });
+                userBubble.appendChild(refs);
+            }
+            // الموديل النصي ما يشوف الصور: نقول له إن فيه صور مرفقة، وتنرسل مع التعديل
+            const content = files.length ? `${text} [أرفقت ${files.length} صور للتوضيح]` : text;
+            userRequests.push(text);
+            // ما فيه صورة لسا: أول رسالة هي الوصف، وتولّد أول صورة من الصور المرفقة
+            if (!aiImages.length) {
+                if (files.length) { refFiles.push(...files.slice(0, MAX_REFS - refFiles.length)); renderRef(); }
+                if (!refFiles.length) {
+                    bubble('assistant', 'ارفقي صورة الكيكة أول من المشبك فوق 📎، وبعدها أرسلي طلبك.');
+                    userRequests.pop();
+                    $('chat-input').value = text;
+                    return;
+                }
+                $('chat-send').disabled = true;
+                if (await generateFirst(text)) {
+                    chatMessages.push({ role: 'user', content: text }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
+                    bubble('assistant', 'هذي كيكتك 👇 تقدرين تعتمدينها أو تطلبين تعديل.', state.aiImage);
+                }
+                $('chat-send').disabled = false;
+                return;
+            }
+            chatMessages.push({ role: 'user', content });
             const typing = bubble('assistant typing', '…');
             $('chat-send').disabled = true;
             try {
@@ -970,13 +1068,15 @@
                 chatMessages.push({ role: 'assistant', content: data.reply });
                 if (data.action === 'edit') {
                     if (!canGenerate()) bubble('assistant', 'خلصت محاولات الصور، كمّلي الطلب بالتصميم اللي اخترتيه.');
-                    else await editImage(data.instruction);
+                    else await editImage(data.instruction, files);
                 }
             } catch (e) {
                 typing.remove();
                 chatMessages.pop();
                 $('chat-message').textContent = e.message;
                 $('chat-input').value = text;
+                chatFiles = files;
+                renderChatFiles();
             } finally {
                 $('chat-send').disabled = false;
             }
@@ -1004,33 +1104,7 @@
             }
         });
 
-        // ===== الصور والوصف الصوتي =====
-        let recorder = null, chunks = [];
-        $('voice-btn').addEventListener('click', async () => {
-            if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                recorder = new MediaRecorder(stream);
-                chunks = [];
-                recorder.ondataavailable = e => chunks.push(e.data);
-                recorder.onstop = () => {
-                    stream.getTracks().forEach(t => t.stop());
-                    state.voice = URL.createObjectURL(new Blob(chunks, { type: recorder.mimeType }));
-                    $('voice-audio').src = state.voice;
-                    $('voice-audio').hidden = false;
-                    $('voice-btn').classList.remove('recording');
-                    $('voice-btn').textContent = '🎤 سجّلي من جديد';
-                    renderSummary($('summary'));
-                };
-                recorder.start();
-                $('voice-btn').classList.add('recording');
-                $('voice-btn').textContent = '⏹ إيقاف التسجيل';
-            } catch (e) {
-                alert('ما قدرنا نوصل للمايك. اسمحي للمتصفح باستخدامه.');
-            }
-        });
-
-        ['ai-note', 'delivery-date'].forEach(id => $(id).addEventListener('input', () => renderSummary($('summary'))));
+        $('delivery-date').addEventListener('input', () => renderSummary($('summary')));
 
         // أقرب تاريخ: بعد يومين
         const minDate = new Date();
@@ -1055,7 +1129,7 @@
                 ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
                 ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
                 ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
-                ['الوصف', escapeHtml($('ai-note').value.trim() || (state.voice ? 'وصف صوتي' : '—'))],
+                ['الوصف', escapeHtml(userRequests.join(' • ') || '—')],
                 ['تاريخ الاستلام', visual('📅', $('delivery-date').value || '—')],
             ];
             const images = [];
@@ -1063,7 +1137,6 @@
             refFiles.forEach(f => images.push(`<figure><img src="${URL.createObjectURL(f)}" alt=""><div>صورة مرفقة</div></figure>`));
             const price = total();
             box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
-                ${state.voice ? `<div class="line"><dt>وصف صوتي</dt><dd><audio controls src="${state.voice}" style="height:30px;max-width:180px"></audio></dd></div>` : ''}
                 <div class="line total"><dt>السعر المبدئي</dt><dd>${price === undefined ? '—' : money(price)}</dd></div></dl>
                 ${images.length ? `<div class="summary-images">${images.join('')}</div>` : ''}`;
         }
@@ -1071,7 +1144,7 @@
         $('submit').addEventListener('click', () => {
             const missing = [];
             if (!$('delivery-date').value) missing.push('تاريخ الاستلام');
-            if (!$('ai-note').value.trim() && !state.voice && !state.aiApproved && !refFiles.length) missing.push('الوصف أو صورة');
+            if (!state.aiApproved && !refFiles.length) missing.push('صورة الكيكة (من المشبك فوق)');
             if (missing.length) { $('submit-message').textContent = 'كمّلي: ' + missing.join('، '); return; }
             $('submit-message').textContent = '';
             renderSummary($('modal-summary'));

@@ -165,6 +165,8 @@ class ShopAiController extends Controller
         [$product, $size, $data] = $this->specs($request, $id, $shop, [
             'image' => ['required', 'string', 'regex:/^[A-Za-z0-9-]+-product-\d+\.png$/'],
             'instruction' => ['required', 'string', 'max:1000'],
+'references' => ['nullable', 'array', 'max:6'],
+            'references.*' => ['image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
             'previous' => ['nullable', 'array', 'max:12'],
             'previous.*' => ['string', 'max:1000'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
@@ -190,13 +192,18 @@ class ShopAiController extends Controller
 
         [$outline, $notShapes] = self::OUTLINES[$data['shape']];
         try {
-            $response = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300)
-                ->attach('image[]', Storage::disk('public')->get($path), 'current.png', ['Content-Type' => 'image/png'])
-                ->post('https://api.openai.com/v1/images/edits', [
+            $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300)
+                ->attach('image[]', Storage::disk('public')->get($path), 'current.png', ['Content-Type' => 'image/png']);
+            foreach ($request->file('references', []) as $file) {
+                $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
+            }
+            $response = $pending->post('https://api.openai.com/v1/images/edits', [
                     'model' => config('services.openai.image_model'),
                     'prompt' => "HARD RULE (most important): the cake must stay {$outline}, with exactly ONE tier, {$notShapes}. "
                         .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
                         .$this->keepText($data['previous'] ?? [])
+                        // صور أرفقها الزبون مع رسالته للتوضيح
+                        .($request->file('references') ? 'The other images are reference photos the customer attached to explain this change: take from them only what the change asks for (an element, colour or style), never their cake shape or size. ' : '')
                         .'Keep everything else exactly the same: the same cake shape, size and proportions, the same layers, '
                         .'the same square board with the JOMACAKE label, the same camera angle, lighting and background. '
                         ."Real size: {$size['inch']} inches wide. A realistic professional bakery photo of ONE cake. No people, no hands. "

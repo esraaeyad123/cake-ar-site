@@ -220,6 +220,8 @@ class SpecialOrderController extends Controller
         $data = $request->validate($this->specRules() + [
             'image' => ['required', 'string', 'regex:/^[A-Za-z0-9-]+-special\.png$/'],
             'instruction' => ['required', 'string', 'max:1000'],
+'references' => ['nullable', 'array', 'max:6'],
+            'references.*' => ['image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
             'previous' => ['nullable', 'array', 'max:12'],
             'previous.*' => ['string', 'max:1000'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
@@ -245,11 +247,14 @@ class SpecialOrderController extends Controller
         set_time_limit(330);
 
         try {
-            $response = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300)
-                ->attach('image[]', Storage::disk('public')->get($path), 'current.png', ['Content-Type' => 'image/png'])
-                ->post('https://api.openai.com/v1/images/edits', [
+            $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300)
+                ->attach('image[]', Storage::disk('public')->get($path), 'current.png', ['Content-Type' => 'image/png']);
+            foreach ($request->file('references', []) as $file) {
+                $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
+            }
+            $response = $pending->post('https://api.openai.com/v1/images/edits', [
                     'model' => config('services.openai.image_model'),
-                    'prompt' => $this->editPrompt($data),
+                    'prompt' => $this->editPrompt($data, (bool) $request->file('references')),
                     'size' => '1024x1024',
                     'quality' => config('special_order.image_quality') ?: config('services.openai.image_quality'),
                     'n' => 1,
@@ -326,13 +331,14 @@ class SpecialOrderController extends Controller
             .'; a square JOMACAKE board with its logo label.';
     }
 
-    private function editPrompt(array $data): string
+    private function editPrompt(array $data, bool $withReferences = false): string
     {
         $f = $this->fixedSpecs($data);
 
         return "HARD RULE (most important): the cake must stay {$f['outline']}, with {$f['tiers']}, {$f['not']}. "
             .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
             .$this->keepText($data['previous'] ?? [])
+            .($withReferences ? 'The other images are reference photos the customer attached to explain this change: take from them only what the change asks for (an element, colour or style), never their cake shape or size. ' : '')
             .'Keep everything else exactly the same: the same cake shape, size and proportions, the same number of tiers and layers, '
             .'the same square board with the JOMACAKE label, the same camera angle, lighting and background. '
             .$f['height']
