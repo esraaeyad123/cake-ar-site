@@ -131,6 +131,7 @@
             margin-bottom: 6px; display: flex; align-items: center; justify-content: center; font-size: 26px;
         }
         .item-card .extra { display: block; font-size: 11px; font-weight: 700; color: var(--pink-dark); margin-top: 3px; }
+        .item-card .pic.slice { background-size: contain; background-color: #F7F2F6; }
         .item-card.active { border-color: var(--pink); background: var(--pink-soft); }
 
         .ai-box {
@@ -536,6 +537,7 @@
         const MAX_REFERENCES = 6;
         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
         const $ = id => document.getElementById(id);
+@include('partials.flavor-pictures')
         const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
         // كل أشكال الدور الواحد (الحين كلها متاحة لكل منتج، وبعدين تتحدد من لوحة التحكم).
@@ -663,9 +665,9 @@
                 if (!box) return;
                 box.innerHTML = '';
                 product[list].forEach(item => box.appendChild(card('item-card',
-                    `<div class="pic" ${item.image ? `style="background-image:url('${item.image}')"` : ''}>${item.image ? '' : icon}</div>${esc(item.name)}${key === 'flavor' ? `<span class="extra">${item.extra ? '+' + money(item.extra) : 'بدون زيادة'}</span>` : ''}`,
+                    `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${esc(item.name)}${key === 'flavor' ? `<span class="extra">${item.extra ? '+' + money(item.extra) : 'بدون زيادة'}</span>` : ''}`,
                     state[key]?.id === item.id,
-                    () => { state[key] = item; refresh(); },
+                    () => { state[key] = item; if (key === 'flavor') renderItems(); refresh(); },
                 )));
             });
         }
@@ -1098,8 +1100,8 @@
                 ['الشكل', visual(`<img class="fit" src="${SHAPE_IMAGES}/${shape()}.webp" alt="">`, state.card.name)],
                 ['الحجم', visual(sizePic(state.size.inch), `${state.size.inch} إنش`)],
                 ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
-                ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
-                ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
+                ['النكهة', state.flavor ? visual(imgPic(flavorPic(state.flavor), '🍰'), state.flavor.name) : '—'],
+                ['الحشوة', state.filling ? visual(imgPic(fillingPic(state.filling, state.flavor), '🍓'), state.filling.name) : '—'],
                 ...(state.aiApproved && $('ai-note').value.trim() ? [['التعديل', esc($('ai-note').value.trim())]] : []),
             ];
             box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
