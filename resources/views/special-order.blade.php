@@ -131,6 +131,7 @@
             margin-bottom: 6px; display: flex; align-items: center; justify-content: center; font-size: 26px;
         }
         .item-card .extra { display: block; font-size: 11px; font-weight: 700; color: var(--pink-dark); margin-top: 3px; }
+        .item-card .pic.slice { background-size: contain; background-color: #F7F2F6; }
         .item-card.active { border-color: var(--pink); background: var(--pink-soft); }
 
         .ai-box {
@@ -478,6 +479,7 @@
         // الكعكة الخاصة لنفس المقاس مضروب في price_factor (الوال كيك نص السعر)
         const SHAPES = @json($shapes);
         const $ = id => document.getElementById(id);
+@include('partials.flavor-pictures')
 
         const sizesByTier = { 1: [], 2: [], 3: [] };
         Object.keys(layerLimits).forEach(key => {
@@ -626,9 +628,9 @@
                 options[list].forEach(item => {
                     const add = extra(item);
                     box.appendChild(card('item-card',
-                        `<div class="pic" ${item.image ? `style="background-image:url('${item.image}')"` : ''}>${item.image ? '' : icon}</div>${item.name}<span class="extra">${add ? '+' + money(add) : 'بدون زيادة'}</span>`,
+                        `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${item.name}<span class="extra">${add ? '+' + money(add) : 'بدون زيادة'}</span>`,
                         state[key]?.id === item.id,
-                        () => { state[key] = item; refresh(); },
+                        () => { state[key] = item; if (key === 'flavor') renderItems(); refresh(); },
                     ));
                 });
             });
@@ -1127,8 +1129,8 @@
                 ['الأدوار', visual(TIER_ICON, TIER_LABELS[state.card.tiers])],
                 ['الحجم', visual(sizePicture(state.size), sizeLabel(state.size))],
                 ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
-                ['النكهة', state.flavor ? visual(imgPic(state.flavor.image, '🍰'), state.flavor.name) : '—'],
-                ['الحشوة', state.filling ? visual(imgPic(state.filling.image, '🍓'), state.filling.name) : '—'],
+                ['النكهة', state.flavor ? visual(imgPic(flavorPic(state.flavor), '🍰'), state.flavor.name) : '—'],
+                ['الحشوة', state.filling ? visual(imgPic(fillingPic(state.filling, state.flavor), '🍓'), state.filling.name) : '—'],
                 ['الوصف', escapeHtml(userRequests.join(' • ') || '—')],
                 ['تاريخ الاستلام', visual('📅', $('delivery-date').value || '—')],
             ];
