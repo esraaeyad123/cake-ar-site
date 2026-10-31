@@ -47,7 +47,10 @@ class SpecialOrderTest extends TestCase
 
         $this->get('/special-order')
             ->assertOk()
-            ->assertSeeInOrder(['الشكل', 'الحجم', 'النكهة', 'الكتابة', 'التاريخ'])
+            ->assertSeeInOrder(['data-tab="0"', 'الشكل', 'data-tab="1"', 'الحجم', 'data-tab="2"', 'الوصف', 'data-tab="3"', 'النكهة', 'data-tab="4"', 'التاريخ'], false)
+            ->assertSee('ارفق الصورة المطلوبة')
+            ->assertSee('شاهد على طاولتك')
+            ->assertDontSee('سجّلي وصف صوتي')
             ->assertSee('إرسال للمراجعة')
             // كيك سادة فقط: ما فيه اختيار فنتج
             ->assertDontSee('data-style="vintage"', false)
