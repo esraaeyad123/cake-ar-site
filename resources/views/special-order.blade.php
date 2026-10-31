@@ -199,6 +199,16 @@
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
         .chat-input textarea { min-height: 46px; height: 46px; flex: 1; }
         .chat-input .btn { width: auto; margin: 0; padding: 12px 18px; flex-shrink: 0; }
+        /* إرفاق صور للتوضيح أثناء المحادثة */
+        .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .chat-attach svg { width: 22px; height: 22px; }
+        .chat-attach input { display: none; }
+        #chat-thumbs { margin: 0 0 8px; }
+        #chat-thumbs .t { position: relative; }
+        #chat-thumbs img { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; border: 1px solid var(--pink-line); display: block; }
+        #chat-thumbs button { position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--ink); color: #fff; font-size: 12px; line-height: 20px; padding: 0; cursor: pointer; }
+        .bubble .refs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+        .bubble .refs img { width: 56px; height: 56px; border-radius: 8px; margin: 0; border: 1px solid rgba(255,255,255,.6); cursor: default; }
         /* فوق: مشبك الإرفاق والصورة المولّدة مكان المجسم، و"شاهد على طاولتك" على الصورة */
         .top-view { position: absolute; inset: 0; z-index: 2; background: #fff; border: none; width: 100%; }
         .top-view[hidden] { display: none; }
@@ -385,7 +395,12 @@
                     <h4>💬 اكتبي للذكاء الاصطناعي</h4>
                     <div class="hint" style="margin-top:0" id="chat-hint">أول رسالة تولّد الصورة (مثل: أبغاها مثل الصورة واكتبي كل عام وانتم بخير)، وبعدها كل رسالة تعدّل عليها. يلتزم بالشكل والحجم والطبقات اللي اخترتيها.</div>
                     <div class="chat-thread" id="chat-thread"></div>
+                    <div class="thumbs" id="chat-thumbs"></div>
                     <div class="chat-input">
+                        <label class="chat-attach" title="ارفقي صور للتوضيح" aria-label="ارفقي صور للتوضيح">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                            <input type="file" id="chat-files" accept="image/png,image/jpeg,image/webp" multiple>
+                        </label>
                         <textarea id="chat-input" maxlength="500" placeholder="مثال: خلي الورد أبيض وزيدي لمسة ذهبي"></textarea>
                         <button type="button" class="btn" id="chat-send">إرسال</button>
                     </div>
@@ -934,7 +949,7 @@
         }
         const specs = () => ({ shape: shape(), size: state.size, layers: state.layers, style: STYLE });
 
-        async function editImage(instruction) {
+        async function editImage(instruction, files = []) {
             const base = state.aiImage;
             const abort = aiAbort = new AbortController();
             const started = Date.now();
@@ -946,10 +961,18 @@
             try {
                 let data, ok;
                 try {
+                    const form = new FormData();
+                    Object.entries(specs()).forEach(([k, v]) => form.append(k, v));
+                    form.append('image', base.split('/').pop());
+                    form.append('instruction', instruction);
+                    (imageEdits[base] || []).forEach(p => form.append('previous[]', p));
+                    form.append('job', job);
+                    // صور الزبون للتوضيح مع هذي الرسالة
+                    for (const f of await Promise.all(files.map(shrink))) form.append('references[]', f);
                     const res = await fetch(editUrl, {
                         method: 'POST',
-                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                        body: JSON.stringify({ ...specs(), image: base.split('/').pop(), instruction, previous: imageEdits[base] || [], job }),
+                        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: form,
                         signal: abort.signal,
                     });
                     data = await res.json();
@@ -975,15 +998,46 @@
             }
         }
 
+        // صور يرفقها الزبون مع رسالته في المحادثة (لين 6)
+        let chatFiles = [];
+        function renderChatFiles() {
+            $('chat-thumbs').innerHTML = '';
+            chatFiles.forEach((f, i) => {
+                const t = document.createElement('div');
+                t.className = 't';
+                t.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><button type="button" aria-label="حذف الصورة">×</button>`;
+                t.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
+                $('chat-thumbs').appendChild(t);
+            });
+        }
+        $('chat-files').addEventListener('change', e => {
+            chatFiles = [...chatFiles, ...e.target.files].slice(0, 6);
+            e.target.value = '';
+            renderChatFiles();
+        });
+
         async function sendChat() {
-            const text = $('chat-input').value.trim();
-            if (!text || $('chat-send').disabled) return;
+            const files = chatFiles.slice();
+            let text = $('chat-input').value.trim();
+            if ((!text && !files.length) || $('chat-send').disabled) return;
+            if (!text) text = 'عدّلي حسب الصور المرفقة';
             $('chat-message').textContent = '';
             $('chat-input').value = '';
-            bubble('user', text);
+            chatFiles = [];
+            renderChatFiles();
+            const userBubble = bubble('user', text);
+            if (files.length) {
+                const refs = document.createElement('div');
+                refs.className = 'refs';
+                files.forEach(f => { const im = document.createElement('img'); im.src = URL.createObjectURL(f); im.alt = ''; refs.appendChild(im); });
+                userBubble.appendChild(refs);
+            }
+            // الموديل النصي ما يشوف الصور: نقول له إن فيه صور مرفقة، وتنرسل مع التعديل
+            const content = files.length ? `${text} [أرفقت ${files.length} صور للتوضيح]` : text;
             userRequests.push(text);
             // ما فيه صورة لسا: أول رسالة هي الوصف، وتولّد أول صورة من الصور المرفقة
             if (!aiImages.length) {
+                if (files.length) { refFiles.push(...files.slice(0, MAX_REFS - refFiles.length)); renderRef(); }
                 if (!refFiles.length) {
                     bubble('assistant', 'ارفقي صورة الكيكة أول من المشبك فوق 📎، وبعدها أرسلي طلبك.');
                     userRequests.pop();
@@ -998,7 +1052,7 @@
                 $('chat-send').disabled = false;
                 return;
             }
-            chatMessages.push({ role: 'user', content: text });
+            chatMessages.push({ role: 'user', content });
             const typing = bubble('assistant typing', '…');
             $('chat-send').disabled = true;
             try {
@@ -1014,13 +1068,15 @@
                 chatMessages.push({ role: 'assistant', content: data.reply });
                 if (data.action === 'edit') {
                     if (!canGenerate()) bubble('assistant', 'خلصت محاولات الصور، كمّلي الطلب بالتصميم اللي اخترتيه.');
-                    else await editImage(data.instruction);
+                    else await editImage(data.instruction, files);
                 }
             } catch (e) {
                 typing.remove();
                 chatMessages.pop();
                 $('chat-message').textContent = e.message;
                 $('chat-input').value = text;
+                chatFiles = files;
+                renderChatFiles();
             } finally {
                 $('chat-send').disabled = false;
             }

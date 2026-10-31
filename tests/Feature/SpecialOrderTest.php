@@ -428,9 +428,11 @@ class SpecialOrderTest extends TestCase
         ], ['Accept' => 'application/json'])->assertOk();
         $name = basename($first->json('image'));
 
-        $this->postJson('/special-order/ai/edit', $specs + [
+        $this->post('/special-order/ai/edit', $specs + [
             'image' => $name, 'instruction' => 'Write "Happy Birthday" in gold.', 'job' => 'job-'.Str::random(10),
-        ])->assertOk()->assertJsonPath('remaining', 3);
+            // صورة أرفقها الزبون في المحادثة للتوضيح
+            'references' => [UploadedFile::fake()->image('gold.jpg')],
+        ], ['Accept' => 'application/json'])->assertOk()->assertJsonPath('remaining', 3);
 
         $this->assertCount(2, Storage::disk('public')->files('ai-cakes'));
         Http::assertSent(function ($request) {
@@ -440,7 +442,8 @@ class SpecialOrderTest extends TestCase
             return str_contains($prompt, 'Apply ONLY these new changes: Write "Happy Birthday" in gold.')
                 && str_contains($prompt, 'HARD RULE')
                 && str_contains($prompt, 'HEART-shaped')
-                && $parts->where('name', 'image[]')->count() === 1;
+                && str_contains($prompt, 'reference photos the customer attached')
+                && $parts->where('name', 'image[]')->count() === 2;
         });
 
         // صورة مو من نفس الزائر ما تنعدّل
