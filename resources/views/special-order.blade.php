@@ -211,6 +211,7 @@
         .bubble .refs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
         .bubble .refs img { width: 56px; height: 56px; border-radius: 8px; margin: 0; border: 1px solid rgba(255,255,255,.6); cursor: default; }
         /* فوق: مشبك الإرفاق والصورة المولّدة مكان المجسم، و"شاهد على طاولتك" على الصورة */
+        .step-shape .price-card, .step-shape .spec-bar { display: none; }
         .top-view { position: absolute; inset: 0; z-index: 2; background: #fff; border: none; width: 100%; }
         .top-view[hidden] { display: none; }
         .attach-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer; color: #444; font-family: inherit; font-size: 18px; font-weight: 800; }
@@ -550,16 +551,11 @@
         function renderShapes() {
             const box = $('shape-cards');
             box.innerHTML = '';
+            // قسم الشكل للشكل بس (طلب المدير): صورة واسم، والأشخاص والأسعار في قسم الحجم والطبقات
             SHAPE_CARDS.forEach(c => {
-                const sizes = sizesOf(c);
-                const counts = sizes.map(people).filter(Boolean).join('-').split('-').map(Number);
-                const from = Math.min(...sizes.map(k => priceOf(c, k, layersOf(c, k)[0])).filter(p => p !== undefined));
-                const range = sizes.length > 1 ? `من ${inches(sizes[0]).join('/')} إلى ${sizeLabel(sizes[sizes.length - 1])}` : sizeLabel(sizes[0]);
                 box.appendChild(card('shape-card', `
                     <img src="${SHAPE_IMAGES}/${c.key}.webp" alt="" loading="lazy">
-                    <div class="name">${c.name}</div>
-                    <div class="meta">${counts.length ? `${Math.min(...counts)}-${Math.max(...counts)} أشخاص` : ''}<br>${range}</div>
-                    ${isFinite(from) ? `<div class="from">يبدأ من ${money(from)}</div>` : ''}`,
+                    <div class="name">${c.name}</div>`,
                     c === state.card,
                     () => { state.card = c; renderSizes(); renderItems(); refresh(); },
                 ));
@@ -690,6 +686,8 @@
         const tabs = [...document.querySelectorAll('.tab')];
         // فوق حسب الخطوة: الشكل والحجم = المجسم، بعدها = الصورة المولّدة (أو المشبك إذا ما فيه صورة)
         function updateTop() {
+            // في قسم الشكل: بدون السعر وشريط البيانات عشان التركيز على الشكل
+            document.body.classList.toggle('step-shape', state.tab === 0);
             const after = state.tab >= 2;
             $('gen-view').hidden = !(after && state.aiImage);
             $('attach-view').hidden = !(after && !state.aiImage);
