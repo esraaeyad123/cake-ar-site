@@ -608,10 +608,12 @@
             if (isCone || !allowed.includes(state.layers)) state.layers = allowed[0];
             const box = $('layer-options');
             box.innerHTML = '';
+            // مثل موقع جوماكيك: زيادة الطبقة على أقل عدد (+0، +20، +40…)، وتختلف حسب المقاس
+            const base = basePrice(state.size, allowed[0]);
             allowed.forEach(n => box.appendChild(card('layer-card', `
                 <div class="bars">${Array.from({ length: n }, (_, b) => `<div style="height:${Math.max(6, 16 - n * 2)}px;background:${LAYER_COLORS[b % LAYER_COLORS.length]}"></div>`).join('')}</div>
                 <div class="num">${n} طبقات</div>
-                ${basePrice(state.size, n) !== undefined ? `<div class="price">${money(basePrice(state.size, n))}</div>` : ''}`,
+                ${basePrice(state.size, n) !== undefined && base !== undefined ? `<div class="price">+${money(basePrice(state.size, n) - base)}</div>` : ''}`,
                 n === state.layers,
                 () => { state.layers = n; refresh(); },
             )));
