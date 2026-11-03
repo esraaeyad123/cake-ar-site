@@ -121,10 +121,11 @@
         .layer-card .bars div { border-radius: 3px; }
         .size-card.active, .layer-card.active { border-color: var(--pink); background: var(--pink-soft); }
 
-        .item-cards { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; }
-        .item-cards::-webkit-scrollbar { display: none; }
-        /* صف واحد يتحرك يمين ويسار مثل صفوف الحجم والطبقات */
-        .item-cards .item-card { flex: 0 0 116px; }
+        .item-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        /* الأشكال تحت بعض (3 في السطر) عشان الزبون يشوف كل الخيارات مرة وحدة، مثل النكهات والحشوات */
+        .shape-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .shape-grid .shape-card { padding: 6px 4px 8px; }
+        .shape-grid .shape-card .name { font-size: 13px; }
         .item-card {
             border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px; padding: 6px 6px 9px;
             cursor: pointer; text-align: center; font-size: 12px; font-weight: 800; color: var(--ink);
@@ -419,7 +420,7 @@
     <main>
         <section class="panel active" data-panel="0">
             <div class="section-title">شكل الكيكة</div>
-            <div class="scroll-row" id="shape-cards"></div>
+            <div class="shape-grid" id="shape-cards"></div>
         </section>
 
         <section class="panel" data-panel="1">
