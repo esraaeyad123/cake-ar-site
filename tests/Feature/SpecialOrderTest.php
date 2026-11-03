@@ -451,5 +451,25 @@ class SpecialOrderTest extends TestCase
             'image' => '20260101-000000-abcdef-special.png', 'instruction' => 'x', 'job' => 'job-'.Str::random(10),
         ])->assertStatus(422);
     }
+
+    public function test_fillings_with_the_same_name_show_once(): void
+    {
+        $item = fn ($id, $ar) => ['id' => $id, 'title_ar' => $ar, 'title_en' => $ar, 'sliced_image_url' => null];
+        Http::fake([
+            self::API.'/special-request/sizes' => Http::response(['data' => [['id' => 2, 'name' => '4 Inch', 'people_number' => '1-2 people']]]),
+            self::API.'/cakes-pricing' => Http::response([
+                ['type' => 'stuffing', 'stuffing_id' => '321', 'size_id' => '2', 'price' => '15.00'],
+                ['type' => 'stuffing', 'stuffing_id' => '322', 'size_id' => '2', 'price' => '0.00'],
+            ]),
+            self::API.'/cake-items/flavor*' => Http::response([]),
+            self::API.'/cake-items/stuffing*' => Http::response([$item(322, 'ويب كريم مع فراوله'), $item(321, 'ويب كريم مع فراوله')]),
+        ]);
+
+        $options = app(\App\Services\SpecialOrderOptions::class)->all();
+
+        $this->assertCount(1, $options['fillings']);
+        // يبقى اللي له سعر
+        $this->assertSame(321, $options['fillings'][0]['id']);
+    }
 }
 

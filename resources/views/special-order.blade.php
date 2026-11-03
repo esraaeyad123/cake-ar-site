@@ -121,7 +121,10 @@
         .layer-card .bars div { border-radius: 3px; }
         .size-card.active, .layer-card.active { border-color: var(--pink); background: var(--pink-soft); }
 
-        .item-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .item-cards { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; }
+        .item-cards::-webkit-scrollbar { display: none; }
+        /* صف واحد يتحرك يمين ويسار مثل صفوف الحجم والطبقات */
+        .item-cards .item-card { flex: 0 0 116px; }
         .item-card {
             border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px; padding: 6px 6px 9px;
             cursor: pointer; text-align: center; font-size: 12px; font-weight: 800; color: var(--ink);
@@ -626,7 +629,7 @@
                 options[list].forEach(item => {
                     const add = extra(item);
                     box.appendChild(card('item-card',
-                        `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${item.name}<span class="extra">${add ? '+' + money(add) : 'بدون زيادة'}</span>`,
+                        `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${item.name}${add ? `<span class="extra">+${money(add)}</span>` : ''}`,
                         state[key]?.id === item.id,
                         () => { state[key] = item; if (key === 'flavor') renderItems(); refresh(); },
                     ));
