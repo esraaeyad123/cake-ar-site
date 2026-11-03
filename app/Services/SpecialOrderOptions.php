@@ -76,6 +76,9 @@ class SpecialOrderOptions
                 'image' => $row['sliced_image_url'] ?? $row['element_image_url'] ?? $row['front_image_url'] ?? null,
                 'extra' => collect($sizes)->map(fn ($size) => (float) ($priced[(string) $row['id']]->firstWhere('size_id', (string) $size['id'])['price'] ?? 0))->all(),
             ])
+            // نفس الاسم مكرر في جوماكيك (مثل "ويب كريم مع فراوله" مرتين): واحد بس، اللي له سعر
+            ->groupBy('name')
+            ->map(fn ($same) => $same->sortByDesc(fn ($item) => array_sum($item['extra']))->first())
             ->values()
             ->all();
     }

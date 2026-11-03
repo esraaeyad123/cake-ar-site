@@ -119,7 +119,7 @@ class ShopProducts
             'stuffings' => collect($row['stuffings'] ?? [])->map(fn ($s) => [
                 'id' => (int) $s['id'],
                 'name' => $s['title_ar'] ?: $s['title_en'],
-            ])->values()->all(),
+            ])->unique('name')->values()->all(),
         ];
     }
 
