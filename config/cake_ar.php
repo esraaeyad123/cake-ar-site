@@ -41,6 +41,12 @@ return [
         'dome' => ['sizes' => ['6in', '8in', '10in'], 'layers' => 3, 'tiers' => 1, 'price_factor' => 1, 'vintage' => false],
         'star' => ['sizes' => ['6in', '8in'], 'layers' => [2, 3], 'tiers' => 1, 'price_factor' => 1, 'vintage' => true],
         'wall' => ['sizes' => ['tier2_8-6'], 'layers' => 2, 'tiers' => 2, 'price_factor' => 0.5, 'vintage' => true],
+        // المربع والمستطيل: نفس أسعار الدائري، وفنتج في المعاينة بس. dims = [العرض من قدام، العمق] بالسنتيمتر،
+        // والارتفاع من عدد الطبقات (طبقتين = 8 سم)
+        'square' => ['sizes' => ['6in', '8in', '10in'], 'layers' => 2, 'tiers' => 1, 'price_factor' => 1, 'vintage' => true,
+            'dims' => ['6in' => [12, 12], '8in' => [16, 16], '10in' => [22, 22]]],
+        'rectangle' => ['sizes' => ['6in', '8in', '10in'], 'layers' => [2, 3], 'tiers' => 1, 'price_factor' => 1, 'vintage' => true,
+            'dims' => ['6in' => [12, 10], '8in' => [16, 13], '10in' => [22, 18]]],
     ],
 
     // أسعار الكعكة الخاصة من API موقع جوماكيك (عام، بدون توكن). تُخزّن مؤقتًا،

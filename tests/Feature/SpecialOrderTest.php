@@ -471,5 +471,28 @@ class SpecialOrderTest extends TestCase
         // يبقى اللي له سعر
         $this->assertSame(321, $options['fillings'][0]['id']);
     }
+
+    public function test_square_is_2_layers_and_rectangle_2_to_3_layers_with_real_sizes(): void
+    {
+        Storage::fake('public');
+        $this->withoutMiddleware(ThrottleRequests::class);
+        config(['special_order.ai_limit' => 0]);
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+        $send = fn ($shape, $size, $layers) => $this->post('/special-order/ai', [
+            'shape' => $shape, 'size' => $size, 'layers' => $layers, 'style' => 'plain', 'job' => 'job-'.Str::random(10),
+            'references' => [UploadedFile::fake()->image('cake.jpg')],
+        ], ['Accept' => 'application/json']);
+
+        $send('square', '4in', 2)->assertStatus(422)->assertJsonValidationErrors('size');
+        $send('square', '8in', 3)->assertStatus(422)->assertJsonValidationErrors('layers');
+        $send('square', '8in', 2)->assertOk();
+        $send('rectangle', '10in', 3)->assertOk();
+
+        $prompts = collect(Http::recorded())->map(fn ($r) => collect($r[0]->data())->firstWhere('name', 'prompt')['contents'] ?? '');
+        $this->assertTrue($prompts->contains(fn ($p) => str_contains($p, 'SQUARE') && str_contains($p, '16 cm wide, 16 cm deep and 8 cm tall')));
+        $this->assertTrue($prompts->contains(fn ($p) => str_contains($p, 'a RECTANGLE') && str_contains($p, '22 cm wide, 18 cm deep and 12 cm tall')));
+
+        $this->get('/special-order')->assertSee("{ key: 'square', name: ", false)->assertSee("{ key: 'rectangle', name: ", false);
+    }
 }
 

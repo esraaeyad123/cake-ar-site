@@ -193,6 +193,26 @@ function starPoints(r) {
     return pts.map(p => ({ x: p.x * scale, z: p.z * scale }));
 }
 
+// مستطيل (أو مربع) بزوايا مدوّرة شوي: hw نص العرض (x)، hd نص العمق (z)
+function rectPoints(hw, hd, corner = Math.min(hw, hd) * 0.12) {
+    const c = Math.min(corner, hw, hd), pts = [];
+    const corners = [[hw - c, -hd + c, -Math.PI / 2], [hw - c, hd - c, 0], [-hw + c, hd - c, Math.PI / 2], [-hw + c, -hd + c, Math.PI]];
+    corners.forEach(([cx, cz, a0]) => {
+        for (let i = 0; i <= 8; i++) {
+            const a = a0 + (i / 8) * Math.PI / 2;
+            pts.push({ x: cx + Math.cos(a) * c, z: cz + Math.sin(a) * c });
+        }
+    });
+    // نقاط إضافية على الأضلاع المستقيمة حتى يتوزّع الفنتج بالتساوي
+    const dense = [];
+    pts.forEach((p, i) => {
+        const q = pts[(i + 1) % pts.length];
+        const n = Math.max(1, Math.round(Math.hypot(q.x - p.x, q.z - p.z) / 0.004));
+        for (let k = 0; k < n; k++) dense.push({ x: p.x + (q.x - p.x) * k / n, z: p.z + (q.z - p.z) * k / n });
+    });
+    return dense;
+}
+
 // نص دائرة من قدام (z ≥ 0) مع الظهر المستقيم — محيط الوال كيك الملصوق على البورد
 function halfCirclePoints(r) {
     const pts = [];
@@ -446,18 +466,23 @@ function vintage(tiers, piping, beads) {
 
 /**
  * @param {string} baseUrl  رابط glb الأساسي (الحجم + عدد الطبقات) — للقلب والمخروطي والسن ست والوال كيك نموذج دور واحد
- * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'star'|'cone'|'dome'|'sunset'|'wall', style?: 'plain'|'vintage', extraHeight?: number}} options
+ * @param {{color: string, boardColor?: string, shape?: 'round'|'heart'|'star'|'cone'|'dome'|'sunset'|'wall'|'square'|'rectangle', style?: 'plain'|'vintage', extraHeight?: number, footprint?: {w: number, d: number}}} options
+ *        footprint: عرض وعمق المربع والمستطيل بالمتر
  *        extraHeight: زيادة ارتفاع الكيكة بالمتر (لطبقات أكثر من النموذج الأساسي — دور واحد فقط)
  * @returns {Promise<string>} blob URL لملف glb المركّب
  */
-export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shape = 'round', style = 'plain', extraHeight = 0 }) {
+export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shape = 'round', style = 'plain', extraHeight = 0, footprint = null }) {
     const base = await loadBase(baseUrl);
     const tiers = base.tiers.map(t => ({ ...t }));
+    // المربع والمستطيل: مقاساتهم الحقيقية بالمتر {w, d} (العرض من قدام، والعمق)
+    const isRect = (shape === 'square' || shape === 'rectangle') && footprint;
+    if (isRect) tiers.forEach(t => { t.hw = footprint.w / 2; t.hd = footprint.d / 2; t.r = Math.min(t.hw, t.hd); });
     if (extraHeight && tiers.length === 1) tiers[0].y1 += extraHeight;
     if (shape === 'cone') tiers[0].y1 = tiers[0].y0 + tiers[0].r * 2.9; // ارتفاع ثابت حسب المقاس
     const isWall = shape === 'wall';
     tiers.forEach(t => {
-        t.outline = shape === 'heart' ? makeOutline(heartPoints(t.r))
+        t.outline = isRect ? makeOutline(rectPoints(t.hw, t.hd))
+            : shape === 'heart' ? makeOutline(heartPoints(t.r))
             : shape === 'star' ? makeOutline(starPoints(t.r))
             : isWall ? makeOutline(halfCirclePoints(t.r))
             : circleOutline(t.r);
@@ -502,7 +527,10 @@ export async function composeCake(baseUrl, { color, boardColor = '#FFFFFF', shap
         dome: domeBody,
         sunset: sunsetBody,
         wall: (t, m) => roundBody(t, m, true),
-    }[shape] || roundBody;
+        // الجسم أصغر بمقدار الحافة المدوّرة، والحافة ترجّعه للمقاس
+        square: (t, m) => extrudedBody(t, m, rr => rectPoints(t.hw - (t.r - rr), t.hd - (t.r - rr))),
+        rectangle: (t, m) => extrudedBody(t, m, rr => rectPoints(t.hw - (t.r - rr), t.hd - (t.r - rr))),
+    }[isRect ? shape : (shape === 'square' || shape === 'rectangle' ? 'round' : shape)] || roundBody;
     tiers.forEach(t => {
         const mesh = body(t, cakeMat);
         mesh.name = 'CakeTier';

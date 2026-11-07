@@ -32,6 +32,8 @@ class SpecialOrderController extends Controller
         'round' => ['perfectly ROUND (a circle when seen from above)', 'NOT heart-shaped, NOT square, NOT oval'],
         'heart' => ['HEART-shaped when seen from above', 'NOT round, NOT square'],
         'star' => ['a FIVE-POINTED STAR when seen from above', 'NOT round, NOT heart-shaped'],
+        'square' => ['SQUARE with straight sides and slightly rounded corners when seen from above', 'NOT round, NOT heart-shaped, NOT a long rectangle'],
+        'rectangle' => ['a RECTANGLE (longer than it is deep) with straight sides and slightly rounded corners when seen from above', 'NOT round, NOT square, NOT heart-shaped'],
         'dome' => ['a smooth DOME (half-sphere), round when seen from above', 'NOT a flat-topped cylinder, NOT heart-shaped, with NO ears'],
         'cone' => ['a tall CONE tapering to a point', 'NOT a cylinder, NOT round-topped'],
         'sunset' => ['a HALF-CIRCLE standing upright on its flat edge', 'NOT a full round cake, NOT heart-shaped'],
@@ -42,6 +44,8 @@ class SpecialOrderController extends Controller
         'round' => 'round',
         'heart' => 'heart-shaped',
         'star' => 'five-pointed star-shaped (with softly rounded points)',
+        'square' => 'square (straight sides, slightly rounded corners)',
+        'rectangle' => 'rectangular sheet cake (straight sides, slightly rounded corners)',
         'dome' => 'dome-shaped: a smooth half-sphere, round when seen from above, with no ears, face or figure shapes',
         'cone' => 'tall cone-shaped (tapering to a point at the top)',
         'sunset' => 'sunset-shaped: a half-circle (semicircle) cake standing upright on its flat edge, like a setting sun, with the round face to the front',
@@ -497,6 +501,12 @@ class SpecialOrderController extends Controller
         }
         $people = ['4' => 'a small mini cake for 1-2 people', '6' => 'a small cake for 4-6 people', '8' => 'a medium cake for 8-10 people', '10' => 'a large cake for 12-15 people'][$inches[0]] ?? 'a cake';
         $tiers = count($inches) > 1 ? 'Each tier is' : 'The cake is';
+
+        // المربع والمستطيل: العرض والعمق الحقيقي من config
+        if ($dims = config("cake_ar.shapes.{$shape}.dims.{$inches[0]}in")) {
+            return "Real size: {$people}. The cake is {$dims[0]} cm wide, {$dims[1]} cm deep and {$height} cm tall ({$layers} sponge layers), "
+                .'with the same proportions as image 1. Do not make it taller or bigger. ';
+        }
 
         return "Real size: {$people}. {$tiers} {$height} cm tall ({$layers} sponge layers); the bottom tier is {$width} cm wide, "
             .'so the cake is clearly WIDER THAN IT IS TALL, with the same proportions as image 1. Do not make it taller or bigger. ';

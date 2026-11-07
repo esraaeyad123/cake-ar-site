@@ -377,6 +377,8 @@
             <div class="tier-option shape-option" data-shape="wall" role="button" aria-label="وال كيك" title="وال كيك"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5h16v-7H4zM7 12.5h10V7H7z"/></svg></div>
             <div class="tier-option shape-option" data-shape="dome" role="button" aria-label="قبة" title="قبة"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17.5c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5M4.5 17.5a7.5 8 0 0 1 15 0"/></svg></div>
             <div class="tier-option shape-option" data-shape="star" role="button" aria-label="نجمة" title="نجمة"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 16.5l-5.3 2.8 1.1-5.8-4.3-4.1 5.9-.8z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="square" role="button" aria-label="مربع" title="مربع"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v14H5z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="rectangle" role="button" aria-label="مستطيل" title="مستطيل"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v10H3z"/></svg></div>
         </div>
     </div>
 
@@ -453,6 +455,11 @@
         const SHAPES = @json(config('cake_ar.shapes'));
         const special = () => SHAPES[currentShape];
         const allowedLayers = sizeKey => special() ? [].concat(special().layers) : (layerLimits[sizeKey] || [1,2,3,4,5,6,7]);
+        // المربع والمستطيل: العرض والعمق بالسنتيمتر من config → متر
+        const footprintOf = (shape, sizeKey) => {
+            const d = SHAPES[shape]?.dims?.[sizeKey];
+            return d ? { w: d[0] / 100, d: d[1] / 100 } : null;
+        };
         const isPlainOnly = () => currentShape === 'cone' || (!!special() && !special().vintage);
 
         const layerColors = ['#F4C0D1','#ED93B1','#D4537E','#993556','#72243E','#4B1528','#2C1018'];
@@ -513,6 +520,7 @@
                     shape: currentShape,
                     style: isPlainOnly() ? 'plain' : currentStyle,
                     extraHeight: (currentLayers - modelLayers) * LAYER_HEIGHT,
+                    footprint: footprintOf(currentShape, currentSizeKey),
                 });
                 if (token !== composeToken) { URL.revokeObjectURL(url); return; }
                 if (currentBlob) URL.revokeObjectURL(currentBlob);
@@ -627,7 +635,7 @@
 
         // الشكل: الدائري كل الأدوار، القلب والمخروطي دور واحد، والأشكال الخاصة حسب إعداداتها.
         // المخروطي ارتفاعه ثابت (بدون طبقات)، والمخروطي والسن ست بدون فنتج
-        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك', star: 'نجمة', dome: 'قبة' };
+        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك', star: 'نجمة', square: 'مربع', rectangle: 'مستطيل', dome: 'قبة' };
         const SHAPE_ICONS = Object.fromEntries([...document.querySelectorAll('.shape-option')]
             .map(o => [o.dataset.shape, o.querySelector('path').getAttribute('d')]));
         document.querySelectorAll('.shape-option').forEach(opt => {
