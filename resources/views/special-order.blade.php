@@ -502,6 +502,8 @@
             { key: 'sunset', name: 'سن ست', model: 'sunset', tiers: SHAPES.sunset.tiers },
             { key: 'wall', name: 'وال كيك', model: 'wall', tiers: SHAPES.wall.tiers },
             { key: 'star', name: 'نجمة', model: 'star', tiers: SHAPES.star.tiers },
+            { key: 'square', name: 'مربع', model: 'square', tiers: SHAPES.square.tiers },
+            { key: 'rectangle', name: 'مستطيل', model: 'rectangle', tiers: SHAPES.rectangle.tiers },
             { key: 'dome', name: 'قبة', model: 'dome', tiers: SHAPES.dome.tiers },
         ];
         const SHAPE_IMAGES = "{{ asset('images/shapes') }}";
@@ -574,6 +576,8 @@
             sunset: 'M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0',
             dome: 'M4.5 17.5c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5M4.5 17.5a7.5 8 0 0 1 15 0',
             star: 'M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 16.5l-5.3 2.8 1.1-5.8-4.3-4.1 5.9-.8z',
+            square: 'M5 5h14v14H5z',
+            rectangle: 'M3 7h18v10H3z',
         };
         // رسمة المقاس: الشكل يكبر مع الإنش، وكيك الأدوار أدوار فوق بعض بعرض كل دور
         function sizePicture(key) {
@@ -660,6 +664,8 @@
                     shape: shape(),
                     style: STYLE,
                     extraHeight: (state.layers - modelLayers) * LAYER_HEIGHT,
+                    // المربع والمستطيل: العرض والعمق بالسنتيمتر من config → متر
+                    footprint: (d => d ? { w: d[0] / 100, d: d[1] / 100 } : null)(SHAPES[shape()]?.dims?.[state.size]),
                 });
                 if (mine !== token) { URL.revokeObjectURL(url); return; }
                 if (currentBlob) URL.revokeObjectURL(currentBlob);
