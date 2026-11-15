@@ -7,6 +7,9 @@
             if (/فانيل|vanilla/i.test(name)) return 'vanilla';
             return null;
         }
+        // الحشوات "السادة" كلها تحت، والباقي بنفس ترتيبه فوقها
+        const isPlainFilling = item => /ساد|plain/i.test(`${item?.name || ''} ${item?.title_en || ''}`);
+        const plainLast = (list, key) => key === 'filling' ? [...list].sort((a, b) => isPlainFilling(a) - isPlainFilling(b)) : list;
         function fillingKey(item) {
             const name = `${item?.name || ''} ${item?.title_en || ''}`;
             if (/نوتيلا|nutella/i.test(name)) return 'nutella';

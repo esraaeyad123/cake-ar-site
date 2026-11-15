@@ -661,7 +661,7 @@
             [['flavor-cards', 'flavors', 'flavor', '🍰'], ['filling-cards', 'fillings', 'filling', '🍓']].forEach(([boxId, list, key, icon]) => {
                 const box = $(boxId);
                 box.innerHTML = '';
-                options[list].forEach(item => {
+                plainLast(options[list], key).forEach(item => {
                     const add = extra(item);
                     box.appendChild(card('item-card',
                         `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${item.name}${add ? `<span class="extra">+${money(add)}</span>` : ''}`,
