@@ -227,7 +227,8 @@
         .refs-grid .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .refs-grid .ref .remove { position: absolute; top: 4px; left: 4px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; background: var(--ink); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
         .refs-grid .add { aspect-ratio: 1; border-radius: 12px; border: 1.5px dashed #ED93B1; background: #fff; color: var(--pink-dark); font-size: 30px; cursor: pointer; font-family: inherit; }
-        .gen-view img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        /* الصورة المولّدة تملى المربع كامل بدون فراغ أبيض على الجوانب */
+        .gen-view img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
         .viewer-wrap .price-card { z-index: 3; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
         .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
