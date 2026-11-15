@@ -287,6 +287,7 @@
         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
         .bubble.typing { color: var(--muted); }
+        .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
         .chat-input textarea { min-height: 46px; height: 46px; flex: 1; }
@@ -944,6 +945,13 @@
                 img.alt = 'التصميم بعد التعديل';
                 img.addEventListener('click', () => { showAiImage(image); $('ai-image').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
                 b.appendChild(img);
+                // تحميل الصورة من داخل المحادثة
+                const dl = document.createElement('a');
+                dl.className = 'bubble-download';
+                dl.href = image;
+                dl.download = `jomacake-${(image.split('/').pop() || 'cake').replace(/\.\w+$/, '')}.png`;
+                dl.textContent = '⬇️ تحميل الصورة';
+                b.appendChild(dl);
             }
             $('chat-thread').appendChild(b);
             $('chat-thread').scrollTop = $('chat-thread').scrollHeight;
