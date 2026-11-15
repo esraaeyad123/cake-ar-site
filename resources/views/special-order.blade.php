@@ -158,6 +158,8 @@
             background: var(--ink); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; padding: 0;
         }
         /* الصور اللي طلعت قبل: تختار منها وحدة */
+        /* المعتمد هو آخر صورة في المحادثة (أو اللي يضغط عليها فيها)، فما نعرض صورة وأزرار تحت المحادثة */
+        #ai-result, #ai-history { display: none !important; }
         .ai-history { margin-top: 10px; }
         .ai-history .thumbs img { width: 64px; height: 64px; cursor: pointer; }
         .ai-history .thumbs img.current { outline: 3px solid var(--pink); outline-offset: 1px; }
@@ -799,7 +801,7 @@
         const imageEdits = {};
         function showAiImage(url) {
             state.aiImage = url;
-            state.aiApproved = false;
+            state.aiApproved = true; // الصورة الحالية في المحادثة هي المعتمدة
             saveDraft();
             $('ai-image').src = url;
             $('ai-download').href = url;
@@ -943,7 +945,7 @@
                 showAiImage(data.image);
                 done = true;
                 $('ai-generate').textContent = '✨ ولّدي صورة ثانية';
-                showAiMessage('هذي كيكتك بالمواصفات اللي اخترتيها. عجبتك؟', 'info');
+                showAiMessage('هذي كيكتك بالمواصفات اللي اخترتيها. لو تبين تعديل اكتبيه في المحادثة.', 'info');
             } catch (e) {
                 showAiMessage(abort.signal.aborted ? 'تم الإلغاء. غيّري اللي تبين وولّدي من جديد.' : e.message, abort.signal.aborted ? 'info' : 'error');
             } finally {
@@ -1025,7 +1027,7 @@
                 aiImages.push(data.image);
                 imageEdits[data.image] = [...(imageEdits[base] || []), instruction].slice(-12);
                 showAiImage(data.image);
-                bubble('assistant', 'هذي كيكتك بعد التعديل 👇 تقدرين تعتمدينها أو تطلبين تعديل ثاني.', data.image);
+                bubble('assistant', 'هذي كيكتك بعد التعديل 👇 لو تبين تعديل ثاني اكتبيه.', data.image);
             } catch (e) {
                 bubble('assistant', abort.signal.aborted ? 'وقّفت التعديل. اكتبي لي لو تبين شي ثاني.' : e.message);
             } finally {
@@ -1087,7 +1089,7 @@
                 $('chat-send').disabled = true;
                 if (await generateFirst(text === 'سويها مثل الصورة' ? '' : text)) {
                     chatMessages.push({ role: 'user', content: text }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
-                    bubble('assistant', 'هذي كيكتك 👇 تقدرين تعتمدينها أو تطلبين تعديل.', state.aiImage);
+                    bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', state.aiImage);
                 }
                 $('chat-send').disabled = false;
                 return;
