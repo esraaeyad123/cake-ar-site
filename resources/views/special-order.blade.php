@@ -234,8 +234,12 @@
         .refs-grid .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .refs-grid .ref .remove { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #fff; background: var(--ink); color: #fff; font-size: 10px; line-height: 1; cursor: pointer; padding: 0; }
         /* الصورة المولّدة كاملة بدون قص ولا زوم، والجوانب بلون خلفية الصورة نفسها */
-        .gen-view { background: #F6F2EF; }
-        .gen-view img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
+        .gen-view { background: #F4F1F0; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .gen-view[hidden] { display: none; }
+        /* الصورة بطولها كاملة، وأطرافها تذوب في الخلفية عشان ما يبان خط */
+        .gen-view img { height: 100%; width: auto; max-width: 100%; object-fit: contain; display: block;
+            -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%);
+                    mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); }
         .viewer-wrap .price-card { z-index: 3; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
         .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
@@ -278,6 +282,21 @@
         @keyframes tilt { 50% { transform: rotate(180deg); } }
         .wait-time { font-size: 26px; font-weight: 800; color: var(--pink); margin: 8px 0 2px; }
     </style>
+<script>
+    // خلفية مكان الصورة المولّدة بنفس لون خلفية الصورة (متوسط العمود الأيسر والأيمن من الصورة)
+    function genEdgeColor(img) {
+        try {
+            const W = 48, H = 48, c = document.createElement('canvas'); c.width = W; c.height = H;
+            const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, W, H);
+            let r = 0, g = 0, b = 0, n = 0;
+            [0, 1, W - 2, W - 1].forEach(col => {
+                const d = x.getImageData(col, 0, 1, H).data;
+                for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+            });
+            img.parentElement.style.background = `rgb(${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)})`;
+        } catch (e) { /* يبقى اللون الافتراضي */ }
+    }
+</script>
 </head>
 <body>
 
@@ -1289,19 +1308,5 @@
         goTo(startTab, false);
         refresh();
     </script>
-<script>
-    // لون حواف الصورة المولّدة يصير خلفية المكان عشان ما يبان فراغ
-    function genEdgeColor(img) {
-        try {
-            const c = document.createElement('canvas'); c.width = 8; c.height = 8;
-            const x = c.getContext('2d'); x.drawImage(img, 0, 0, 8, 8);
-            const pts = [[0,0],[7,0],[0,3],[7,3],[0,7],[7,7]];
-            let r = 0, g = 0, b = 0;
-            pts.forEach(([i, j]) => { const d = x.getImageData(i, j, 1, 1).data; r += d[0]; g += d[1]; b += d[2]; });
-            const n = pts.length;
-            img.parentElement.style.background = `rgb(${Math.round(r/n)},${Math.round(g/n)},${Math.round(b/n)})`;
-        } catch (e) { /* يبقى اللون الافتراضي */ }
-    }
-</script>
 </body>
 </html>
