@@ -671,7 +671,7 @@
                 const box = $(boxId);
                 if (!box) return;
                 box.innerHTML = '';
-                product[list].forEach(item => box.appendChild(card('item-card',
+                plainLast(product[list], key).forEach(item => box.appendChild(card('item-card',
                     `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${esc(item.name)}${key === 'flavor' && item.extra ? `<span class="extra">+${money(item.extra)}</span>` : ''}`,
                     state[key]?.id === item.id,
                     () => { state[key] = item; if (key === 'flavor') renderItems(); refresh(); },
