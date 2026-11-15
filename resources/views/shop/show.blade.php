@@ -292,7 +292,7 @@
         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
-        .chat-input textarea { min-height: 46px; height: 46px; flex: 1; }
+        .chat-input textarea { min-height: 46px; height: 46px; max-height: 160px; flex: 1; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
         .chat-input .btn { width: auto; margin: 0; padding: 12px 18px; flex-shrink: 0; }
         /* إرفاق صور للتوضيح أثناء المحادثة */
         .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -1142,5 +1142,52 @@
         goTo(shapes.length === 1 ? 1 : 0, false);
         refresh();
     </script>
+<script>
+    // خانة المحادثة تكبر مع الكتابة، وتطلع فوق الكيبورد في الجوال عشان الزبون يشوف وش يكتب
+    (function () {
+        const t = document.getElementById('chat-input');
+        if (!t) return;
+        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 160) + 'px'; };
+        t.addEventListener('input', grow);
+        const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
+        t.addEventListener('focus', show);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (document.activeElement === t) show(); });
+        // لو تغيّر النص من الكود (مثل بعد الإرسال) نرجّع الحجم
+        let last = t.value;
+        setInterval(() => { if (t.value !== last) { last = t.value; t.value ? grow() : (t.style.height = ''); } }, 400);
+    })();
+
+    // تحميل صور الذكاء الاصطناعي بصيغة PNG، وفي الجوال تنحفظ في الصور (حفظ الصورة)
+    async function asPng(url) {
+        const blob = await (await fetch(url)).blob();
+        if (blob.type === 'image/png') return blob;
+        const bmp = await createImageBitmap(blob);
+        const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        c.getContext('2d').drawImage(bmp, 0, 0);
+        return await new Promise(r => c.toBlob(r, 'image/png'));
+    }
+    document.addEventListener('click', async e => {
+        const a = e.target.closest('a.bubble-download, a#ai-download');
+        if (!a || !a.href || a.getAttribute('href') === '#') return;
+        e.preventDefault();
+        const name = (a.getAttribute('download') || 'jomacake.png').replace(/\.\w+$/, '') + '.png';
+        try {
+            const png = await asPng(a.href);
+            const file = new File([png], name, { type: 'image/png' });
+            const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try { await navigator.share({ files: [file] }); } catch (err) { /* سكّر النافذة */ }
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(file);
+            link.download = name;
+            document.body.appendChild(link); link.click(); link.remove();
+            setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+        } catch (err) {
+            window.open(a.href, '_blank');
+        }
+    });
+</script>
 </body>
 </html>
