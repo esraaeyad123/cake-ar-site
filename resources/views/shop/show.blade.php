@@ -158,6 +158,8 @@
             background: var(--ink); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; padding: 0;
         }
         /* الصور اللي طلعت قبل: تختار منها وحدة */
+        /* المعتمد هو آخر صورة في المحادثة (أو اللي يضغط عليها فيها)، فما نعرض صورة وأزرار تحت المحادثة */
+        #ai-result, #ai-history { display: none !important; }
         .ai-history { margin-top: 10px; }
         .ai-history .thumbs img { width: 64px; height: 64px; cursor: pointer; }
         .ai-history .thumbs img.current { outline: 3px solid var(--pink); outline-offset: 1px; }
@@ -836,7 +838,7 @@
 
         function showAiImage(url) {
             state.aiImage = url;
-            state.aiApproved = false;
+            state.aiApproved = true; // الصورة الحالية في المحادثة هي المعتمدة
             $('ai-image').src = url;
             $('ai-download').href = url;
             $('ai-download').download = `jomacake-${product.id}-${aiImages.indexOf(url) + 1}.png`;
@@ -918,8 +920,9 @@
                 aiImages.push(data.image);
                 imageEdits[data.image] = [$('ai-note').value.trim()].filter(Boolean);
                 showAiImage(data.image);
+                bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', data.image);
                 $('ai-generate').textContent = '✨ جربي مرة ثانية';
-                aiMessage('هذي كيكتك بالشكل والمقاس اللي اخترتيها. عجبتك؟');
+                aiMessage('هذي كيكتك بالشكل والمقاس اللي اخترتيها. لو تبين تعديل اكتبيه في المحادثة.');
             } catch (e) {
                 aiMessage(abort.signal.aborted ? 'تم الإلغاء. غيّري اللي تبين وجربي من جديد.' : e.message, abort.signal.aborted ? 'info' : 'error');
             } finally {
@@ -996,7 +999,7 @@
                 aiImages.push(data.image);
                 imageEdits[data.image] = [...(imageEdits[base] || []), instruction].slice(-12);
                 showAiImage(data.image);
-                bubble('assistant', 'هذي كيكتك بعد التعديل 👇 تقدرين تعتمدينها أو تطلبين تعديل ثاني.', data.image);
+                bubble('assistant', 'هذي كيكتك بعد التعديل 👇 لو تبين تعديل ثاني اكتبيه.', data.image);
             } catch (e) {
                 bubble('assistant', abort.signal.aborted ? 'وقّفت التعديل. اكتبي لي لو تبين شي ثاني.' : e.message);
             } finally {
