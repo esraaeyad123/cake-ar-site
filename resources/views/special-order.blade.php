@@ -220,6 +220,13 @@
         .top-view[hidden] { display: none; }
         .attach-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer; color: #444; font-family: inherit; font-size: 18px; font-weight: 800; }
         .attach-view svg { width: 30%; max-width: 120px; height: auto; transform: rotate(-35deg); }
+        .refs-view { display: flex; align-items: center; justify-content: center; padding: 12px 12px 56px; }
+        .refs-view[hidden] { display: none; }
+        .refs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 420px; }
+        .refs-grid .ref { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 1px solid var(--pink-line); background: #FAF3F5; }
+        .refs-grid .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .refs-grid .ref .remove { position: absolute; top: 4px; left: 4px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; background: var(--ink); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
+        .refs-grid .add { aspect-ratio: 1; border-radius: 12px; border: 1.5px dashed #ED93B1; background: #fff; color: var(--pink-dark); font-size: 30px; cursor: pointer; font-family: inherit; }
         .gen-view img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .viewer-wrap .price-card { z-index: 3; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
@@ -309,8 +316,11 @@
         {{-- في الشكل والحجم: المجسم 3D. من خطوة الوصف: مشبك لإرفاق الصورة، وبعد التوليد الصورة المولّدة مكانه --}}
         <button type="button" class="top-view attach-view" id="attach-view" hidden>
             <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M44 22 26.5 39.5a5 5 0 0 1-7-7L38 14a9 9 0 0 1 12.7 12.7L31 46.4a13 13 0 0 1-18.4-18.4L30 10.6"/></svg>
-            <span id="attach-text">ارفق الصورة المطلوبة</span>
+            <span>ارفق الصورة المطلوبة</span>
         </button>
+        {{-- بعد الإرفاق: الصور نفسها مكان المشبك، وكل صورة عليها ✕، ومربع + لإضافة المزيد (لين 6) --}}
+        <div class="top-view refs-view" id="refs-view" hidden><div class="refs-grid" id="refs-grid"></div></div>
+        <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple hidden>
         <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="الكيكة المولّدة"></div>
         <button type="button" class="ar-btn ar-float" id="ar-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
@@ -370,16 +380,9 @@
         <section class="panel" data-panel="2">
             <div class="ai-box">
                 <h3>✨ شوفي كيكتك قبل الطلب</h3>
-                <div class="hint" style="margin-top:0">ارفقي صور كيكة عاجبتك من المشبك فوق (لين 6 صور). بعدها اضغطي "ولّدي الصورة"، أو اكتبي للذكاء الاصطناعي اللي تبينه (مثل الكتابة على الكيكة)، ويسوي صورتها بنفس الشكل والحجم والطبقات اللي اخترتيها.</div>
+                <div class="hint" style="margin-top:0">ارفقي صور كيكة عاجبتك من المشبك فوق (لين 6 صور)، وبعدها اكتبي للذكاء الاصطناعي اللي تبينه (مثل الكتابة على الكيكة) واضغطي إرسال، أو اضغطي إرسال على طول لو تبينها مثل الصورة. ويسوي صورتها بنفس الشكل والحجم والطبقات اللي اخترتيها.</div>
 
-                <div class="section-title">صور الكيكة <small>(لين 6)</small></div>
-                <label class="upload">
-                    <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple>
-                    📷 اختاري صور
-                </label>
-                <div class="thumbs" id="ai-thumb"></div>
-
-                <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining !== 0 ? '' : 'disabled' }}>✨ ولّدي الصورة</button>
+                <button type="button" id="ai-generate" hidden></button>
                 <div class="hint" id="ai-remaining"></div>
                 <div class="message {{ $hasKey ? 'info' : 'error' }}" id="ai-message">{{ $hasKey ? '' : 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear' }}</div>
 
@@ -399,7 +402,7 @@
 
                 <div class="ai-chat" id="ai-chat">
                     <h4>💬 اكتبي للذكاء الاصطناعي</h4>
-                    <div class="hint" style="margin-top:0" id="chat-hint">أول رسالة تولّد الصورة (مثل: أبغاها مثل الصورة واكتبي كل عام وانتم بخير)، وبعدها كل رسالة تعدّل عليها. يلتزم بالشكل والحجم والطبقات اللي اخترتيها.</div>
+                    <div class="hint" style="margin-top:0" id="chat-hint">أول رسالة تولّد الصورة (مثل: أبغاها مثل الصورة واكتبي كل عام وانتم بخير، أو اضغطي إرسال بدون كتابة)، وبعدها كل رسالة تعدّل عليها. يلتزم بالشكل والحجم والطبقات اللي اخترتيها.</div>
                     <div class="chat-thread" id="chat-thread"></div>
                     <div class="thumbs" id="chat-thumbs"></div>
                     <div class="chat-input">
@@ -682,6 +685,7 @@
 
         let lastModelKey = '';
         function refresh() {
+            saveDraft();
             updateBadges();
             renderSummary($('summary'));
             const key = [shape(), state.size, state.layers].join('|');
@@ -702,15 +706,16 @@
             document.body.classList.toggle('step-shape', state.tab === 0);
             const after = state.tab >= 2;
             $('gen-view').hidden = !(after && state.aiImage);
-            $('attach-view').hidden = !(after && !state.aiImage);
+            $('attach-view').hidden = !(after && !state.aiImage && !refFiles.length);
+            $('refs-view').hidden = !(after && !state.aiImage && refFiles.length);
             if (state.aiImage) $('gen-image').src = state.aiImage;
-            $('attach-text').textContent = refFiles.length ? `✓ ارفقتي ${refFiles.length} صور، اضغطي لإضافة المزيد` : 'ارفق الصورة المطلوبة';
         }
         $('attach-view').addEventListener('click', () => aiRef.click());
 
         function goTo(i, scroll = true) {
             state.tab = i;
             updateTop();
+            saveDraft();
             tabs.forEach((t, n) => { t.classList.toggle('active', n === i); t.classList.toggle('done', n < i); });
             document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', Number(p.dataset.panel) === i));
             $('prev').style.visibility = i === 0 ? 'hidden' : 'visible';
@@ -746,8 +751,23 @@
         const MAX_REFS = 6;
         const refFiles = [];
         function renderRef() {
-            $('ai-thumb').innerHTML = '';
-            refFiles.forEach((f, i) => $('ai-thumb').appendChild(thumb(f, () => { refFiles.splice(i, 1); renderRef(); })));
+            const grid = $('refs-grid');
+            grid.innerHTML = '';
+            refFiles.forEach((f, i) => {
+                const box = thumb(f, () => { refFiles.splice(i, 1); renderRef(); });
+                box.className = 'ref';
+                grid.appendChild(box);
+            });
+            if (refFiles.length < MAX_REFS) {
+                const add = document.createElement('button');
+                add.type = 'button';
+                add.className = 'add';
+                add.setAttribute('aria-label', 'أضيفي صورة');
+                add.textContent = '+';
+                add.addEventListener('click', () => aiRef.click());
+                grid.appendChild(add);
+            }
+            saveDraft();
             renderSummary($('summary')); // صور الكيكة تظهر في الملخص
             updateTop();
         }
@@ -783,6 +803,7 @@
         function showAiImage(url) {
             state.aiImage = url;
             state.aiApproved = false;
+            saveDraft();
             $('ai-image').src = url;
             $('ai-download').href = url;
             $('ai-download').download = `jomacake-${aiImages.indexOf(url) + 1}.png`;
@@ -944,7 +965,9 @@
         const chatMessages = [];
         // طلبات الزبون بالعربي (للملخص بدل خانة الوصف)
         const userRequests = [];
+        const chatLog = [];
         function bubble(role, text, image) {
+            if (!role.includes('typing')) { chatLog.push({ role, text, image: image || null }); saveDraft(); }
             const b = document.createElement('div');
             b.className = 'bubble ' + role;
             b.textContent = text;
@@ -1031,8 +1054,9 @@
         async function sendChat() {
             const files = chatFiles.slice();
             let text = $('chat-input').value.trim();
-            if ((!text && !files.length) || $('chat-send').disabled) return;
-            if (!text) text = 'عدّلي حسب الصور المرفقة';
+            const firstFromPhotos = !aiImages.length && refFiles.length;
+            if ((!text && !files.length && !firstFromPhotos) || $('chat-send').disabled) return;
+            if (!text) text = aiImages.length ? 'عدّلي حسب الصور المرفقة' : 'سويها مثل الصورة';
             $('chat-message').textContent = '';
             $('chat-input').value = '';
             chatFiles = [];
@@ -1057,7 +1081,7 @@
                     return;
                 }
                 $('chat-send').disabled = true;
-                if (await generateFirst(text)) {
+                if (await generateFirst(text === 'سويها مثل الصورة' ? '' : text)) {
                     chatMessages.push({ role: 'user', content: text }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
                     bubble('assistant', 'هذي كيكتك 👇 تقدرين تعتمدينها أو تطلبين تعديل.', state.aiImage);
                 }
@@ -1098,6 +1122,7 @@
 
         $('ai-approve').addEventListener('click', () => {
             state.aiApproved = true;
+            saveDraft();
             $('ai-result').classList.add('is-approved');
             showAiMessage('', 'info');
             renderSummary($('summary'));
@@ -1161,6 +1186,8 @@
             $('submit-message').textContent = '';
             renderSummary($('modal-summary'));
             $('done-modal').classList.add('show');
+            // الطلب انرسل: الطلب الجاي يبدأ من جديد
+            try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) {}
             // بعد الطلب تتجدد صور الذكاء الاصطناعي
             fetch(reviewUrl, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF } })
                 .then(res => res.json())
@@ -1169,11 +1196,91 @@
         });
         $('close-modal').addEventListener('click', () => $('done-modal').classList.remove('show'));
 
+        // ===== المسودة: الصور والتصميم يبقون لو الزبون حدّث الصفحة (في نفس التبويب) =====
+        // الصور المرفقة تنحفظ مصغّرة في sessionStorage. لو المتصفح ما سمح (مساحة أو وضع خاص)
+        // نطلع تنبيه قبل التحديث إن الصور بتروح
+        const DRAFT_KEY = 'special-order-draft';
+        const dataUrls = new WeakMap();
+        let draftFailed = false, restoring = false;
+        async function toDataUrl(file) {
+            if (dataUrls.has(file)) return dataUrls.get(file);
+            const bitmap = await createImageBitmap(file);
+            const scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(bitmap.width * scale);
+            canvas.height = Math.round(bitmap.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff'; // الصور الشفافة ما تطلع سودا
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const url = canvas.toDataURL('image/jpeg', 0.82);
+            dataUrls.set(file, url);
+            return url;
+        }
+        let saveTimer = null;
+        function saveDraft() {
+            if (restoring) return;
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(async () => {
+                try {
+                    const draft = {
+                        card: state.card.key, size: state.size, layers: state.layers, tab: state.tab,
+                        flavor: state.flavor?.id ?? null, filling: state.filling?.id ?? null,
+                        refs: await Promise.all(refFiles.map(toDataUrl)),
+                        aiImages, imageEdits, aiImage: state.aiImage, aiApproved: state.aiApproved,
+                        chatMessages, userRequests, chatLog,
+                    };
+                    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+                    draftFailed = false;
+                } catch (e) {
+                    draftFailed = refFiles.length > 0 || aiImages.length > 0;
+                }
+            }, 300);
+        }
+        window.addEventListener('beforeunload', e => {
+            if (draftFailed) { e.preventDefault(); e.returnValue = ''; }
+        });
+        async function restoreDraft() {
+            let draft;
+            try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
+            if (!draft) return 0;
+            restoring = true;
+            try {
+                state.card = SHAPE_CARDS.find(c => c.key === draft.card) || state.card;
+                if (sizesOf(state.card).includes(draft.size)) state.size = draft.size;
+                if (layersOf(state.card, state.size).includes(draft.layers)) state.layers = draft.layers;
+                state.flavor = options.flavors.find(f => f.id === draft.flavor) || state.flavor;
+                state.filling = options.fillings.find(f => f.id === draft.filling) || state.filling;
+                for (const url of draft.refs || []) {
+                    const blob = await (await fetch(url)).blob();
+                    const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+                    dataUrls.set(file, url);
+                    refFiles.push(file);
+                }
+                aiImages.push(...(draft.aiImages || []));
+                Object.assign(imageEdits, draft.imageEdits || {});
+                chatMessages.push(...(draft.chatMessages || []));
+                userRequests.push(...(draft.userRequests || []));
+                (draft.chatLog || []).forEach(m => bubble(m.role, m.text, m.image));
+                if (draft.aiImage) {
+                    showAiImage(draft.aiImage);
+                    if (draft.aiApproved) $('ai-approve').click();
+                }
+                renderRef();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                restoring = false;
+            }
+            return draft.tab || 0;
+        }
+
+        const startTab = await restoreDraft();
         renderShapes();
         renderSizes();
         renderItems();
         renderRemaining();
-        goTo(0, false);
+        goTo(startTab, false);
         refresh();
     </script>
 </body>
