@@ -193,7 +193,7 @@
         .ai-result.is-approved .row { display: none; }
 
         /* المحادثة مع الذكاء الاصطناعي بعد أول صورة */
-        .ai-chat { margin-top: 14px; border-top: 1px dashed var(--pink-line); padding-top: 12px; }
+        .ai-chat { margin-top: 4px; }
         .ai-chat h4 { margin: 0 0 2px; font-size: 14px; }
         .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; max-height: 360px; overflow-y: auto; padding: 2px; }
         .bubble { max-width: 85%; padding: 9px 12px; border-radius: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
@@ -218,15 +218,18 @@
         .step-shape .price-card, .step-shape .spec-bar { display: none; }
         .top-view { position: absolute; inset: 0; z-index: 2; background: #fff; border: none; width: 100%; }
         .top-view[hidden] { display: none; }
-        .attach-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer; color: #444; font-family: inherit; font-size: 18px; font-weight: 800; }
-        .attach-view svg { width: 30%; max-width: 120px; height: auto; transform: rotate(-35deg); }
-        .refs-view { display: flex; align-items: center; justify-content: center; padding: 12px 12px 56px; }
-        .refs-view[hidden] { display: none; }
-        .refs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 420px; }
-        .refs-grid .ref { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 1px solid var(--pink-line); background: #FAF3F5; }
+        .attach-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px 58px; }
+        .attach-view[hidden] { display: none; }
+        .attach-btn { border: none; background: none; cursor: pointer; color: #444; font-family: inherit; font-size: 18px; font-weight: 800; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .attach-btn svg { width: 110px; height: auto; transform: rotate(-35deg); }
+        .attach-view.has-refs .attach-btn svg { width: 64px; }
+        .attach-view.has-refs .attach-btn { font-size: 15px; }
+        /* الصور المرفقة تحت المشبك، صف واحد */
+        .refs-grid { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .refs-grid:empty { display: none; }
+        .refs-grid .ref { position: relative; width: 58px; height: 58px; border-radius: 10px; overflow: hidden; border: 1px solid var(--pink-line); background: #FAF3F5; }
         .refs-grid .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .refs-grid .ref .remove { position: absolute; top: 4px; left: 4px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; background: var(--ink); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
-        .refs-grid .add { aspect-ratio: 1; border-radius: 12px; border: 1.5px dashed #ED93B1; background: #fff; color: var(--pink-dark); font-size: 30px; cursor: pointer; font-family: inherit; }
+        .refs-grid .ref .remove { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #fff; background: var(--ink); color: #fff; font-size: 10px; line-height: 1; cursor: pointer; padding: 0; }
         /* الصورة المولّدة تملى المربع كامل بدون فراغ أبيض على الجوانب */
         .gen-view img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
         .viewer-wrap .price-card { z-index: 3; }
@@ -314,13 +317,15 @@
             <div class="amount" id="price-amount">—</div>
             <div class="caption">السعر المبدئي</div>
         </div>
-        {{-- في الشكل والحجم: المجسم 3D. من خطوة الوصف: مشبك لإرفاق الصورة، وبعد التوليد الصورة المولّدة مكانه --}}
-        <button type="button" class="top-view attach-view" id="attach-view" hidden>
-            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M44 22 26.5 39.5a5 5 0 0 1-7-7L38 14a9 9 0 0 1 12.7 12.7L31 46.4a13 13 0 0 1-18.4-18.4L30 10.6"/></svg>
-            <span>ارفق الصورة المطلوبة</span>
-        </button>
-        {{-- بعد الإرفاق: الصور نفسها مكان المشبك، وكل صورة عليها ✕، ومربع + لإضافة المزيد (لين 6) --}}
-        <div class="top-view refs-view" id="refs-view" hidden><div class="refs-grid" id="refs-grid"></div></div>
+        {{-- في الشكل والحجم: المجسم 3D. من خطوة الوصف: المشبك لإرفاق الصور، والصور المرفقة صغيرة تحته (✕ لكل صورة)،
+             وبعد التوليد الصورة المولّدة مكانهم --}}
+        <div class="top-view attach-view" id="attach-view" hidden>
+            <button type="button" class="attach-btn" id="attach-btn">
+                <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M44 22 26.5 39.5a5 5 0 0 1-7-7L38 14a9 9 0 0 1 12.7 12.7L31 46.4a13 13 0 0 1-18.4-18.4L30 10.6"/></svg>
+                <span>ارفق الصورة المطلوبة</span>
+            </button>
+            <div class="refs-grid" id="refs-grid"></div>
+        </div>
         <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple hidden>
         <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="الكيكة المولّدة"></div>
         <button type="button" class="ar-btn ar-float" id="ar-btn">
@@ -380,8 +385,6 @@
         {{-- 3) النكهة والحشوة --}}
         <section class="panel" data-panel="2">
             <div class="ai-box">
-                <h3>✨ شوفي كيكتك قبل الطلب</h3>
-                <div class="hint" style="margin-top:0">ارفقي صور كيكة عاجبتك من المشبك فوق (لين 6 صور)، وبعدها اكتبي للذكاء الاصطناعي اللي تبينه (مثل الكتابة على الكيكة) واضغطي إرسال، أو اضغطي إرسال على طول لو تبينها مثل الصورة. ويسوي صورتها بنفس الشكل والحجم والطبقات اللي اخترتيها.</div>
 
                 <button type="button" id="ai-generate" hidden></button>
                 <div class="hint" id="ai-remaining"></div>
@@ -707,11 +710,11 @@
             document.body.classList.toggle('step-shape', state.tab === 0);
             const after = state.tab >= 2;
             $('gen-view').hidden = !(after && state.aiImage);
-            $('attach-view').hidden = !(after && !state.aiImage && !refFiles.length);
-            $('refs-view').hidden = !(after && !state.aiImage && refFiles.length);
+            $('attach-view').hidden = !(after && !state.aiImage);
+            $('attach-view').classList.toggle('has-refs', refFiles.length > 0);
             if (state.aiImage) $('gen-image').src = state.aiImage;
         }
-        $('attach-view').addEventListener('click', () => aiRef.click());
+        $('attach-btn').addEventListener('click', () => aiRef.click());
 
         function goTo(i, scroll = true) {
             state.tab = i;
@@ -759,15 +762,6 @@
                 box.className = 'ref';
                 grid.appendChild(box);
             });
-            if (refFiles.length < MAX_REFS) {
-                const add = document.createElement('button');
-                add.type = 'button';
-                add.className = 'add';
-                add.setAttribute('aria-label', 'أضيفي صورة');
-                add.textContent = '+';
-                add.addEventListener('click', () => aiRef.click());
-                grid.appendChild(add);
-            }
             saveDraft();
             renderSummary($('summary')); // صور الكيكة تظهر في الملخص
             updateTop();
