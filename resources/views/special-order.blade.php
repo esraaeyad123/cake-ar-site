@@ -231,8 +231,9 @@
         .refs-grid .ref { position: relative; width: 58px; height: 58px; border-radius: 10px; overflow: hidden; border: 1px solid var(--pink-line); background: #FAF3F5; }
         .refs-grid .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .refs-grid .ref .remove { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #fff; background: var(--ink); color: #fff; font-size: 10px; line-height: 1; cursor: pointer; padding: 0; }
-        /* الصورة المولّدة تملى المربع كامل بدون فراغ أبيض على الجوانب */
-        .gen-view img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+        /* الصورة المولّدة كاملة بدون قص ولا زوم، والجوانب بلون خلفية الصورة نفسها */
+        .gen-view { background: #F6F2EF; }
+        .gen-view img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
         .viewer-wrap .price-card { z-index: 3; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
         .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
@@ -328,7 +329,7 @@
             <div class="refs-grid" id="refs-grid"></div>
         </div>
         <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple hidden>
-        <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="الكيكة المولّدة"></div>
+        <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="الكيكة المولّدة" onload="genEdgeColor(this)"></div>
         <button type="button" class="ar-btn ar-float" id="ar-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
             شاهد على طاولتك
@@ -713,7 +714,7 @@
             $('gen-view').hidden = !(after && state.aiImage);
             $('attach-view').hidden = !(after && !state.aiImage);
             $('attach-view').classList.toggle('has-refs', refFiles.length > 0);
-            if (state.aiImage) $('gen-image').src = state.aiImage;
+            if (state.aiImage && $('gen-image').getAttribute('src') !== state.aiImage) $('gen-image').src = state.aiImage;
         }
         $('attach-btn').addEventListener('click', () => aiRef.click());
 
@@ -1286,5 +1287,19 @@
         goTo(startTab, false);
         refresh();
     </script>
+<script>
+    // لون حواف الصورة المولّدة يصير خلفية المكان عشان ما يبان فراغ
+    function genEdgeColor(img) {
+        try {
+            const c = document.createElement('canvas'); c.width = 8; c.height = 8;
+            const x = c.getContext('2d'); x.drawImage(img, 0, 0, 8, 8);
+            const pts = [[0,0],[7,0],[0,3],[7,3],[0,7],[7,7]];
+            let r = 0, g = 0, b = 0;
+            pts.forEach(([i, j]) => { const d = x.getImageData(i, j, 1, 1).data; r += d[0]; g += d[1]; b += d[2]; });
+            const n = pts.length;
+            img.parentElement.style.background = `rgb(${Math.round(r/n)},${Math.round(g/n)},${Math.round(b/n)})`;
+        } catch (e) { /* يبقى اللون الافتراضي */ }
+    }
+</script>
 </body>
 </html>
