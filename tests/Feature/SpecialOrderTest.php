@@ -405,6 +405,30 @@ class SpecialOrderTest extends TestCase
         });
     }
 
+    public function test_first_step_understands_whether_the_customer_wants_an_image(): void
+    {
+        Http::fake(['api.openai.com/v1/chat/completions' => $this->chatReply([
+            'reply' => 'تمام، أجهزها لك الحين',
+            'action' => 'generate',
+            'note' => 'بدي زي الصورة بس لونها أحمر',
+        ])]);
+
+        $this->postJson('/special-order/ai/chat', [
+            'shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain', 'stage' => 'first',
+            'messages' => [
+                ['role' => 'user', 'content' => 'بدي زي الصورة بس لونها أحمر [أرفقت 1 صور للتوضيح]'],
+                ['role' => 'assistant', 'content' => 'كلامك واضح 👌 تبين أولّد لك صورة للكيكة بالذكاء الاصطناعي؟'],
+                ['role' => 'user', 'content' => 'ياريت'],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('action', 'generate')
+            ->assertJsonPath('note', 'بدي زي الصورة بس لونها أحمر');
+
+        // تعليمات خاصة بفهم الرد، مو تعليمات التعديل
+        Http::assertSent(fn ($request) => str_contains($request['messages'][0]['content'] ?? '', '"generate"|"skip"|"ask"'));
+    }
+
     public function test_chat_has_a_message_limit(): void
     {
         config(['special_order.chat_limit' => 1]);
