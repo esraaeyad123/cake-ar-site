@@ -1105,37 +1105,59 @@
                     $('chat-input').value = text;
                     return;
                 }
-                // ما نولّد على طول: نسأل الزبون في المحادثة، يكتب "أيوه" نولّد، "لا" يكمّل والدعم يعالج الطلب
-                if (pendingFirst.length && !files.length) {
-                    const answer = text.replace(/[.!؟?،,\s]+/g, ' ').trim();
-                    const words = answer.split(' ');
-                    if (YES.test(answer)) {
-                        userRequests.pop();
-                        // "أيوه بس خلي الورد أبيض": الكلام بعد "أيوه" يدخل في الوصف
-                        const extra = words.slice(1).join(' ');
-                        if (words.length > 2) { pendingFirst.push(extra); userRequests.push(extra); }
-                        if (!canGenerate()) { bubble('assistant', NO_MORE); return; }
-                        const note = pendingFirst.filter(Boolean).join('\n');
-                        const said = pendingFirst.filter(Boolean).join(' / ') || 'سويها مثل الصورة';
-                        $('chat-send').disabled = true;
-                        if (await generateFirst(note)) {
-                            pendingFirst.length = 0;
-                            chatMessages.push({ role: 'user', content: said }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
-                            bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', state.aiImage);
-                        }
+                // ما نولّد على طول: نسأل الزبون في المحادثة، والذكاء الاصطناعي يفهم رده (يبي صورة ولا يكمّل والدعم يعالج الطلب)
+                const ASK = 'كلامك واضح 👌 تبين أولّد لك صورة للكيكة بالذكاء الاصطناعي؟';
+                if (!canGenerate()) { bubble('assistant', 'كلامك واضح 👌 ' + NO_MORE); return; }
+                if (!pendingFirst.length) {
+                    pendingFirst.push(text === 'سويها مثل الصورة' ? '' : text);
+                    firstChat.push({ role: 'user', content }, { role: 'assistant', content: ASK });
+                    bubble('assistant', ASK);
+                    return;
+                }
+                firstChat.push({ role: 'user', content });
+                const typing = bubble('assistant typing', '…');
+                $('chat-send').disabled = true;
+                let answer;
+                try {
+                    const res = await fetch(chatUrl, {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: JSON.stringify({ ...specs(), stage: 'first', messages: firstChat.slice(-12) }),
+                    });
+                    answer = await res.json();
+                    if (!res.ok) throw new Error((answer.errors && Object.values(answer.errors)[0]?.[0]) || answer.message || 'صار خطأ، جربي مرة ثانية.');
+                } catch (e) {
+                    // ما رد الذكاء الاصطناعي: نفهم الردود الواضحة بنفسنا
+                    const short = text.replace(/[.!؟?،,\s]+/g, ' ').trim();
+                    answer = YES.test(short) ? { action: 'generate', reply: '', note: '' }
+                        : NO.test(short) && short.split(' ').length <= 3 ? { action: 'skip', reply: NO_MORE }
+                        : null;
+                    if (!answer) {
+                        typing.remove();
+                        firstChat.pop();
+                        $('chat-message').textContent = e.message;
+                        $('chat-input').value = text;
                         $('chat-send').disabled = false;
                         return;
                     }
-                    if (NO.test(answer) && words.length <= 3) {
-                        userRequests.pop();
-                        bubble('assistant', NO_MORE);
-                        return;
+                }
+                typing.remove();
+                if (answer.reply) { bubble('assistant', answer.reply); firstChat.push({ role: 'assistant', content: answer.reply }); }
+                if (answer.action === 'ask') {
+                    pendingFirst.push(text);
+                } else {
+                    userRequests.pop(); // "أيوه" أو "لا" مو جزء من الوصف
+                    if (answer.action === 'generate') {
+                        const note = (answer.note || pendingFirst.filter(Boolean).join('\n')).trim();
+                        if (await generateFirst(note)) {
+                            chatMessages.push({ role: 'user', content: note || 'سويها مثل الصورة' }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
+                            pendingFirst.length = 0;
+                            firstChat.length = 0;
+                            bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', state.aiImage);
+                        }
                     }
                 }
-                pendingFirst.push(text === 'سويها مثل الصورة' ? '' : text);
-                bubble('assistant', canGenerate()
-                    ? 'كلامك واضح 👌 تبين أولّد لك صورة للكيكة بالذكاء الاصطناعي؟ اكتبي «أيوه» أو «لا».'
-                    : 'كلامك واضح 👌 ' + NO_MORE);
+                $('chat-send').disabled = false;
                 return;
             }
             chatMessages.push({ role: 'user', content });
@@ -1169,6 +1191,7 @@
         }
         // الوصف (مع الصور) اللي ينتظر رد الزبون: يبي صورة بالذكاء الاصطناعي أو لا
         const pendingFirst = [];
+        const firstChat = []; // محادثة ما قبل أول صورة (للذكاء الاصطناعي يفهم رد الزبون)
         const YES = /^(اي+وه?|ايوا|إي+|أيو[هة]|ايو[هة]|اي|نعم|اكيد|أكيد|يس|yes|y|ok|okay|اوك|اوكي|أوكي|تمام|طيب|ماشي|ولدي?|ولّدي?|يلا|بدي|ابي|أبي|ابغى|أبغى)( .*)?$/i;
         const NO = /^(لا+|لأ|لاء|no|n|مابدي|ما بدي|مابي|ما ابي|ما أبي|ماابغى|ما ابغى|ما أبغى|بدون|مو لازم|لا شكرا)( .*)?$/i;
         const NO_MORE = 'تمام 👍 اضغطي «التالي» وكمّلي طلبك، وفريق الدعم يكمّل معالجته بالصور والوصف.';

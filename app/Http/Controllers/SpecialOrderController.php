@@ -187,6 +187,7 @@ class SpecialOrderController extends Controller
             'messages' => ['required', 'array', 'min:1', 'max:20'],
             'messages.*.role' => ['required', 'in:user,assistant'],
             'messages.*.content' => ['required', 'string', 'max:500'],
+            'stage' => ['nullable', 'in:first'],
         ], [
             'messages.*.content.max' => 'الرسالة طويلة، الحد 500 حرف.',
         ]);
@@ -202,7 +203,11 @@ class SpecialOrderController extends Controller
         }
 
         try {
-            $answer = app(AiCakeChat::class)->reply($this->chatSpecs($data), $data['messages']);
+            $chat = app(AiCakeChat::class);
+            // قبل أول صورة: يفهم رد الزبون (يبي صورة ولا يكمّل بدونها)
+            $answer = ($data['stage'] ?? null) === 'first'
+                ? $chat->firstStep($this->chatSpecs($data), $data['messages'])
+                : $chat->reply($this->chatSpecs($data), $data['messages']);
         } catch (ConnectionException) {
             return response()->json(['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.'], 422);
         }
