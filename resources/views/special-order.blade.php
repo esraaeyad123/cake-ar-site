@@ -202,6 +202,8 @@
         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
         .bubble.typing { color: var(--muted); }
+        .bubble .choice { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .bubble .choice .btn { width: auto; margin: 0; padding: 8px 14px; font-size: 12px; }
         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
@@ -1105,12 +1107,9 @@
                     $('chat-input').value = text;
                     return;
                 }
-                $('chat-send').disabled = true;
-                if (await generateFirst(text === 'سويها مثل الصورة' ? '' : text)) {
-                    chatMessages.push({ role: 'user', content: text }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
-                    bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', state.aiImage);
-                }
-                $('chat-send').disabled = false;
+                // ما نولّد على طول: نسأل الزبون، يولّد صورة أو يكمّل الطلب والدعم يكمّل المعالجة
+                pendingFirst.push(text === 'سويها مثل الصورة' ? '' : text);
+                askGenerate();
                 return;
             }
             chatMessages.push({ role: 'user', content });
@@ -1141,6 +1140,40 @@
             } finally {
                 $('chat-send').disabled = false;
             }
+        }
+        // الوصف (مع الصور) اللي ينتظر قرار الزبون: يولّد صورة أو يكمّل بدونها
+        const pendingFirst = [];
+        function askGenerate() {
+            document.querySelectorAll('.bubble .choice').forEach(c => c.remove());
+            const b = bubble('assistant', canGenerate()
+                ? 'كلامك واضح 👌 تبين أولّد لك صورة للكيكة بالذكاء الاصطناعي؟ أو تقدرين تضغطين «التالي» وفريق الدعم يكمّل معالجة طلبك بالصور والوصف.'
+                : 'كلامك واضح 👌 اضغطي «التالي» وفريق الدعم يكمّل معالجة طلبك بالصور والوصف.');
+            const row = document.createElement('div');
+            row.className = 'choice';
+            if (canGenerate()) {
+                const gen = document.createElement('button');
+                gen.type = 'button'; gen.className = 'btn'; gen.textContent = '✨ ولّدي صورة';
+                gen.addEventListener('click', async () => {
+                    row.remove();
+                    const note = pendingFirst.filter(Boolean).join('\n');
+                    const said = pendingFirst.join(' / ') || 'سويها مثل الصورة';
+                    bubble('user', 'ولّدي صورة');
+                    $('chat-send').disabled = true;
+                    if (await generateFirst(note)) {
+                        pendingFirst.length = 0;
+                        chatMessages.push({ role: 'user', content: said }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
+                        bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', state.aiImage);
+                    }
+                    $('chat-send').disabled = false;
+                });
+                row.appendChild(gen);
+            }
+            const next = document.createElement('button');
+            next.type = 'button'; next.className = 'btn light'; next.textContent = 'التالي، الدعم يكمّل';
+            next.addEventListener('click', () => { row.remove(); bubble('user', 'أكمّل بدون صورة'); $('next').click(); });
+            row.appendChild(next);
+            b.appendChild(row);
+            $('chat-thread').scrollTop = $('chat-thread').scrollHeight;
         }
         $('chat-send').addEventListener('click', sendChat);
         $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
