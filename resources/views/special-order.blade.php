@@ -202,8 +202,6 @@
         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
         .bubble.typing { color: var(--muted); }
-        .bubble .choice { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-        .bubble .choice .btn { width: auto; margin: 0; padding: 8px 14px; font-size: 12px; }
         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
@@ -1107,9 +1105,37 @@
                     $('chat-input').value = text;
                     return;
                 }
-                // ما نولّد على طول: نسأل الزبون، يولّد صورة أو يكمّل الطلب والدعم يكمّل المعالجة
+                // ما نولّد على طول: نسأل الزبون في المحادثة، يكتب "أيوه" نولّد، "لا" يكمّل والدعم يعالج الطلب
+                if (pendingFirst.length && !files.length) {
+                    const answer = text.replace(/[.!؟?،,\s]+/g, ' ').trim();
+                    const words = answer.split(' ');
+                    if (YES.test(answer)) {
+                        userRequests.pop();
+                        // "أيوه بس خلي الورد أبيض": الكلام بعد "أيوه" يدخل في الوصف
+                        const extra = words.slice(1).join(' ');
+                        if (words.length > 2) { pendingFirst.push(extra); userRequests.push(extra); }
+                        if (!canGenerate()) { bubble('assistant', NO_MORE); return; }
+                        const note = pendingFirst.filter(Boolean).join('\n');
+                        const said = pendingFirst.filter(Boolean).join(' / ') || 'سويها مثل الصورة';
+                        $('chat-send').disabled = true;
+                        if (await generateFirst(note)) {
+                            pendingFirst.length = 0;
+                            chatMessages.push({ role: 'user', content: said }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
+                            bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', state.aiImage);
+                        }
+                        $('chat-send').disabled = false;
+                        return;
+                    }
+                    if (NO.test(answer) && words.length <= 3) {
+                        userRequests.pop();
+                        bubble('assistant', NO_MORE);
+                        return;
+                    }
+                }
                 pendingFirst.push(text === 'سويها مثل الصورة' ? '' : text);
-                askGenerate();
+                bubble('assistant', canGenerate()
+                    ? 'كلامك واضح 👌 تبين أولّد لك صورة للكيكة بالذكاء الاصطناعي؟ اكتبي «أيوه» أو «لا».'
+                    : 'كلامك واضح 👌 ' + NO_MORE);
                 return;
             }
             chatMessages.push({ role: 'user', content });
@@ -1141,40 +1167,11 @@
                 $('chat-send').disabled = false;
             }
         }
-        // الوصف (مع الصور) اللي ينتظر قرار الزبون: يولّد صورة أو يكمّل بدونها
+        // الوصف (مع الصور) اللي ينتظر رد الزبون: يبي صورة بالذكاء الاصطناعي أو لا
         const pendingFirst = [];
-        function askGenerate() {
-            document.querySelectorAll('.bubble .choice').forEach(c => c.remove());
-            const b = bubble('assistant', canGenerate()
-                ? 'كلامك واضح 👌 تبين أولّد لك صورة للكيكة بالذكاء الاصطناعي؟ أو تقدرين تضغطين «التالي» وفريق الدعم يكمّل معالجة طلبك بالصور والوصف.'
-                : 'كلامك واضح 👌 اضغطي «التالي» وفريق الدعم يكمّل معالجة طلبك بالصور والوصف.');
-            const row = document.createElement('div');
-            row.className = 'choice';
-            if (canGenerate()) {
-                const gen = document.createElement('button');
-                gen.type = 'button'; gen.className = 'btn'; gen.textContent = '✨ ولّدي صورة';
-                gen.addEventListener('click', async () => {
-                    row.remove();
-                    const note = pendingFirst.filter(Boolean).join('\n');
-                    const said = pendingFirst.join(' / ') || 'سويها مثل الصورة';
-                    bubble('user', 'ولّدي صورة');
-                    $('chat-send').disabled = true;
-                    if (await generateFirst(note)) {
-                        pendingFirst.length = 0;
-                        chatMessages.push({ role: 'user', content: said }, { role: 'assistant', content: 'سويت الصورة بطلبك.' });
-                        bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', state.aiImage);
-                    }
-                    $('chat-send').disabled = false;
-                });
-                row.appendChild(gen);
-            }
-            const next = document.createElement('button');
-            next.type = 'button'; next.className = 'btn light'; next.textContent = 'التالي، الدعم يكمّل';
-            next.addEventListener('click', () => { row.remove(); bubble('user', 'أكمّل بدون صورة'); $('next').click(); });
-            row.appendChild(next);
-            b.appendChild(row);
-            $('chat-thread').scrollTop = $('chat-thread').scrollHeight;
-        }
+        const YES = /^(اي+وه?|ايوا|إي+|أيو[هة]|ايو[هة]|اي|نعم|اكيد|أكيد|يس|yes|y|ok|okay|اوك|اوكي|أوكي|تمام|طيب|ماشي|ولدي?|ولّدي?|يلا|بدي|ابي|أبي|ابغى|أبغى)( .*)?$/i;
+        const NO = /^(لا+|لأ|لاء|no|n|مابدي|ما بدي|مابي|ما ابي|ما أبي|ماابغى|ما ابغى|ما أبغى|بدون|مو لازم|لا شكرا)( .*)?$/i;
+        const NO_MORE = 'تمام 👍 اضغطي «التالي» وكمّلي طلبك، وفريق الدعم يكمّل معالجته بالصور والوصف.';
         $('chat-send').addEventListener('click', sendChat);
         $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
 
