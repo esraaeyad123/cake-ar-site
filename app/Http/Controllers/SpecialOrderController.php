@@ -80,9 +80,9 @@ class SpecialOrderController extends Controller
             'shape_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ], [
-            'note.max' => 'الملاحظة طويلة، الحد 500 حرف.',
-            'references.required' => 'اختاري صورة الكيكة أول.',
-            'references.max' => 'الحد '.self::MAX_REFERENCES.' صور.',
+            'note.max' => __('cake_ar.srv.note_long'),
+            'references.required' => __('cake_ar.srv.pick_photo'),
+            'references.max' => __('cake_ar.srv.max_refs', ['n' => self::MAX_REFERENCES]),
         ]);
 
         // الأشكال الخاصة (السن ست) دور واحد بمقاساتها وطبقاتها فقط
@@ -94,11 +94,11 @@ class SpecialOrderController extends Controller
         }
 
         if ($this->remaining() === 0) {
-            return response()->json(['message' => 'استخدمتِ كل محاولات التوليد ('.config('special_order.ai_limit').'). كمّلي الطلب بالوصف والصور.', 'remaining' => 0], 429);
+            return response()->json(['message' => __('cake_ar.srv.used_all_desc', ['n' => config('special_order.ai_limit')]), 'remaining' => 0], 429);
         }
 
         if (blank(config('services.openai.key'))) {
-            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+            return response()->json(['message' => __('cake_ar.srv.no_key')], 503);
         }
 
         $job = $data['job'];
@@ -125,7 +125,7 @@ class SpecialOrderController extends Controller
                     'n' => 1,
                 ]);
         } catch (ConnectionException) {
-            return $this->finish($request, $job, 422, ['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.']);
+            return $this->finish($request, $job, 422, ['message' => __('cake_ar.srv.openai_unreachable')]);
         }
 
         if ($response->failed()) {
@@ -133,13 +133,13 @@ class SpecialOrderController extends Controller
             $message = (string) $response->json('error.message');
 
             return $this->finish($request, $job, 422, ['message' => $code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
-                ? 'الذكاء الاصطناعي رفض هذه الصورة. جربي صورة ثانية.'
-                : "خطأ من OpenAI ({$response->status()}): {$message}"]);
+                ? __('cake_ar.srv.refused_image')
+                : __('cake_ar.srv.openai_error', ['status' => $response->status(), 'message' => $message])]);
         }
 
         $image = $response->json('data.0.b64_json');
         if (! $image) {
-            return $this->finish($request, $job, 422, ['message' => 'ما رجعت صورة من الذكاء الاصطناعي. جربي مرة ثانية.']);
+            return $this->finish($request, $job, 422, ['message' => __('cake_ar.srv.no_image')]);
         }
 
         // المحاولة تنحسب فقط إذا رجعت صورة
@@ -189,17 +189,17 @@ class SpecialOrderController extends Controller
             'messages.*.content' => ['required', 'string', 'max:500'],
             'stage' => ['nullable', 'in:first'],
         ], [
-            'messages.*.content.max' => 'الرسالة طويلة، الحد 500 حرف.',
+            'messages.*.content.max' => __('cake_ar.srv.message_long'),
         ]);
         $this->validateSpecialShape($request, $data);
 
         if (blank(config('services.openai.key'))) {
-            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+            return response()->json(['message' => __('cake_ar.srv.no_key')], 503);
         }
 
         $limit = (int) config('special_order.chat_limit');
         if ($limit > 0 && (int) Cache::get($this->chatKey(), 0) >= $limit) {
-            return response()->json(['message' => "وصلتِ لحد الرسائل ({$limit}). كمّلي الطلب بالتصميم اللي اخترتيه."], 429);
+            return response()->json(['message' => __('cake_ar.srv.chat_limit', ['n' => $limit])], 429);
         }
 
         try {
@@ -209,11 +209,11 @@ class SpecialOrderController extends Controller
                 ? $chat->firstStep($this->chatSpecs($data), $data['messages'])
                 : $chat->reply($this->chatSpecs($data), $data['messages']);
         } catch (ConnectionException) {
-            return response()->json(['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.'], 422);
+            return response()->json(['message' => __('cake_ar.srv.openai_unreachable')], 422);
         }
 
         if (! $answer) {
-            return response()->json(['message' => 'ما قدر الذكاء الاصطناعي يرد الحين. جربي مرة ثانية.'], 422);
+            return response()->json(['message' => __('cake_ar.srv.chat_failed')], 422);
         }
 
         Cache::increment($this->chatKey());
@@ -239,15 +239,15 @@ class SpecialOrderController extends Controller
 
         $path = self::DIR.'/'.$data['image'];
         if (! in_array($path, Cache::get($this->imagesKey(), []), true) || ! Storage::disk('public')->exists($path)) {
-            return response()->json(['message' => 'الصورة مو موجودة. ولّدي صورة جديدة.'], 422);
+            return response()->json(['message' => __('cake_ar.srv.image_missing')], 422);
         }
 
         if ($this->remaining() === 0) {
-            return response()->json(['message' => 'استخدمتِ كل محاولات التوليد ('.config('special_order.ai_limit').'). كمّلي الطلب بالتصميم اللي اخترتيه.', 'remaining' => 0], 429);
+            return response()->json(['message' => __('cake_ar.srv.used_all_design', ['n' => config('special_order.ai_limit')]), 'remaining' => 0], 429);
         }
 
         if (blank(config('services.openai.key'))) {
-            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+            return response()->json(['message' => __('cake_ar.srv.no_key')], 503);
         }
 
         $job = $data['job'];
@@ -269,7 +269,7 @@ class SpecialOrderController extends Controller
                     'n' => 1,
                 ]);
         } catch (ConnectionException) {
-            return $this->finish($request, $job, 422, ['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.']);
+            return $this->finish($request, $job, 422, ['message' => __('cake_ar.srv.openai_unreachable')]);
         }
 
         if ($response->failed() || ! ($image = $response->json('data.0.b64_json'))) {
@@ -278,8 +278,8 @@ class SpecialOrderController extends Controller
             Log::warning('special-order AI edit failed', ['code' => $code, 'message' => $message]);
 
             return $this->finish($request, $job, 422, ['message' => $code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
-                ? 'الذكاء الاصطناعي رفض هذا التعديل. جربي تكتبينه بطريقة ثانية.'
-                : 'ما طلع التعديل. جربي مرة ثانية.']);
+                ? __('cake_ar.srv.refused_edit')
+                : __('cake_ar.srv.edit_failed')]);
         }
 
         Cache::increment($this->usedKey());
