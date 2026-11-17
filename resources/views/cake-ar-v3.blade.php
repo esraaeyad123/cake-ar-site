@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ app()->getLocale() }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>{{ $cake->name }} - جوماكيك</title>
+    <title>{{ $cake->name }} - {{ __('cake_ar.common.site') }}</title>
 
     <script type="module" src="https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
     <script type="importmap">
@@ -24,7 +24,7 @@
             text-align: center;
         }
 
-        header { padding: 20px 16px 4px; }
+        header { padding: 20px 16px 4px; display: flex; align-items: center; justify-content: space-between; }
         .logo { max-width: 150px; margin: 0 auto; display: block; }
 
         model-viewer {
@@ -114,7 +114,7 @@
             font-size: 13px;
             font-weight: 700;
             color: #4B1528;
-            text-align: right;
+            text-align: start;
             padding: 16px 16px 8px;
             max-width: 480px;
             margin: 0 auto;
@@ -166,7 +166,7 @@
             padding: 6px 16px 4px;
             max-width: 480px;
             margin: 0 auto;
-            text-align: right;
+            text-align: start;
         }
 
         /* بطاقات المقاس */
@@ -323,6 +323,7 @@
 
     <header>
         <img src="{{ asset('images/icons/logo.png') }}" alt="JOMACAKE" class="logo">
+        @include('partials.lang-switch')
     </header>
 
     <div class="viewer-wrap">
@@ -343,14 +344,14 @@
             exposure="1"
             environment-image="neutral"
         >
-            <button id="ar-button-el" slot="ar-button">شاهدها على طاولتك</button>
+            <button id="ar-button-el" slot="ar-button">{{ __('cake_ar.preview.ar_button') }}</button>
         </model-viewer>
 
-        <div class="viewer-loading" id="viewer-loading">جاري تجهيز الكيكة…</div>
+        <div class="viewer-loading" id="viewer-loading">{{ __('cake_ar.common.preparing') }}</div>
 
         <div class="style-switch" id="style-switch">
-            <div class="style-option" data-style="vintage">فنتج</div>
-            <div class="style-option active" data-style="plain">سادة</div>
+            <div class="style-option" data-style="vintage">{{ __('cake_ar.preview.vintage') }}</div>
+            <div class="style-option active" data-style="plain">{{ __('cake_ar.preview.plain') }}</div>
         </div>
 
         <div class="serves-badge" id="serves-badge">
@@ -368,38 +369,38 @@
     />
 
     <div id="panel-shape" class="options-panel">
-        <div class="section-title">شكل الكيكة</div>
+        <div class="section-title">{{ __('cake_ar.preview.shape_title') }}</div>
         <div class="tier-switch" id="shape-switch">
-            <div class="tier-option shape-option active" data-shape="round" role="button" aria-label="دائري" title="دائري"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9"/></svg></div>
-            <div class="tier-option shape-option" data-shape="heart" role="button" aria-label="قلب" title="قلب"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/></svg></div>
-            <div class="tier-option shape-option" data-shape="cone" role="button" aria-label="مخروطي" title="مخروطي"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z"/></svg></div>
-            <div class="tier-option shape-option" data-shape="sunset" role="button" aria-label="سن ست" title="سن ست"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0"/></svg></div>
-            <div class="tier-option shape-option" data-shape="wall" role="button" aria-label="وال كيك" title="وال كيك"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5h16v-7H4zM7 12.5h10V7H7z"/></svg></div>
-            <div class="tier-option shape-option" data-shape="dome" role="button" aria-label="قبة" title="قبة"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17.5c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5M4.5 17.5a7.5 8 0 0 1 15 0"/></svg></div>
-            <div class="tier-option shape-option" data-shape="star" role="button" aria-label="نجمة" title="نجمة"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 16.5l-5.3 2.8 1.1-5.8-4.3-4.1 5.9-.8z"/></svg></div>
-            <div class="tier-option shape-option" data-shape="square" role="button" aria-label="مربع" title="مربع"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v14H5z"/></svg></div>
-            <div class="tier-option shape-option" data-shape="rectangle" role="button" aria-label="مستطيل" title="مستطيل"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v10H3z"/></svg></div>
+            <div class="tier-option shape-option active" data-shape="round" role="button" aria-label="{{ __('cake_ar.so.shape_round') }}" title="{{ __('cake_ar.so.shape_round') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9"/></svg></div>
+            <div class="tier-option shape-option" data-shape="heart" role="button" aria-label="{{ __('cake_ar.so.shape_heart') }}" title="{{ __('cake_ar.so.shape_heart') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="cone" role="button" aria-label="{{ __('cake_ar.so.shape_cone') }}" title="{{ __('cake_ar.so.shape_cone') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c-.8 0-1.3.6-1.6 1.4L5.5 19.5h13L13.6 4.9c-.3-.8-.8-1.4-1.6-1.4z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="sunset" role="button" aria-label="{{ __('cake_ar.so.shape_sunset') }}" title="{{ __('cake_ar.so.shape_sunset') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18.5h18M4.5 18.5a7.5 7.5 0 0 1 15 0"/></svg></div>
+            <div class="tier-option shape-option" data-shape="wall" role="button" aria-label="{{ __('cake_ar.so.shape_wall') }}" title="{{ __('cake_ar.so.shape_wall') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5h16v-7H4zM7 12.5h10V7H7z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="dome" role="button" aria-label="{{ __('cake_ar.so.shape_dome') }}" title="{{ __('cake_ar.so.shape_dome') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17.5c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5M4.5 17.5a7.5 8 0 0 1 15 0"/></svg></div>
+            <div class="tier-option shape-option" data-shape="star" role="button" aria-label="{{ __('cake_ar.so.shape_star') }}" title="{{ __('cake_ar.so.shape_star') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 16.5l-5.3 2.8 1.1-5.8-4.3-4.1 5.9-.8z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="square" role="button" aria-label="{{ __('cake_ar.so.shape_square') }}" title="{{ __('cake_ar.so.shape_square') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v14H5z"/></svg></div>
+            <div class="tier-option shape-option" data-shape="rectangle" role="button" aria-label="{{ __('cake_ar.so.shape_rectangle') }}" title="{{ __('cake_ar.so.shape_rectangle') }}"><svg class="shape-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v10H3z"/></svg></div>
         </div>
     </div>
 
     <div id="panel-tier" class="options-panel">
-        <div class="section-title">عدد الأدوار</div>
+        <div class="section-title">{{ __('cake_ar.preview.tiers_title') }}</div>
         <div class="tier-switch" id="tier-switch">
-            <div class="tier-option active" data-tier="1">دور واحد</div>
-            <div class="tier-option" data-tier="2">دورين</div>
-            <div class="tier-option" data-tier="3">3 أدوار</div>
+            <div class="tier-option active" data-tier="1">{{ __('cake_ar.common.tier1') }}</div>
+            <div class="tier-option" data-tier="2">{{ __('cake_ar.common.tier2') }}</div>
+            <div class="tier-option" data-tier="3">{{ __('cake_ar.common.tier3') }}</div>
         </div>
     </div>
 
     <div id="panel-size" class="options-panel">
-        <div class="section-title">اختر الحجم</div>
+        <div class="section-title">{{ __('cake_ar.preview.size_title') }}</div>
         <div class="cards-row" id="size-cards">
             {{-- يتم تعبيتها بالجافاسكريبت حسب الدور المختار --}}
         </div>
     </div>
 
     <div id="panel-layers" class="options-panel">
-        <div class="section-title">عدد طبقات الكيك</div>
+        <div class="section-title">{{ __('cake_ar.preview.layers_title') }}</div>
         <div class="layers-row" id="layers-row">
             {{-- يتم تعبيتها بالجافاسكريبت حسب الحجم المختار (لكل مقاس مدى مختلف مسموح) --}}
         </div>
@@ -435,6 +436,9 @@
 
         const viewer = document.getElementById('viewer');
         const modelsBaseUrl = "{{ asset('storage/models') }}";
+        // الترجمة: نصوص الصفحة من lang/{ar,en}/cake_ar.php حسب لغة الموقع
+        const TR = { ...@json(__('cake_ar.common')), ...@json(__('cake_ar.so')), ...@json(__('cake_ar.preview')) };
+        const t = (k, r = {}) => String(TR[k] ?? k).replace(/:(\w+)/g, (m, n) => (n in r ? r[n] : m));
         const MODEL_VERSION = "v45"; // غيّر هذا الرقم كل مرة تحدّث ملفات النماذج — جزء من اسم الملف نفسه
 
         let currentSizeKey = "4in";  // مطابق لاسم الملف: 4in/6in/8in/10in
@@ -495,7 +499,7 @@
                     chip.classList.add('active');
                     currentLayers = n;
                     updateModel();
-                    document.querySelectorAll('.spec-label')[2].textContent = n + (n == 1 ? ' طبقة' : ' طبقات');
+                    document.querySelectorAll('.spec-label')[2].textContent = (n == 1 ? t('layer_one', { n }) : t('layers_n', { n }));
                 });
 
                 container.appendChild(chip);
@@ -528,7 +532,7 @@
                 viewer.src = url;
             } catch (e) {
                 console.error(e);
-                if (token === composeToken) loadingEl.textContent = 'تعذر تحميل الكيكة، حدّث الصفحة';
+                if (token === composeToken) loadingEl.textContent = t('viewer_failed');
                 return;
             }
             loadingEl.hidden = true;
@@ -557,13 +561,13 @@
                 @endforeach
             ],
             2: [
-                { label: "6/4",  sizeKey: "tier2_6-4",  serves: "6 أشخاص",  badge: false },
-                { label: "8/6",  sizeKey: "tier2_8-6",  serves: "14 شخص",  badge: false },
-                { label: "10/8", sizeKey: "tier2_10-8", serves: "23 شخص",  badge: false },
+                { label: "6/4",  sizeKey: "tier2_6-4",  serves: t('people', { n: 6 }),  badge: false },
+                { label: "8/6",  sizeKey: "tier2_8-6",  serves: t('people', { n: 14 }),  badge: false },
+                { label: "10/8", sizeKey: "tier2_10-8", serves: t('people', { n: 23 }),  badge: false },
             ],
             3: [
-                { label: "8/6/4",  sizeKey: "tier3_8-6-4",  serves: "15 شخص", badge: false },
-                { label: "10/8/6", sizeKey: "tier3_10-8-6", serves: "28 شخص", badge: false },
+                { label: "8/6/4",  sizeKey: "tier3_8-6-4",  serves: t('people', { n: 15 }), badge: false },
+                { label: "10/8/6", sizeKey: "tier3_10-8-6", serves: t('people', { n: 28 }), badge: false },
             ],
         };
 
@@ -583,10 +587,10 @@
 
                 const circleSize = 26 + i * 8;
                 card.innerHTML = `
-                    ${s.badge ? '<div class="badge">الأكثر طلبًا</div>' : ''}
+                    ${s.badge ? `<div class="badge">${t('best_seller')}</div>` : ''}
                     <div class="check">✓</div>
                     <div class="circle" style="width:${circleSize}px;height:${circleSize}px;"></div>
-                    <div class="num">${s.label} إنش</div>
+                    <div class="num">${t('inch', { n: s.label })}</div>
                 `;
 
                 card.addEventListener('click', () => {
@@ -597,9 +601,9 @@
                     renderLayerChips(currentSizeKey);
                     updateModel();
                     document.querySelectorAll('.spec-label')[2].textContent =
-                        currentLayers + (currentLayers == 1 ? ' طبقة' : ' طبقات');
+                        (currentLayers == 1 ? t('layer_one', { n: currentLayers }) : t('layers_n', { n: currentLayers }));
 
-                    document.querySelectorAll('.spec-label')[1].textContent = s.label + ' إنش';
+                    document.querySelectorAll('.spec-label')[1].textContent = t('inch', { n: s.label });
                     document.getElementById('serves-text').textContent = s.serves;
                 });
 
@@ -624,18 +628,18 @@
                 renderLayerChips(currentSizeKey);
                 updateModel();
 
-                const tierLabel = tier === 1 ? 'دور واحد' : (tier === 2 ? 'دورين' : '3 أدوار');
+                const tierLabel = t('tier' + tier);
                 document.querySelectorAll('.spec-label')[0].textContent = tierLabel;
-                document.querySelectorAll('.spec-label')[1].textContent = firstOption.label + ' إنش';
+                document.querySelectorAll('.spec-label')[1].textContent = t('inch', { n: firstOption.label });
                 document.getElementById('serves-text').textContent = firstOption.serves;
                 document.querySelectorAll('.spec-label')[2].textContent =
-                    currentLayers + (currentLayers == 1 ? ' طبقة' : ' طبقات');
+                    (currentLayers == 1 ? t('layer_one', { n: currentLayers }) : t('layers_n', { n: currentLayers }));
             });
         });
 
         // الشكل: الدائري كل الأدوار، القلب والمخروطي دور واحد، والأشكال الخاصة حسب إعداداتها.
         // المخروطي ارتفاعه ثابت (بدون طبقات)، والمخروطي والسن ست بدون فنتج
-        const SHAPE_LABELS = { round: 'دائري', heart: 'قلب', cone: 'مخروطي', sunset: 'سن ست', wall: 'وال كيك', star: 'نجمة', square: 'مربع', rectangle: 'مستطيل', dome: 'قبة' };
+        const SHAPE_LABELS = { round: t('shape_round'), heart: t('shape_heart'), cone: t('shape_cone'), sunset: t('shape_sunset'), wall: t('shape_wall'), dome: t('shape_dome'), star: t('shape_star'), square: t('shape_square'), rectangle: t('shape_rectangle') };
         const SHAPE_ICONS = Object.fromEntries([...document.querySelectorAll('.shape-option')]
             .map(o => [o.dataset.shape, o.querySelector('path').getAttribute('d')]));
         document.querySelectorAll('.shape-option').forEach(opt => {

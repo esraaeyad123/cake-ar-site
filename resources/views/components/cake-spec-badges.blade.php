@@ -4,7 +4,7 @@
     صف الدلالات البصرية أسفل المجسم — كل بادج (دور/حجم/طبقات) زر يفتح لوحة الخيارات المطابقة له.
     ملاحظة: بادج "عدد الأشخاص" انتقل ليكون عنصر مستقل بزاوية يسار المجسم (شوف serves-badge بالصفحة الرئيسية)
 --}}
-<div class="cake-spec-badges" dir="rtl">
+<div class="cake-spec-badges" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
     @if ($withShape)
         {{-- الشكل (دائري/قلب/مخروطي) — اسمه بكلاس مختلف حتى لا يغيّر ترتيب .spec-label للبقية --}}
         <div class="spec-badge clickable" data-target="panel-shape">
@@ -12,23 +12,23 @@
             <svg class="spec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
                 <path id="shape-icon" d="M5 7.5c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 7.5v9c0 1.7 3.1 3 7 3s7-1.3 7-3v-9"/>
             </svg>
-            <span class="spec-label-shape" id="shape-label">دائري</span>
+            <span class="spec-label-shape" id="shape-label">{{ __('cake_ar.so.shape_round') }}</span>
         </div>
     @endif
 
     <div class="spec-badge clickable" data-target="panel-tier">
-        <img src="{{ asset('images/icons/floor.png') }}" alt="عدد الأدوار" class="spec-icon">
-        <span class="spec-label">{{ $tierCount == 1 ? 'دور واحد' : $tierCount . ' أدوار' }}</span>
+        <img src="{{ asset('images/icons/floor.png') }}" alt="{{ __('cake_ar.preview.tiers_title') }}" class="spec-icon">
+        <span class="spec-label">{{ __('cake_ar.common.tier'.min(max((int) $tierCount, 1), 3)) }}</span>
     </div>
 
     <div class="spec-badge clickable" data-target="panel-size">
-        <img src="{{ asset('images/icons/ruler.png') }}" alt="الحجم" class="spec-icon">
-        <span class="spec-label">{{ $sizeLabel }} إنش</span>
+        <img src="{{ asset('images/icons/ruler.png') }}" alt="{{ __('cake_ar.common.sum_size') }}" class="spec-icon">
+        <span class="spec-label">{{ __('cake_ar.common.inch', ['n' => $sizeLabel]) }}</span>
     </div>
 
     <div class="spec-badge clickable" data-target="panel-layers">
-        <img src="{{ asset('images/icons/layer.png') }}" alt="عدد الطبقات" class="spec-icon">
-        <span class="spec-label">{{ $layersCount }} {{ $layersCount == 1 ? 'طبقة' : 'طبقات' }}</span>
+        <img src="{{ asset('images/icons/layer.png') }}" alt="{{ __('cake_ar.preview.layers_title') }}" class="spec-icon">
+        <span class="spec-label">{{ $layersCount == 1 ? __('cake_ar.preview.layer_one', ['n' => 1]) : __('cake_ar.common.layers_n', ['n' => $layersCount]) }}</span>
     </div>
 </div>
 

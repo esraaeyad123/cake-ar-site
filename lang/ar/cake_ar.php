@@ -181,6 +181,18 @@ return [
         'total' => 'الإجمالي',
         'ar_phone' => 'افتحي الصفحة من الجوال عشان تشوفين الكيكة على طاولتك.',
     ],
+    'preview' => [
+        'ar_button' => 'شاهدها على طاولتك',
+        'vintage' => 'فنتج',
+        'plain' => 'سادة',
+        'shape_title' => 'شكل الكيكة',
+        'tiers_title' => 'عدد الأدوار',
+        'size_title' => 'اختر الحجم',
+        'layers_title' => 'عدد طبقات الكيك',
+        'layer_one' => ':n طبقة',
+        'viewer_failed' => 'تعذر تحميل الكيكة، حدّث الصفحة',
+        'best_seller' => 'الأكثر طلبًا',
+    ],
     'srv' => [
         'no_key' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear',
         'note_long' => 'الملاحظة طويلة، الحد 500 حرف.',
