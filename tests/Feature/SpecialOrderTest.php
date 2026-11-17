@@ -41,6 +41,31 @@ class SpecialOrderTest extends TestCase
         ]);
     }
 
+    public function test_page_switches_between_arabic_and_english(): void
+    {
+        $this->fakeJomacake();
+
+        // الافتراضي عربي
+        $this->get('/special-order')->assertOk()
+            ->assertSee('dir="rtl"', false)
+            ->assertSee('ارفق الصورة المطلوبة');
+
+        // ?lang=en إنجليزي، ويبقى إنجليزي في الجلسة
+        $this->get('/special-order?lang=en')->assertOk()
+            ->assertSee('dir="ltr"', false)
+            ->assertSee('Attach the cake photo')
+            ->assertSee('Send for review')
+            ->assertDontSee('ارفق الصورة المطلوبة');
+        $this->get('/special-order')->assertSee('Attach the cake photo');
+
+        // رسائل السيرفر بنفس اللغة
+        $this->postJson('/special-order/ai', ['shape' => 'round', 'size' => '6in', 'layers' => 2, 'style' => 'plain'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.references.0', 'Choose the cake photo first.');
+
+        $this->get('/special-order?lang=ar')->assertSee('dir="rtl"', false);
+    }
+
     public function test_page_has_five_tabs_and_special_order_options_from_api(): void
     {
         $this->fakeJomacake();

@@ -48,21 +48,21 @@ class ShopAiController extends Controller
             'references.*' => ['image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
             'job' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ], [
-            'note.max' => 'الوصف طويل، الحد 500 حرف.',
-            'references.max' => 'الحد '.self::MAX_REFERENCES.' صور.',
+            'note.max' => __('cake_ar.srv.desc_long'),
+            'references.max' => __('cake_ar.srv.max_refs', ['n' => self::MAX_REFERENCES]),
         ]);
 
         $size = collect($product['sizes'])->firstWhere('id', (int) $data['size']);
         if (! $size) {
-            return response()->json(['message' => 'المقاس غير متاح لهذا المنتج.'], 422);
+            return response()->json(['message' => __('cake_ar.srv.size_unavailable')], 422);
         }
 
         if ($this->remaining() === 0) {
-            return response()->json(['message' => 'استخدمتِ كل محاولات التوليد ('.config('shop.ai_limit').').', 'remaining' => 0], 429);
+            return response()->json(['message' => __('cake_ar.srv.used_all', ['n' => config('shop.ai_limit')]), 'remaining' => 0], 429);
         }
 
         if (blank(config('services.openai.key'))) {
-            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+            return response()->json(['message' => __('cake_ar.srv.no_key')], 503);
         }
 
         $job = $data['job'];
@@ -89,9 +89,9 @@ class ShopAiController extends Controller
                 'n' => 1,
             ]);
         } catch (ConnectionException) {
-            return $this->finish($request, $job, 422, ['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.']);
+            return $this->finish($request, $job, 422, ['message' => __('cake_ar.srv.openai_unreachable')]);
         } catch (\Illuminate\Http\Client\RequestException) {
-            return $this->finish($request, $job, 422, ['message' => 'تعذر تحميل صورة المنتج من جوماكيك. جربي بعد شوي.']);
+            return $this->finish($request, $job, 422, ['message' => __('cake_ar.srv.product_image_failed')]);
         }
 
         if ($response->failed()) {
@@ -101,13 +101,13 @@ class ShopAiController extends Controller
             Log::warning('shop AI image refused', ['product' => $product['id'], 'code' => $code, 'message' => $message]);
 
             return $this->finish($request, $job, 422, ['message' => $code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
-                ? 'الذكاء الاصطناعي رفض هذي الصورة، غالبًا لأن فيها شخصية مشهورة محمية بحقوق (مثل سبايدر مان). جربي كيكة ثانية أو اكتبي تعديل بدون الشخصية.'
-                : "خطأ من OpenAI ({$response->status()}): {$message}"]);
+                ? __('cake_ar.srv.refused_character')
+                : __('cake_ar.srv.openai_error', ['status' => $response->status(), 'message' => $message])]);
         }
 
         $image = $response->json('data.0.b64_json');
         if (! $image) {
-            return $this->finish($request, $job, 422, ['message' => 'ما رجعت صورة من الذكاء الاصطناعي. جربي مرة ثانية.']);
+            return $this->finish($request, $job, 422, ['message' => __('cake_ar.srv.no_image')]);
         }
 
         Cache::increment($this->usedKey());
@@ -130,12 +130,12 @@ class ShopAiController extends Controller
         ]);
 
         if (blank(config('services.openai.key'))) {
-            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+            return response()->json(['message' => __('cake_ar.srv.no_key')], 503);
         }
 
         $limit = (int) config('shop.chat_limit');
         if ($limit > 0 && (int) Cache::get($this->chatKey(), 0) >= $limit) {
-            return response()->json(['message' => "وصلتِ لحد الرسائل ({$limit}). كمّلي الطلب بالتصميم اللي اخترتيه."], 429);
+            return response()->json(['message' => __('cake_ar.srv.chat_limit', ['n' => $limit])], 429);
         }
 
         [$outline] = self::OUTLINES[$data['shape']];
@@ -145,11 +145,11 @@ class ShopAiController extends Controller
                 $data['messages'],
             );
         } catch (ConnectionException) {
-            return response()->json(['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.'], 422);
+            return response()->json(['message' => __('cake_ar.srv.openai_unreachable')], 422);
         }
 
         if (! $answer) {
-            return response()->json(['message' => 'ما قدر الذكاء الاصطناعي يرد الحين. جربي مرة ثانية.'], 422);
+            return response()->json(['message' => __('cake_ar.srv.chat_failed')], 422);
         }
 
         Cache::increment($this->chatKey());
@@ -174,15 +174,15 @@ class ShopAiController extends Controller
 
         $path = self::DIR.'/'.$data['image'];
         if (! in_array($path, Cache::get($this->imagesKey(), []), true) || ! Storage::disk('public')->exists($path)) {
-            return response()->json(['message' => 'الصورة مو موجودة. ولّدي صورة جديدة.'], 422);
+            return response()->json(['message' => __('cake_ar.srv.image_missing')], 422);
         }
 
         if ($this->remaining() === 0) {
-            return response()->json(['message' => 'استخدمتِ كل محاولات التوليد ('.config('shop.ai_limit').').', 'remaining' => 0], 429);
+            return response()->json(['message' => __('cake_ar.srv.used_all', ['n' => config('shop.ai_limit')]), 'remaining' => 0], 429);
         }
 
         if (blank(config('services.openai.key'))) {
-            return response()->json(['message' => 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear'], 503);
+            return response()->json(['message' => __('cake_ar.srv.no_key')], 503);
         }
 
         $job = $data['job'];
@@ -213,7 +213,7 @@ class ShopAiController extends Controller
                     'n' => 1,
                 ]);
         } catch (ConnectionException) {
-            return $this->finish($request, $job, 422, ['message' => 'تعذر الوصول إلى OpenAI. جربي مرة ثانية.']);
+            return $this->finish($request, $job, 422, ['message' => __('cake_ar.srv.openai_unreachable')]);
         }
 
         if ($response->failed() || ! ($image = $response->json('data.0.b64_json'))) {
@@ -222,8 +222,8 @@ class ShopAiController extends Controller
             Log::warning('shop AI edit failed', ['product' => $product['id'], 'code' => $code, 'message' => $message]);
 
             return $this->finish($request, $job, 422, ['message' => $code === 'moderation_blocked' || str_contains(strtolower($message), 'safety')
-                ? 'الذكاء الاصطناعي رفض هذا التعديل، غالبًا بسبب شخصية مشهورة محمية بحقوق. جربي تعديل ثاني.'
-                : 'ما طلع التعديل. جربي مرة ثانية.']);
+                ? __('cake_ar.srv.refused_edit_character')
+                : __('cake_ar.srv.edit_failed')]);
         }
 
         Cache::increment($this->usedKey());
@@ -247,11 +247,11 @@ class ShopAiController extends Controller
             'size' => ['required', 'integer'],
             'layers' => ['required', 'integer', 'between:1,4'],
         ] + $rules, [
-            'messages.*.content.max' => 'الرسالة طويلة، الحد 500 حرف.',
+            'messages.*.content.max' => __('cake_ar.srv.message_long'),
         ]);
 
         $size = collect($product['sizes'])->firstWhere('id', (int) $data['size']);
-        abort_unless($size, 422, 'المقاس غير متاح لهذا المنتج.');
+        abort_unless($size, 422, __('cake_ar.srv.size_unavailable'));
 
         return [$product, $size, $data];
     }

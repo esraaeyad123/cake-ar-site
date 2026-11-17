@@ -73,6 +73,7 @@ class SpecialOrderOptions
             ->map(fn ($row) => [
                 'id' => $row['id'],
                 'name' => $row['title_ar'] ?: $row['title_en'],
+                'title_en' => $row['title_en'] ?? null, // الاسم بالإنجليزي للصفحة الإنجليزية
                 'image' => $row['sliced_image_url'] ?? $row['element_image_url'] ?? $row['front_image_url'] ?? null,
                 'extra' => collect($sizes)->map(fn ($size) => (float) ($priced[(string) $row['id']]->firstWhere('size_id', (string) $size['id'])['price'] ?? 0))->all(),
             ])
