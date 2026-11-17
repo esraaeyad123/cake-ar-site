@@ -181,6 +181,18 @@ return [
         'total' => 'Total',
         'ar_phone' => 'Open this page on your phone to see the cake on your table.',
     ],
+    'preview' => [
+        'ar_button' => 'See it on your table',
+        'vintage' => 'Vintage',
+        'plain' => 'Plain',
+        'shape_title' => 'Cake shape',
+        'tiers_title' => 'Number of tiers',
+        'size_title' => 'Choose a size',
+        'layers_title' => 'Number of cake layers',
+        'layer_one' => ':n layer',
+        'viewer_failed' => 'Couldn\'t load the cake, please refresh the page',
+        'best_seller' => 'Most popular',
+    ],
     'srv' => [
         'no_key' => 'No OpenAI key. Add OPENAI_API_KEY to the .env file, then run php artisan config:clear',
         'note_long' => 'The note is too long; the limit is 500 characters.',

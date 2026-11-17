@@ -47,7 +47,7 @@ class CakeVariant extends Model
     public function getServesLabelAttribute(): string
     {
         return $this->serves_min === $this->serves_max
-            ? "{$this->serves_min} أشخاص"
-            : "{$this->serves_min}-{$this->serves_max} أشخاص";
+            ? __('cake_ar.common.people', ['n' => $this->serves_min])
+            : __('cake_ar.common.people', ['n' => "{$this->serves_min}-{$this->serves_max}"]);
     }
 }
