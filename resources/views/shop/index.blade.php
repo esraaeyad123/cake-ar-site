@@ -1,6 +1,6 @@
 @extends('shop.layout')
 
-@section('title', 'المتجر')
+@section('title', __('cake_ar.shop.title'))
 
 @section('styles')
         main { max-width: 900px; margin: 0 auto; padding: 8px 12px 40px; }
@@ -17,7 +17,7 @@
         .card .name { font-size: 13px; font-weight: 800; margin: 1px 0 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .card .price-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
         .card .price { font-size: 17px; font-weight: 800; }
-        .card .specs { margin-top: 7px; border-top: 1px solid #F5EBEF; padding-top: 7px; }
+        .card .specs { margin-top: 7px; border-top: 1px solid #F5EBEF; padding-top: 7px; flex-wrap: wrap; row-gap: 5px; column-gap: 8px; }
         .card .spec { font-size: 10px; }
         .empty { text-align: center; color: var(--muted); padding: 40px 10px; font-weight: 700; }
 @endsection
@@ -28,11 +28,11 @@
 
 @section('content')
     <main>
-        <h1>كيك جاهز</h1>
-        <p class="sub">اختاري الكيكة، وحددي المقاس والنكهة والحشوة</p>
+        <h1>{{ __('cake_ar.shop.heading') }}</h1>
+        <p class="sub">{{ __('cake_ar.shop.sub') }}</p>
 
         @if (! $products)
-            <div class="empty">المتجر مو متاح الحين، جربي بعد شوي.</div>
+            <div class="empty">{{ __('cake_ar.shop.unavailable') }}</div>
         @endif
 
         <div class="grid">
@@ -43,15 +43,15 @@
                 @endphp
                 <a class="card" href="{{ route('shop.show', $product['id']) }}">
                     <div class="pic">
-                        <img src="{{ $product['image'] }}" alt="{{ $product['name'] ?? 'S.N: '.$product['id'] }}" loading="lazy">
+                        <img src="{{ $product['image'] }}" alt="{{ \App\Services\ShopProducts::localName($product) ?? 'S.N: '.$product['id'] }}" loading="lazy">
                         @if ($size['discount'] && $size['discount']['type'] === 'percent')
-                            <span class="badge">خصم {{ (int) $size['discount']['amount'] }}%</span>
+                            <span class="badge">{{ __('cake_ar.shop.off', ['n' => (int) $size['discount']['amount']]) }}</span>
                         @endif
                     </div>
                     <div class="body">
                         <div class="sn">S.N: {{ $product['id'] }}</div>
-                        @if ($product['name'])
-                            <div class="name">{{ $product['name'] }}</div>
+                        @if (\App\Services\ShopProducts::localName($product))
+                            <div class="name">{{ \App\Services\ShopProducts::localName($product) }}</div>
                         @endif
                         <div class="price-row">
                             <span class="price">{{ $final }}@include('shop.partials.riyal')</span>
@@ -59,7 +59,7 @@
                                 <span class="old">{{ (int) $size['price'] }}</span>
                             @endif
                         </div>
-                        <div class="tax">شامل الضريبة</div>
+                        <div class="tax">{{ __('cake_ar.shop.tax_included') }}</div>
                         @include('shop.partials.specs', ['size' => $size])
                     </div>
                 </a>
