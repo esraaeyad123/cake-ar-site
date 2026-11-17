@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ app()->getLocale() }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $product['name'] ?? 'S.N: '.$product['id'] }} - جوماكيك</title>
+    <title>{{ \App\Services\ShopProducts::localName($product) ?? 'S.N: '.$product['id'] }} - {{ __('cake_ar.common.site') }}</title>
 
     <script type="module" src="https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
     <script type="importmap">
@@ -276,6 +276,12 @@
         .price-line .off { background: var(--pink); color: #fff; border-radius: 8px; padding: 2px 8px; font-size: 12px; font-weight: 800; }
         .price-line .off[hidden] { display: none; }
         .price-line .tax { font-size: 12px; font-weight: 700; color: var(--pink-dark); }
+        /* بالإنجليزي (من اليسار لليمين): نعكس أماكن السعر وصورة المنتج وزر الطاولة وفقاعات المحادثة */
+        [dir="ltr"] .price-card { right: auto; left: 12px; }
+        [dir="ltr"] .photo-card { right: auto; left: 12px; }
+        [dir="ltr"] .ar-float { left: auto; right: 12px; }
+        [dir="ltr"] .bubble.user { align-self: flex-end; border-bottom-right-radius: 16px; border-bottom-left-radius: 4px; }
+        [dir="ltr"] .bubble.assistant { align-self: flex-start; border-bottom-left-radius: 16px; border-bottom-right-radius: 4px; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
         /* شريط المواصفات أكبر وبمسافات */
         .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
@@ -323,22 +329,25 @@
 <body>
     @php
         $first = $product['sizes'][0];
-        $title = $product['name'] ?? 'S.N: '.$product['id'];
+        $title = \App\Services\ShopProducts::localName($product) ?? 'S.N: '.$product['id'];
     @endphp
 
     <div class="site-top">
     <header class="site-header">
         <a href="https://jomacake.com"><img src="{{ asset('images/icons/logo.png') }}" alt="JOMACAKE" class="logo"></a>
         <nav>
-            <a href="https://jomacake.com">الرئيسية</a>
-            <a href="{{ route('shop.index') }}" class="active">المتجر</a>
-            <a href="{{ route('special-order.show') }}">طلب خاص</a>
+            <a href="https://jomacake.com">{{ __('cake_ar.common.nav_home') }}</a>
+            <a href="{{ route('shop.index') }}" class="active">{{ __('cake_ar.common.nav_shop') }}</a>
+            <a href="{{ route('special-order.show') }}">{{ __('cake_ar.common.nav_special') }}</a>
         </nav>
-        <a href="https://jomacake.com/cart" class="cart" aria-label="السلة">
+        <div class="header-end">
+        @include('partials.lang-switch')
+        <a href="https://jomacake.com/cart" class="cart" aria-label="{{ __('cake_ar.common.cart') }}">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>
         </a>
+        </div>
     </header>
-    <div class="sample-tag">عينة تجريبية — الطلب ما يُرسل لموقع جوماكيك</div>
+    <div class="sample-tag">{{ __('cake_ar.common.demo_tag') }}</div>
 
     </div>
 
@@ -365,14 +374,14 @@
         >
             <button slot="ar-button" hidden></button>
         </model-viewer>
-        <div class="viewer-status" id="viewer-status">جاري تجهيز الكيكة…</div>
+        <div class="viewer-status" id="viewer-status">{{ __('cake_ar.common.preparing') }}</div>
         {{-- صورة المنتج (أو التصميم المعتمد) دايمًا فوق، والمجسم 3D تحتها للـ AR وصورة الشكل للذكاء الاصطناعي --}}
         <div class="photo-view show" id="photo-view">
             <img id="photo-big" src="{{ $product['image'] }}" alt="{{ $title }}">
         </div>
         <button type="button" class="ar-btn ar-float" id="ar-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
-            <span>شاهد على طاولتك</span>
+            <span>{{ __('cake_ar.common.ar_button') }}</span>
         </button>
     </div>
 
@@ -382,112 +391,112 @@
             <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 4 8 4-8 4-8-4z" fill="currentColor" fill-opacity=".9"/><path d="m4 12 8 4 8-4M4 16l8 4 8-4"/></svg><span id="spec-layers"></span></div>
             <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 15.5 15.5 3 21 8.5 8.5 21z"/><path d="m7 12 1.5 1.5M9.5 9.5l2 2M12 7l1.5 1.5M14.5 4.5l2 2"/></svg><span id="spec-size"></span></div>
             <div class="spec"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="3.2"/><circle cx="5.5" cy="9" r="2.4"/><circle cx="18.5" cy="9" r="2.4"/><path d="M6.5 19c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5zM1.5 18c0-2.4 1.6-4 4-4 .8 0 1.5.2 2.1.5A7 7 0 0 0 5.4 18zM22.5 18c0-2.4-1.6-4-4-4-.8 0-1.5.2-2.1.5a7 7 0 0 1 2.2 3.5z"/></svg><span id="spec-people"></span></div>
-            <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 20h16v-5H4zM6.5 15v-4h11v4M9 11V8h6v3M12 8V5.5"/><path d="M12 3.5c.8.6.8 1.4 0 2-.8-.6-.8-1.4 0-2z" fill="currentColor"/></svg><span>دور واحد</span></div>
+            <div class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 20h16v-5H4zM6.5 15v-4h11v4M9 11V8h6v3M12 8V5.5"/><path d="M12 3.5c.8.6.8 1.4 0 2-.8-.6-.8-1.4 0-2z" fill="currentColor"/></svg><span>{{ __('cake_ar.common.tier1') }}</span></div>
         </div>
     </div>
     </div>
 
     <div class="steps">
     <div class="product-head">
-        @if ($product['name'])<h1>{{ $product['name'] }}</h1>@endif
-        <div class="sn">الرقم التسلسلي: <b>{{ $product['id'] }}</b></div>
+        @if (\App\Services\ShopProducts::localName($product))<h1>{{ \App\Services\ShopProducts::localName($product) }}</h1>@endif
+        <div class="sn">{{ __('cake_ar.shop.serial') }} <b>{{ $product['id'] }}</b></div>
         {{-- المقاس والسعر في جهة الطلب مثل صفحة جوماكيك --}}
-        <div class="sn">المقاس: <b id="size-label"></b></div>
-        <div class="sn">السعر:</div>
+        <div class="sn">{{ __('cake_ar.shop.size_label') }} <b id="size-label"></b></div>
+        <div class="sn">{{ __('cake_ar.shop.price_label') }}</div>
         <div class="price-line">
             <span class="amount" id="price-amount">—</span>
             <span class="old" id="old-price"></span>
             <span class="off" id="price-off" hidden></span>
-            <span class="tax">(شامل الضريبة)</span>
+            <span class="tax">{{ __('cake_ar.shop.tax_included_paren') }}</span>
         </div>
     </div>
 
     <div class="tabs" id="tabs">
         <button type="button" class="tab active" data-tab="0">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg>
-            الشكل</button>
+            {{ __('cake_ar.shop.tab_shape') }}</button>
         <button type="button" class="tab" data-tab="1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="9.5" cy="10" rx="6.5" ry="2.3"/><path d="M3 10v6.5c0 1.3 2.9 2.3 6.5 2.3s6.5-1 6.5-2.3V10M3 4.5h13M3 3v3M16 3v3M20.5 9v9.5M19 9h3M19 18.5h3"/></svg>
-            الحجم<br>والطبقات</button>
+            {!! __('cake_ar.shop.tab_size') !!}</button>
         <button type="button" class="tab" data-tab="2">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 4.5 3 3L9 16l-4 1 1-4z"/><path d="m13 6 3 3M3 21h9"/></svg>
-            التعديل<br>بالذكاء</button>
+            {!! __('cake_ar.shop.tab_ai') !!}</button>
         <button type="button" class="tab" data-tab="3">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 11.5 19 6.5l2 5v7H3z"/><path d="M3 11.5h18M3 15c2 1 3.5-1 5.5 0s3.5 1 5.5 0 3.5-1 7 0"/></svg>
-            النكهة<br>والحشوة</button>
+            {!! __('cake_ar.shop.tab_flavor') !!}</button>
         <button type="button" class="tab" data-tab="4">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>
-            الطلب</button>
+            {{ __('cake_ar.shop.tab_order') }}</button>
     </div>
 
     <main>
         <section class="panel active" data-panel="0">
-            <div class="section-title">شكل الكيكة</div>
+            <div class="section-title">{{ __('cake_ar.shop.shape_title') }}</div>
             <div class="shape-grid" id="shape-cards"></div>
         </section>
 
         <section class="panel" data-panel="1">
-            <div class="section-title">الحجم</div>
+            <div class="section-title">{{ __('cake_ar.shop.size_title') }}</div>
             <div class="scroll-row" id="size-options"></div>
-            <div class="section-title">عدد الطبقات</div>
+            <div class="section-title">{{ __('cake_ar.shop.layers_title') }}</div>
             <div class="scroll-row" id="layer-options"></div>
-            <div class="hint" id="cone-hint" hidden>المخروطي بارتفاع ثابت.</div>
+            <div class="hint" id="cone-hint" hidden>{{ __('cake_ar.shop.cone_hint') }}</div>
         </section>
 
         <section class="panel" data-panel="2">
             <div class="ai-box">
-                <h3>✨ تبين تغيّرين شي في الكيكة؟</h3>
+                <h3>{{ __('cake_ar.shop.ai_heading') }}</h3>
                 <div class="ai-result" id="ai-result">
-                    <img id="ai-image" alt="الكيكة بعد التعديل">
-                    <a class="download-btn" id="ai-download" href="#" download>⬇️ تحميل الصورة</a>
+                    <img id="ai-image" alt="{{ __('cake_ar.shop.ai_after_alt') }}">
+                    <a class="download-btn" id="ai-download" href="#" download>⬇️ {{ __('cake_ar.common.download') }}</a>
                     <div class="row">
-                        <button type="button" class="btn" id="ai-approve">👍 اعتمدي التصميم</button>
-                        <button type="button" class="btn light" id="ai-reject">ما عجبني</button>
+                        <button type="button" class="btn" id="ai-approve">{{ __('cake_ar.shop.approve') }}</button>
+                        <button type="button" class="btn light" id="ai-reject">{{ __('cake_ar.shop.reject') }}</button>
                     </div>
-                    <div class="approved">✓ تم اعتماد التصميم، بيظهر في طلبك</div>
+                    <div class="approved">{{ __('cake_ar.shop.approved') }}</div>
                 </div>
                 <div class="ai-history" id="ai-history" hidden>
-                    <div class="hint">صورك اللي طلعت (اضغطي على صورة عشان تختارينها):</div>
+                    <div class="hint">{{ __('cake_ar.shop.history') }}</div>
                     <div class="thumbs" id="ai-history-thumbs"></div>
                 </div>
                 <div class="ai-chat" id="ai-chat" hidden>
-                    <h4>💬 تبين تعديل؟ اكتبي للذكاء الاصطناعي</h4>
-                    <div class="hint" style="margin-top:0">يعدّل على الصورة اللي فوق، ويلتزم بالشكل والحجم والطبقات اللي اخترتيها.</div>
+                    <h4>{{ __('cake_ar.shop.chat_title') }}</h4>
+                    <div class="hint" style="margin-top:0">{{ __('cake_ar.shop.chat_hint') }}</div>
                     <div class="chat-thread" id="chat-thread"></div>
                     <div class="thumbs" id="chat-thumbs"></div>
                     <div class="chat-input">
-                        <label class="chat-attach" title="ارفقي صور للتوضيح" aria-label="ارفقي صور للتوضيح">
+                        <label class="chat-attach" title="{{ __('cake_ar.common.chat_attach') }}" aria-label="{{ __('cake_ar.common.chat_attach') }}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
                             <input type="file" id="chat-files" accept="image/png,image/jpeg,image/webp" multiple>
                         </label>
-                        <textarea id="chat-input" maxlength="500" placeholder="مثال: اكتبي Happy Birthday بالذهبي"></textarea>
-                        <button type="button" class="btn" id="chat-send">إرسال</button>
+                        <textarea id="chat-input" maxlength="500" placeholder="{{ __('cake_ar.shop.chat_placeholder') }}"></textarea>
+                        <button type="button" class="btn" id="chat-send">{{ __('cake_ar.common.send') }}</button>
                     </div>
                     <div class="message error" id="chat-message"></div>
                 </div>
                 <div class="ai-start" id="ai-start">
-                <div class="hint" style="margin-top:0">اكتبي التعديل (لون، إضافة…)، وارفعي صور للي تبينه إذا عندك، والذكاء الاصطناعي يوريك الكيكة بالشكل والمقاس اللي اخترتيها.</div>
-                <textarea id="ai-note" maxlength="500" placeholder="مثال: خلي اللون وردي فاتح، واكتبي Happy Birthday Sara" style="margin-top:10px"></textarea>
+                <div class="hint" style="margin-top:0">{{ __('cake_ar.shop.note_hint') }}</div>
+                <textarea id="ai-note" maxlength="500" placeholder="{{ __('cake_ar.shop.note_placeholder') }}" style="margin-top:10px"></textarea>
                 <div class="writing-count"><span id="ai-note-count">0</span>/500</div>
-                <label class="upload" style="margin-top:8px">📷 صور للتعديل (اختياري، لين 6)
+                <label class="upload" style="margin-top:8px">{{ __('cake_ar.shop.upload') }}
                     <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple>
                 </label>
                 <div class="thumbs" id="ai-thumbs"></div>
-                <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining !== 0 ? '' : 'disabled' }}>✨ ورّيني الكيكة</button>
+                <button type="button" class="btn" id="ai-generate" {{ $hasKey && $aiRemaining !== 0 ? '' : 'disabled' }}>{{ __('cake_ar.shop.show_me') }}</button>
                 <div class="hint" id="ai-remaining"></div>
                 </div>
-                <div class="message {{ $hasKey ? 'info' : 'error' }}" id="ai-message">{{ $hasKey ? '' : 'لا يوجد مفتاح OpenAI. أضيفي OPENAI_API_KEY في ملف .env ثم شغّلي php artisan config:clear' }}</div>
+                <div class="message {{ $hasKey ? 'info' : 'error' }}" id="ai-message">{{ $hasKey ? '' : __('cake_ar.srv.no_key') }}</div>
 
             </div>
         </section>
 
         <section class="panel" data-panel="3">
             @if ($product['flavors'])
-                <div class="section-title">النكهة</div>
+                <div class="section-title">{{ __('cake_ar.shop.flavor_title') }}</div>
                 <div class="item-cards" id="flavor-cards"></div>
             @endif
             @if ($product['stuffings'])
-                <div class="section-title">الحشوة</div>
+                <div class="section-title">{{ __('cake_ar.shop.filling_title') }}</div>
                 <div class="item-cards" id="filling-cards"></div>
             @endif
         </section>
@@ -495,12 +504,12 @@
         <section class="panel" data-panel="4">
             <div class="summary" id="summary"></div>
             <div class="message error" id="submit-message"></div>
-            <button type="button" class="btn" id="submit">الطلب</button>
+            <button type="button" class="btn" id="submit">{{ __('cake_ar.shop.submit') }}</button>
         </section>
 
         <div class="nav-buttons">
-            <button type="button" class="btn light" id="prev">السابق</button>
-            <button type="button" class="btn" id="next">التالي</button>
+            <button type="button" class="btn light" id="prev">{{ __('cake_ar.common.prev') }}</button>
+            <button type="button" class="btn" id="next">{{ __('cake_ar.common.next') }}</button>
         </div>
     </main>
     </div>
@@ -509,19 +518,19 @@
     <div class="modal center" id="ai-wait-modal" role="dialog" aria-live="polite">
         <div class="sheet">
             <div class="wait-icon">⏳</div>
-            <h2>الرجاء الانتظار، جاري التوليد</h2>
-            <div class="wait-time" id="ai-wait-time">0 ثانية</div>
-            <div class="hint">الذكاء الاصطناعي يجهّز صورة كيكتك، ممكن ياخذ دقيقة أو أكثر.</div>
-            <button type="button" class="btn light" id="ai-cancel">إلغاء</button>
+            <h2>{{ __('cake_ar.common.wait_title') }}</h2>
+            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => 0]) }}</div>
+            <div class="hint">{{ __('cake_ar.so.wait_hint') }}</div>
+            <button type="button" class="btn light" id="ai-cancel">{{ __('cake_ar.common.cancel') }}</button>
         </div>
     </div>
 
     <div class="modal" id="done-modal">
         <div class="sheet">
-            <h2>تم تجهيز طلبك ✓</h2>
-            <div class="hint">هذه عينة تجريبية، الطلب ما انرسل لموقع جوماكيك. هذا الملخص اللي بيوصل:</div>
+            <h2>{{ __('cake_ar.shop.done_title') }}</h2>
+            <div class="hint">{{ __('cake_ar.shop.done_hint') }}</div>
             <div class="summary" id="modal-summary"></div>
-            <button type="button" class="btn" id="close-modal">تمام</button>
+            <button type="button" class="btn" id="close-modal">{{ __('cake_ar.common.ok') }}</button>
         </div>
     </div>
 
@@ -542,7 +551,13 @@
         const SHAPE_IMAGES = "{{ asset('images/shapes') }}";
         const MAX_MODEL_LAYERS = 3;
         const MAX_REFERENCES = 6;
-        const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="ريال"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
+        // الترجمة: نصوص الصفحة من lang/{ar,en}/cake_ar.php حسب لغة الموقع
+        const LOCALE = @json(app()->getLocale());
+        const TR = { ...@json(__('cake_ar.common')), ...@json(__('cake_ar.shop')) };
+        const t = (k, r = {}) => String(TR[k] ?? k).replace(/:(\w+)/g, (m, n) => (n in r ? r[n] : m));
+        // اسم الصنف (نكهة/حشوة) بلغة الموقع
+        const itemName = item => (LOCALE === 'en' && item?.title_en) ? item.title_en : item?.name;
+        const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="' + t('riyal') + '"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
         const $ = id => document.getElementById(id);
 @include('partials.flavor-pictures')
         const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -550,12 +565,12 @@
         // كل أشكال الدور الواحد (الحين كلها متاحة لكل منتج، وبعدين تتحدد من لوحة التحكم).
         // مقاسات وطبقات كل شكل = اللي يجمع بين المنتج والشكل (القبة 3 طبقات، السن ست 6 و8 إنش…)
         const ALL_SHAPES = [
-            { key: 'round', name: 'دائري' },
-            { key: 'heart', name: 'قلب' },
-            { key: 'cone', name: 'مخروطي' },
-            { key: 'sunset', name: 'سن ست' },
-            { key: 'star', name: 'نجمة' },
-            { key: 'dome', name: 'قبة' },
+            { key: 'round', name: t('shape_round') },
+            { key: 'heart', name: t('shape_heart') },
+            { key: 'cone', name: t('shape_cone') },
+            { key: 'sunset', name: t('shape_sunset') },
+            { key: 'star', name: t('shape_star') },
+            { key: 'dome', name: t('shape_dome') },
         ];
         const sizeKey = s => `${s.inch}in`;
         function sizesOf(shape) {
@@ -579,7 +594,7 @@
 
         // نفس حساب موقع جوماكيك: سعر المقاس + الطبقة الزيادة + النكهة، والخصم على المجموع والكسر ينقص
         const discounted = (price, d) => Math.floor(Math.max(0, d ? (d.type === 'percent' ? price * (1 - d.amount / 100) : price - d.amount) : price) + 1e-9);
-        const offLabel = d => d ? (d.type === 'percent' ? `خصم ${d.amount}%` : `خصم ${d.amount}`) : '';
+        const offLabel = d => d ? (d.type === 'percent' ? t('off', { n: d.amount }) : t('off_amount', { n: d.amount })) : '';
         const layerExtra = (s, n) => (n - s.min_layers) * s.layer_price;
         const before = (s, n, flavor) => s.price + layerExtra(s, n) + (flavor?.extra ?? 0);
         const money = n => n + RIYAL;
@@ -608,14 +623,14 @@
                 box.appendChild(card('shape-card', `
                     <img src="${SHAPE_IMAGES}/${c.key}.webp" alt="" loading="lazy">
                     <div class="name">${c.name}</div>
-                    <div class="meta">${people.length ? `${Math.min(...people)}-${Math.max(...people)} أشخاص` : ''}<br>${sizes.length > 1 ? `من ${sizes[0].inch} إلى ${sizes[sizes.length - 1].inch} إنش` : `${sizes[0].inch} إنش`}</div>
-                    <div class="from">يبدأ من ${money(from)}</div>`,
+                    <div class="meta">${people.length ? t('people', { n: `${Math.min(...people)}-${Math.max(...people)}` }) : ''}<br>${sizes.length > 1 ? t('from_to_inch', { from: sizes[0].inch, to: sizes[sizes.length - 1].inch }) : t('inch', { n: sizes[0].inch })}</div>
+                    <div class="from">${t('starts_from', { price: money(from) })}</div>`,
                     c === state.card,
                     () => { state.card = c; renderSizes(); refresh(); },
                 ));
             });
             // شكل واحد بس: ينختار تلقائيًا
-            if (shapes.length === 1) $('shape-cards').insertAdjacentHTML('afterend', '<div class="hint">هذي الكيكة تنعمل بهذا الشكل.</div>');
+            if (shapes.length === 1) $('shape-cards').insertAdjacentHTML('afterend', `<div class="hint">${t('one_shape')}</div>`);
         }
 
         // ===== الحجم والطبقات =====
@@ -636,8 +651,8 @@
                 const px = 26 + (s.inch - 4) * 6;
                 box.appendChild(card('size-card', `
                     <div class="pic"><svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${SHAPE_PATHS[shape()]}"/></svg></div>
-                    <div class="num">${s.inch} إنش</div>
-                    <small>${s.people} أشخاص</small>
+                    <div class="num">${t('inch', { n: s.inch })}</div>
+                    <small>${t('people', { n: s.people })}</small>
                     <div class="price">${money(discounted(before(s, layersOf(shape(), s)[0], state.flavor), s.discount))}</div>
                     ${s.discount ? `<small style="color:var(--pink)">${offLabel(s.discount)}</small>` : ''}`,
                     s === state.size,
@@ -658,7 +673,7 @@
             box.innerHTML = '';
             allowed.forEach(n => box.appendChild(card('layer-card', `
                 <div class="bars">${Array.from({ length: n }, (_, b) => `<div style="height:${Math.max(6, 16 - n * 2)}px;background:${LAYER_COLORS[b % LAYER_COLORS.length]}"></div>`).join('')}</div>
-                <div class="num">${n} طبقات</div>
+                <div class="num">${t('layers_n', { n })}</div>
                 <div class="price">+${money(layerExtra(state.size, n))}</div>`,
                 n === state.layers,
                 () => { state.layers = n; refresh(); },
@@ -672,7 +687,7 @@
                 if (!box) return;
                 box.innerHTML = '';
                 plainLast(product[list], key).forEach(item => box.appendChild(card('item-card',
-                    `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${esc(item.name)}${key === 'flavor' && item.extra ? `<span class="extra">+${money(item.extra)}</span>` : ''}`,
+                    `${(pic => `<div class="pic${pic && /\/images\/(flavors|fillings)\//.test(pic) ? ' slice' : ''}" ${pic ? `style="background-image:url('${pic}')"` : ''}>${pic ? '' : icon}</div>`)(key === 'flavor' ? flavorPic(item) : fillingPic(item, state.flavor))}${esc(itemName(item))}${key === 'flavor' && item.extra ? `<span class="extra">+${money(item.extra)}</span>` : ''}`,
                     state[key]?.id === item.id,
                     () => { state[key] = item; if (key === 'flavor') renderItems(); refresh(); },
                 )));
@@ -685,10 +700,10 @@
             $('old-price').textContent = final < b ? b : '';
             $('price-off').hidden = !state.size.discount;
             $('price-off').textContent = offLabel(state.size.discount);
-            $('spec-layers').textContent = shape() === 'cone' ? '—' : `${state.layers} طبقة`;
-            $('spec-size').textContent = `${state.size.inch} إنش`;
-            $('size-label').textContent = `${state.size.inch} إنش`;
-            $('spec-people').textContent = `${state.size.people} أشخاص`;
+            $('spec-layers').textContent = shape() === 'cone' ? '—' : t('layer_n', { n: state.layers });
+            $('spec-size').textContent = t('inch', { n: state.size.inch });
+            $('size-label').textContent = t('inch', { n: state.size.inch });
+            $('spec-people').textContent = t('people', { n: state.size.people });
         }
 
         // ===== المجسم 3D و AR =====
@@ -715,7 +730,7 @@
                 $('viewer-status').hidden = true;
             } catch (e) {
                 console.error(e);
-                if (mine === token) { $('viewer-status').hidden = false; $('viewer-status').textContent = 'تعذر تحميل الكيكة، حدّثي الصفحة'; }
+                if (mine === token) { $('viewer-status').hidden = false; $('viewer-status').textContent = t('viewer_failed'); }
             }
         }
 
@@ -730,7 +745,7 @@
         $('ar-btn').addEventListener('click', () => {
             const v = $('viewer');
             if (v.canActivateAR) v.activateAR();
-            else alert('افتحي الصفحة من الجوال عشان تشوفين الكيكة على طاولتك.');
+            else alert(t('ar_phone'));
         });
 
         // صورة المنتج (أو التصميم المعتمد): تكبر فوق المجسم
@@ -761,7 +776,7 @@
         const canGenerate = () => state.aiRemaining === null || state.aiRemaining > 0;
         function aiMessage(text, type = 'info') { $('ai-message').textContent = text; $('ai-message').className = 'message ' + type; }
         function renderRemaining() {
-            $('ai-remaining').textContent = state.aiRemaining === null ? '' : `باقي لك ${state.aiRemaining} محاولات.`;
+            $('ai-remaining').textContent = state.aiRemaining === null ? '' : t('remaining', { n: state.aiRemaining });
             $('ai-generate').disabled = !HAS_KEY || !canGenerate();
         }
 
@@ -770,14 +785,14 @@
             refFiles.forEach((f, i) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'thumb';
-                wrap.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><button type="button" class="remove" aria-label="حذف الصورة">×</button>`;
+                wrap.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><button type="button" class="remove" aria-label="${t('remove_photo')}">×</button>`;
                 wrap.querySelector('button').addEventListener('click', () => { refFiles.splice(i, 1); renderRefs(); });
                 $('ai-thumbs').appendChild(wrap);
             });
         }
         $('ai-reference').addEventListener('change', e => {
             const picked = [...e.target.files];
-            if (refFiles.length + picked.length > MAX_REFERENCES) aiMessage(`الحد ${MAX_REFERENCES} صور.`);
+            if (refFiles.length + picked.length > MAX_REFERENCES) aiMessage(t('max_refs', { n: MAX_REFERENCES }));
             refFiles = [...refFiles, ...picked].slice(0, MAX_REFERENCES);
             e.target.value = '';
             renderRefs();
@@ -871,14 +886,14 @@
                     if (signal.aborted) throw e;
                 }
             }
-            return { data: { message: 'انقطع الاتصال قبل ما توصل الصورة، وما انحسبت المحاولة. جربي مرة ثانية.' }, ok: false };
+            return { data: { message: t('conn_lost') }, ok: false };
         }
 
         $('ai-cancel').addEventListener('click', () => aiAbort?.abort());
         $('ai-generate').addEventListener('click', async () => {
             const abort = aiAbort = new AbortController();
             const started = Date.now();
-            const tick = () => { $('ai-wait-time').textContent = `${Math.round((Date.now() - started) / 1000)} ثانية`; };
+            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
             tick();
             const timer = setInterval(tick, 1000);
             $('ai-wait-modal').classList.add('show');
@@ -915,16 +930,16 @@
                 if (data.remaining !== undefined) state.aiRemaining = data.remaining;
                 if (!ok) {
                     const firstError = data.errors && Object.values(data.errors)[0]?.[0];
-                    throw new Error(firstError || data.message || 'صار خطأ، جربي مرة ثانية.');
+                    throw new Error(firstError || data.message || t('error_retry'));
                 }
                 aiImages.push(data.image);
                 imageEdits[data.image] = [$('ai-note').value.trim()].filter(Boolean);
                 showAiImage(data.image);
-                bubble('assistant', 'هذي كيكتك 👇 لو تبين تعديل اكتبيه.', data.image);
-                $('ai-generate').textContent = '✨ جربي مرة ثانية';
-                aiMessage('هذي كيكتك بالشكل والمقاس اللي اخترتيها. لو تبين تعديل اكتبيه في المحادثة.');
+                bubble('assistant', t('here_is_cake'), data.image);
+                $('ai-generate').textContent = t('try_again');
+                aiMessage(t('here_is_shape'));
             } catch (e) {
-                aiMessage(abort.signal.aborted ? 'تم الإلغاء. غيّري اللي تبين وجربي من جديد.' : e.message, abort.signal.aborted ? 'info' : 'error');
+                aiMessage(abort.signal.aborted ? t('cancelled') : e.message, abort.signal.aborted ? 'info' : 'error');
             } finally {
                 clearInterval(timer);
                 $('ai-wait-modal').classList.remove('show');
@@ -945,7 +960,7 @@
             if (image) {
                 const img = document.createElement('img');
                 img.src = image;
-                img.alt = 'التصميم بعد التعديل';
+                img.alt = t('edited_alt');
                 img.addEventListener('click', () => { showAiImage(image); $('ai-image').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
                 b.appendChild(img);
                 // تحميل الصورة من داخل المحادثة
@@ -953,7 +968,7 @@
                 dl.className = 'bubble-download';
                 dl.href = image;
                 dl.download = `jomacake-${(image.split('/').pop() || 'cake').replace(/\.\w+$/, '')}.png`;
-                dl.textContent = '⬇️ تحميل الصورة';
+                dl.textContent = '⬇️ ' + t('download');
                 b.appendChild(dl);
             }
             $('chat-thread').appendChild(b);
@@ -966,7 +981,7 @@
             const base = state.aiImage;
             const abort = aiAbort = new AbortController();
             const started = Date.now();
-            const tick = () => { $('ai-wait-time').textContent = `${Math.round((Date.now() - started) / 1000)} ثانية`; };
+            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
             tick();
             const timer = setInterval(tick, 1000);
             $('ai-wait-modal').classList.add('show');
@@ -995,13 +1010,13 @@
                     ({ data, ok } = await waitForJob(job, abort.signal));
                 }
                 if (data.remaining !== undefined) state.aiRemaining = data.remaining;
-                if (!ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || 'ما طلع التعديل، جربي مرة ثانية.');
+                if (!ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || t('edit_failed'));
                 aiImages.push(data.image);
                 imageEdits[data.image] = [...(imageEdits[base] || []), instruction].slice(-12);
                 showAiImage(data.image);
-                bubble('assistant', 'هذي كيكتك بعد التعديل 👇 لو تبين تعديل ثاني اكتبيه.', data.image);
+                bubble('assistant', t('after_edit'), data.image);
             } catch (e) {
-                bubble('assistant', abort.signal.aborted ? 'وقّفت التعديل. اكتبي لي لو تبين شي ثاني.' : e.message);
+                bubble('assistant', abort.signal.aborted ? t('edit_stopped') : e.message);
             } finally {
                 clearInterval(timer);
                 $('ai-wait-modal').classList.remove('show');
@@ -1016,11 +1031,11 @@
         function renderChatFiles() {
             $('chat-thumbs').innerHTML = '';
             chatFiles.forEach((f, i) => {
-                const t = document.createElement('div');
-                t.className = 't';
-                t.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><button type="button" aria-label="حذف الصورة">×</button>`;
-                t.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
-                $('chat-thumbs').appendChild(t);
+                const thumb = document.createElement('div');
+                thumb.className = 't';
+                thumb.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><button type="button" aria-label="${t('remove_photo')}">×</button>`;
+                thumb.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
+                $('chat-thumbs').appendChild(thumb);
             });
         }
         $('chat-files').addEventListener('change', e => {
@@ -1033,7 +1048,7 @@
             const files = chatFiles.slice();
             let text = $('chat-input').value.trim();
             if ((!text && !files.length) || $('chat-send').disabled) return;
-            if (!text) text = 'عدّلي حسب الصور المرفقة';
+            if (!text) text = t('edit_by_refs');
             $('chat-message').textContent = '';
             $('chat-input').value = '';
             chatFiles = [];
@@ -1046,7 +1061,7 @@
                 userBubble.appendChild(refs);
             }
             // الموديل النصي ما يشوف الصور: نقول له إن فيه صور مرفقة، وتنرسل مع التعديل
-            const content = files.length ? `${text} [أرفقت ${files.length} صور للتوضيح]` : text;
+            const content = files.length ? `${text} ${t('attached_n', { n: files.length })}` : text;
             chatMessages.push({ role: 'user', content });
             const typing = bubble('assistant typing', '…');
             $('chat-send').disabled = true;
@@ -1058,11 +1073,11 @@
                 });
                 const data = await res.json();
                 typing.remove();
-                if (!res.ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || 'صار خطأ، جربي مرة ثانية.');
+                if (!res.ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || t('error_retry'));
                 bubble('assistant', data.reply);
                 chatMessages.push({ role: 'assistant', content: data.reply });
                 if (data.action === 'edit') {
-                    if (!canGenerate()) bubble('assistant', 'خلصت محاولات الصور، كمّلي الطلب بالتصميم اللي اخترتيه.');
+                    if (!canGenerate()) bubble('assistant', t('no_more_tries'));
                     else await editImage(data.instruction, files);
                 }
             } catch (e) {
@@ -1091,7 +1106,7 @@
             $('ai-result').className = 'ai-result';
             $('ai-history').hidden = !aiImages.length;
             setPhoto(product.image);
-            aiMessage('اكتبي في المحادثة وش تبين يتغيّر، أو غيّري الوصف والصور وجربي مرة ثانية.');
+            aiMessage(t('reject_msg'));
             $('chat-input').focus();
             renderSummary($('summary'));
         });
@@ -1111,24 +1126,24 @@
         function renderSummary(box) {
             const { before: b, final } = totals();
             const rows = [
-                ['المنتج', visual(`<img src="${product.image}" alt="">`, `S.N: ${product.id}`)],
-                ['الشكل', visual(`<img class="fit" src="${SHAPE_IMAGES}/${shape()}.webp" alt="">`, state.card.name)],
-                ['الحجم', visual(sizePic(state.size.inch), `${state.size.inch} إنش`)],
-                ...(shape() === 'cone' ? [] : [['الطبقات', visual(layersPic(state.layers), `${state.layers} طبقات`)]]),
-                ['النكهة', state.flavor ? visual(imgPic(flavorPic(state.flavor), '🍰'), state.flavor.name) : '—'],
-                ['الحشوة', state.filling ? visual(imgPic(fillingPic(state.filling, state.flavor), '🍓'), state.filling.name) : '—'],
-                ...(state.aiApproved && $('ai-note').value.trim() ? [['التعديل', esc($('ai-note').value.trim())]] : []),
+                [t('sum_product'), visual(`<img src="${product.image}" alt="">`, `S.N: ${product.id}`)],
+                [t('sum_shape'), visual(`<img class="fit" src="${SHAPE_IMAGES}/${shape()}.webp" alt="">`, state.card.name)],
+                [t('sum_size'), visual(sizePic(state.size.inch), t('inch', { n: state.size.inch }))],
+                ...(shape() === 'cone' ? [] : [[t('sum_layers'), visual(layersPic(state.layers), t('layers_n', { n: state.layers }))]]),
+                [t('sum_flavor'), state.flavor ? visual(imgPic(flavorPic(state.flavor), '🍰'), itemName(state.flavor)) : '—'],
+                [t('sum_filling'), state.filling ? visual(imgPic(fillingPic(state.filling, state.flavor), '🍓'), itemName(state.filling)) : '—'],
+                ...(state.aiApproved && $('ai-note').value.trim() ? [[t('sum_edit'), esc($('ai-note').value.trim())]] : []),
             ];
             box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
-                <div class="line"><dt>التصميم</dt><dd class="design"><img src="${state.aiApproved ? state.aiImage : product.image}" alt=""></dd></div>
-                ${final < b ? `<div class="line"><dt>قبل الخصم</dt><dd class="old">${b}</dd></div>` : ''}
-                <div class="line total"><dt>الإجمالي</dt><dd>${money(final)}</dd></div></dl>`;
+                <div class="line"><dt>${t('sum_design')}</dt><dd class="design"><img src="${state.aiApproved ? state.aiImage : product.image}" alt=""></dd></div>
+                ${final < b ? `<div class="line"><dt>${t('before_discount')}</dt><dd class="old">${b}</dd></div>` : ''}
+                <div class="line total"><dt>${t('total')}</dt><dd>${money(final)}</dd></div></dl>`;
         }
 
         $('submit').addEventListener('click', () => {
             const missing = [];
-            if (product.stuffings.length && !state.filling) missing.push('الحشوة');
-            if (missing.length) { $('submit-message').textContent = 'كمّلي: ' + missing.join('، '); return; }
+            if (product.stuffings.length && !state.filling) missing.push(t('sum_filling'));
+            if (missing.length) { $('submit-message').textContent = t('complete') + missing.join(t('list_sep')); return; }
             $('submit-message').textContent = '';
             renderSummary($('modal-summary'));
             $('done-modal').classList.add('show');

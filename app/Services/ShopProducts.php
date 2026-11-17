@@ -107,18 +107,21 @@ class ShopProducts
             'id' => (int) $row['id'],
             // أغلب المنتجات بدون اسم، والموقع يعرضها بالرقم التسلسلي
             'name' => $row['name_ar'] ?: null,
+            'name_en' => $row['name_en'] ?? null, // للصفحة الإنجليزية
             'image' => $row['image_url'] ?? $row['image'] ?? null,
             'requires_text' => (bool) ($row['require_text_writing'] ?? false),
             'sizes' => $sizes,
             'flavors' => collect($row['flavors'] ?? [])->map(fn ($f) => [
                 'id' => (int) $f['id'],
                 'name' => $f['title_ar'] ?: $f['title_en'],
+                'title_en' => $f['title_en'] ?? null,
                 'image' => $f['sliced_image_url'] ?? $f['element_image_url'] ?? null,
                 'extra' => (float) ($f['price'] ?? 0),
             ])->values()->all(),
             'stuffings' => collect($row['stuffings'] ?? [])->map(fn ($s) => [
                 'id' => (int) $s['id'],
                 'name' => $s['title_ar'] ?: $s['title_en'],
+                'title_en' => $s['title_en'] ?? null,
             ])->unique('name')->values()->all(),
         ];
     }
@@ -146,5 +149,17 @@ class ShopProducts
         }
 
         return null;
+    }
+
+    /**
+     * اسم المنتج بلغة الصفحة (الإنجليزي لو موجود، وإلا العربي، وإلا null = يعرض بالرقم التسلسلي)
+     */
+    public static function localName(array $product): ?string
+    {
+        if (app()->getLocale() === 'en' && filled($product['name_en'] ?? null)) {
+            return $product['name_en'];
+        }
+
+        return $product['name'] ?? null;
     }
 }
