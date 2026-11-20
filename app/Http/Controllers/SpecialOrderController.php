@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AiCakeChat;
+use App\Services\CakeStyle;
 use App\Services\CakePricing;
 use App\Services\SpecialOrderOptions;
 use Illuminate\Http\Client\ConnectionException;
@@ -113,13 +114,16 @@ class SpecialOrderController extends Controller
         try {
             $pending = Http::withToken(config('services.openai.key'))->acceptJson()->timeout(300);
             // الترتيب مهم: الصورة الأولى للشكل، والثانية للزينة
-            foreach (array_filter([$shapeImage, ...$request->file('references')]) as $file) {
+            $images = array_filter([$shapeImage, ...$request->file('references')]);
+            foreach ($images as $file) {
                 $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
             }
+            // آخر شي: صور كيك جوماكيك الحقيقي، عشان ياخذ أسلوب التنفيذ (كريمة ورسم يدوي)
+            $styleImages = CakeStyle::attach($pending, count($images));
             $response = $pending
                 ->post('https://api.openai.com/v1/images/edits', [
                     'model' => config('services.openai.image_model'),
-                    'prompt' => $this->prompt($data, (bool) $shapeImage),
+                    'prompt' => $this->prompt($data, (bool) $shapeImage, count($request->file('references')), $styleImages),
                     'size' => '1024x1024',
                     'quality' => config('special_order.image_quality') ?: config('services.openai.image_quality'),
                     'n' => 1,
@@ -351,6 +355,7 @@ class SpecialOrderController extends Controller
             .'Keep everything else exactly the same: the same cake shape, size and proportions, the same number of tiers and layers, '
             .'the same square board with the JOMACAKE label, the same camera angle, lighting and background. '
             .$f['height']
+            .CakeStyle::rule()
             .'A realistic professional bakery photo of ONE cake. No people, no hands. '
             ."Remember: {$f['outline']}, {$f['tiers']}.";
     }
@@ -434,7 +439,7 @@ class SpecialOrderController extends Controller
         return $limit > 0 ? max(0, $limit - (int) Cache::get($this->usedKey(), 0)) : null;
     }
 
-    private function prompt(array $data, bool $withShapeImage): string
+    private function prompt(array $data, bool $withShapeImage, int $references = 1, int $styleImages = 0): string
     {
         // "tier2_8-6" => [8, 6]، "6in" => [6]
         $inches = str_starts_with($data['size'], 'tier')
@@ -480,12 +485,12 @@ class SpecialOrderController extends Controller
             ? 'Image 1 is a grey clay mock-up of this exact required cake: use it ONLY for the shape, outline, number of tiers, proportions and height. '
                 .'Its grey colour and smooth surface are NOT part of the design: ignore them completely (keep only its square board shape). '
             : '';
-        $intro .= 'The '.($withShapeImage ? 'other images are' : 'attached photos are').' the customer\'s reference photos: take the frosting colours, '
+        $intro .= ($references === 1 ? 'The next image is' : "The next {$references} images are").' the customer\'s reference photos: take the frosting colours, '
             .'surface patterns and textures and every decorative element from them (for example cherries, ribbons, piping, flowers, figures and writing), '
             .'combine them if there are several, and re-arrange them on the required shape, covering the cake as much as the reference does '
             .'(if the reference sides and top are covered, cover the sides and top). ';
 
-        return $rule.$intro.'Create a realistic professional bakery photo of ONE cake. '
+        return $rule.$intro.CakeStyle::rule($styleImages).'Create a realistic professional bakery photo of ONE cake. '
             .$specs.$finish.$note
             .$this->boardText($data)
             .'Show the whole cake and board, front three-quarter view, on a plain light background. No people, no hands. '

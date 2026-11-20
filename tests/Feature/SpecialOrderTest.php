@@ -169,7 +169,15 @@ class SpecialOrderTest extends TestCase
             $parts = collect($request->data());
             $images = $parts->where('name', 'image[]')->pluck('filename')->values()->all();
 
-            return $images === ['shape.png', 'cake.jpg']
+            $prompt = $parts->firstWhere('name', 'prompt')['contents'];
+
+            // صور الزبون أول، وبعدها صور كيك جوماكيك الحقيقي (أسلوب التنفيذ)
+            return array_slice($images, 0, 2) === ['shape.png', 'cake.jpg']
+                && count($images) === 2 + count(\App\Services\CakeStyle::images())
+                && str_starts_with($images[2] ?? '', 'jomacake-style-')
+                && str_contains($prompt, 'JOMACAKE HOUSE STYLE')
+                && str_contains($prompt, 'never rotated or diagonal')
+                && str_contains($prompt, 'The LAST '.count(\App\Services\CakeStyle::images()).' images are photos of real JOMACAKE cakes')
                 && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'Image 1 is a grey clay mock-up')
                 && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'heart-shaped');
         });
@@ -304,8 +312,14 @@ class SpecialOrderTest extends TestCase
         $send(7)->assertStatus(422)->assertJsonPath('errors.references.0', 'الحد 6 صور.');
         $send(6)->assertOk();
 
-        Http::assertSent(fn ($request) => collect($request->data())->where('name', 'image[]')->pluck('filename')->values()->all()
-            === ['shape.png', 'ref1.jpg', 'ref2.jpg', 'ref3.jpg', 'ref4.jpg', 'ref5.jpg', 'ref6.jpg']);
+        // صور الزبون أول، وصور الأسلوب بعدها بحدود 16 صورة للطلب كله
+        Http::assertSent(function ($request) {
+            $images = collect($request->data())->where('name', 'image[]')->pluck('filename')->values()->all();
+
+            return array_slice($images, 0, 7) === ['shape.png', 'ref1.jpg', 'ref2.jpg', 'ref3.jpg', 'ref4.jpg', 'ref5.jpg', 'ref6.jpg']
+                && count($images) <= 16
+                && collect(array_slice($images, 7))->every(fn ($name) => str_starts_with($name, 'jomacake-style-'));
+        });
     }
 
     public function test_chosen_shape_is_a_hard_rule_over_the_reference_shape(): void
