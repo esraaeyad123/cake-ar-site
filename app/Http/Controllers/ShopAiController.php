@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AiCakeChat;
+use App\Services\CakeStyle;
 use App\Services\ShopProducts;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
@@ -206,6 +207,7 @@ class ShopAiController extends Controller
                         .($request->file('references') ? 'The other images are reference photos the customer attached to explain this change: take from them only what the change asks for (an element, colour or style), never their cake shape or size. ' : '')
                         .'Keep everything else exactly the same: the same cake shape, size and proportions, the same layers, '
                         .'the same square board with the JOMACAKE label, the same camera angle, lighting and background. '
+                        .CakeStyle::rule()
                         ."Real size: {$size['inch']} inches wide. A realistic professional bakery photo of ONE cake. No people, no hands. "
                         ."Remember: {$outline}.",
                     'size' => '1024x1024',
@@ -317,6 +319,7 @@ class ShopAiController extends Controller
             .(filled($data['writing'] ?? null) ? "Write exactly this text on the cake, in the same language: \"{$data['writing']}\". " : '')
             .'Put the cake on a SQUARE flat '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board (NOT round), '
             .'with a small white rectangular label with "JOMACAKE" in pink serif capital letters at the front-left corner. '
+            .CakeStyle::rule()
             .'A realistic professional bakery photo of ONE cake, front three-quarter view, plain light background. No people, no hands. '
             ."Remember: {$outline}.";
     }
