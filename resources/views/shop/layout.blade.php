@@ -14,7 +14,7 @@
             --muted: #8A6B76;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif; background: #fff; color: var(--ink); }
+        body { margin: 0; font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif; background: #FAF6F3; color: var(--ink); }
         button, input { font-family: inherit; }
         a { color: inherit; }
 

@@ -18,6 +18,8 @@
 
     <style>
         :root {
+            /* خلفية الصفحة: كريمي دافي بدل الأبيض الصافي (يريح العين، والكروت البيضاء تبان) */
+            --bg: #FAF6F3;
             --pink: #D4537E;
             --pink-dark: #993556;
             --pink-soft: #FBEAF0;
@@ -26,7 +28,7 @@
             --muted: #8A6B76;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif; background: #FFFFFF; color: var(--ink); }
+        body { margin: 0; font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--ink); }
         button { font-family: inherit; }
 
         /* هيدر الموقع الرئيسي */
@@ -35,7 +37,7 @@
             padding: 10px 16px; border-bottom: 1px solid #F3E3E9; background: #fff;
         }
         /* الجزء الثابت فوق (الهيدر، المجسم، الملخص): الخيارات تتحرك تحته والكيكة تبقى قدام الزبون */
-        .top-fixed { position: sticky; top: 0; z-index: 20; background: #fff; box-shadow: 0 4px 8px -6px rgba(75,21,40,0.18); }
+        .top-fixed { position: sticky; top: 0; z-index: 20; background: var(--bg); box-shadow: 0 4px 8px -6px rgba(75,21,40,0.18); }
         .site-header .logo { height: 34px; }
         .site-header nav { display: flex; gap: 16px; font-size: 13px; font-weight: 700; }
         .site-header nav a { color: var(--ink); text-decoration: none; }
@@ -47,8 +49,8 @@
         }
 
         /* المجسم */
-        .viewer-wrap { position: relative; background: #fff; }
-        model-viewer { width: 100%; height: 30vh; min-height: 200px; max-height: 300px; background-color: #FFFFFF; }
+        .viewer-wrap { position: relative; background: var(--bg); }
+        model-viewer { width: 100%; height: 30vh; min-height: 200px; max-height: 300px; background-color: var(--bg); }
         .viewer-status {
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
             font-size: 13px; font-weight: 700; color: var(--pink-dark); pointer-events: none;
@@ -76,7 +78,7 @@
 
         /* شريط التبويبات */
         .tabs {
-            display: grid; grid-template-columns: repeat(5, 1fr); background: #fff;
+            display: grid; grid-template-columns: repeat(5, 1fr); background: var(--bg);
             border-top: 1px solid #F3E3E9; border-bottom: 1px solid #F3E3E9;
         }
         .tab {
@@ -98,7 +100,7 @@
         .scroll-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scroll-snap-type: x proximity; scrollbar-width: none; }
         .scroll-row::-webkit-scrollbar { display: none; }
         .shape-card {
-            flex: 0 0 132px; scroll-snap-align: start; border: 1.5px solid transparent; background: #fff; border-radius: 16px;
+            flex: 0 0 132px; scroll-snap-align: start; border: 1.5px solid transparent; background: #fff; border-radius: 16px; box-shadow: 0 1px 6px rgba(75,21,40,.07);
             padding: 8px 6px 10px; cursor: pointer; text-align: center; color: var(--ink);
         }
         .shape-card img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
@@ -109,7 +111,7 @@
 
         /* المقاسات والطبقات: رسمة تكبر مع المقاس، وطبقات ملونة */
         .size-card, .layer-card {
-            flex: 0 0 auto; min-width: 86px; border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px;
+            flex: 0 0 auto; min-width: 86px; border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px; box-shadow: 0 1px 6px rgba(75,21,40,.06);
             padding: 10px 10px 9px; cursor: pointer; text-align: center; color: var(--ink);
             display: flex; flex-direction: column; align-items: center; gap: 3px;
         }
@@ -127,7 +129,7 @@
         .shape-grid .shape-card { padding: 6px 4px 8px; }
         .shape-grid .shape-card .name { font-size: 13px; }
         .item-card {
-            border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px; padding: 6px 6px 9px;
+            border: 1.5px solid #EFDDE4; background: #fff; border-radius: 14px; padding: 6px 6px 9px; box-shadow: 0 1px 6px rgba(75,21,40,.06);
             cursor: pointer; text-align: center; font-size: 12px; font-weight: 800; color: var(--ink);
         }
         .item-card .pic {
@@ -205,7 +207,7 @@
         .nav-buttons { display: flex; gap: 8px; margin-top: 22px; }
         .nav-buttons .btn { margin-top: 0; }
 
-        .summary { border: 1.5px solid #EFDDE4; border-radius: 16px; padding: 4px 14px; margin-top: 16px; }
+        .summary { border: 1.5px solid #EFDDE4; border-radius: 16px; padding: 4px 14px; margin-top: 16px; background: #fff; }
         .summary dl { margin: 0; }
         .summary .line { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #F5EBEF; font-size: 13px; }
         .summary .line:last-child { border-bottom: none; }
@@ -232,7 +234,7 @@
         .photo-card img { width: 58px; height: 58px; object-fit: cover; border-radius: 10px; display: block; }
         .price-card .old { font-size: 11px; color: var(--muted); text-decoration: line-through; font-weight: 700; }
         .price-card .off { display: inline-block; background: var(--pink); color: #fff; border-radius: 8px; padding: 1px 6px; font-size: 10px; font-weight: 800; margin-top: 2px; }
-        .photo-view { position: absolute; inset: 0; background: #fff; display: none; z-index: 2; }
+        .photo-view { position: absolute; inset: 0; background: var(--bg); display: none; z-index: 2; }
         .photo-view.show { display: block; }
         .photo-view { background: #F7F2F4; }
         .photo-view img { width: 100%; height: 100%; object-fit: contain; }
@@ -297,9 +299,11 @@
         .bubble.typing { color: var(--muted); }
         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
-        .chat-input { display: flex; gap: 8px; align-items: flex-end; }
-        .chat-input textarea { min-height: 46px; height: 46px; max-height: 160px; flex: 1; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
-        .chat-input .btn { width: auto; margin: 0; padding: 12px 18px; flex-shrink: 0; }
+        /* خانة الكتابة مستطيل بعرض الصندوق، وزر الإرفاق وزر الإرسال تحتها */
+        .chat-input { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "text text text" "attach . send"; gap: 8px; align-items: center; }
+        .chat-input textarea { grid-area: text; width: 100%; box-sizing: border-box; min-height: 96px; height: 96px; max-height: 200px; border-radius: 12px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
+        .chat-input .chat-attach { grid-area: attach; }
+        .chat-input .btn { grid-area: send; width: auto; margin: 0; padding: 12px 26px; }
         /* إرفاق صور للتوضيح أثناء المحادثة */
         .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .chat-attach svg { width: 22px; height: 22px; }
@@ -1162,7 +1166,7 @@
     (function () {
         const t = document.getElementById('chat-input');
         if (!t) return;
-        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 160) + 'px'; };
+        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 200) + 'px'; };
         t.addEventListener('input', grow);
         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
         t.addEventListener('focus', show);
