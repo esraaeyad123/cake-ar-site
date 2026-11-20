@@ -553,6 +553,8 @@
         const BOARD_COLORS = @json(config('cake_ar.board_colors'));
         const LAYER_HEIGHT = @json(config('cake_ar.layer_height'));
         const SHAPE_IMAGES = "{{ asset('images/shapes') }}";
+        // رقم نسخة الصور: لما تتغير صور الأشكال يحمّلها الجوال من جديد بدل القديمة المحفوظة
+        const SHAPE_V = "?v={{ max(array_map('filemtime', glob(public_path('images/shapes/*.webp')) ?: [0])) }}";
         const MAX_MODEL_LAYERS = 3;
         const MAX_REFERENCES = 6;
         // الترجمة: نصوص الصفحة من lang/{ar,en}/cake_ar.php حسب لغة الموقع
@@ -625,7 +627,7 @@
                 const people = sizes.map(s => s.people).join('-').split('-').map(Number).filter(Boolean);
                 const from = Math.min(...sizes.map(s => discounted(before(s, layersOf(c.key, s)[0], product.flavors[0]), s.discount)));
                 box.appendChild(card('shape-card', `
-                    <img src="${SHAPE_IMAGES}/${c.key}.webp" alt="" loading="lazy">
+                    <img src="${SHAPE_IMAGES}/${c.key}.webp${SHAPE_V}" alt="" loading="lazy">
                     <div class="name">${c.name}</div>
                     <div class="meta">${people.length ? t('people', { n: `${Math.min(...people)}-${Math.max(...people)}` }) : ''}<br>${sizes.length > 1 ? t('from_to_inch', { from: sizes[0].inch, to: sizes[sizes.length - 1].inch }) : t('inch', { n: sizes[0].inch })}</div>
                     <div class="from">${t('starts_from', { price: money(from) })}</div>`,
@@ -1131,7 +1133,7 @@
             const { before: b, final } = totals();
             const rows = [
                 [t('sum_product'), visual(`<img src="${product.image}" alt="">`, `S.N: ${product.id}`)],
-                [t('sum_shape'), visual(`<img class="fit" src="${SHAPE_IMAGES}/${shape()}.webp" alt="">`, state.card.name)],
+                [t('sum_shape'), visual(`<img class="fit" src="${SHAPE_IMAGES}/${shape()}.webp${SHAPE_V}" alt="">`, state.card.name)],
                 [t('sum_size'), visual(sizePic(state.size.inch), t('inch', { n: state.size.inch }))],
                 ...(shape() === 'cone' ? [] : [[t('sum_layers'), visual(layersPic(state.layers), t('layers_n', { n: state.layers }))]]),
                 [t('sum_flavor'), state.flavor ? visual(imgPic(flavorPic(state.flavor), '🍰'), itemName(state.flavor)) : '—'],

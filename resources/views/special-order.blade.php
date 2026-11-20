@@ -556,6 +556,8 @@
             { key: 'dome', name: t('shape_dome'), model: 'dome', tiers: SHAPES.dome.tiers },
         ];
         const SHAPE_IMAGES = "{{ asset('images/shapes') }}";
+        // رقم نسخة الصور: لما تتغير صور الأشكال يحمّلها الجوال من جديد بدل القديمة المحفوظة
+        const SHAPE_V = "?v={{ max(array_map('filemtime', glob(public_path('images/shapes/*.webp')) ?: [0])) }}";
         // الفنتج موقّف في هذي الصفحة (كيك سادة فقط)، وكوده باقي في المركّب لاستخدامات ثانية
         const STYLE = 'plain';
 
@@ -609,7 +611,7 @@
             // قسم الشكل للشكل بس (طلب المدير): صورة واسم، والأشخاص والأسعار في قسم الحجم والطبقات
             SHAPE_CARDS.forEach(c => {
                 box.appendChild(card('shape-card', `
-                    <img src="${SHAPE_IMAGES}/${c.key}.webp" alt="" loading="lazy">
+                    <img src="${SHAPE_IMAGES}/${c.key}.webp${SHAPE_V}" alt="" loading="lazy">
                     <div class="name">${c.name}</div>`,
                     c === state.card,
                     () => { state.card = c; renderSizes(); renderItems(); refresh(); },
@@ -1257,7 +1259,7 @@
 
         function renderSummary(box) {
             const rows = [
-                [t('sum_shape'), visual(`<img class="fit" src="${SHAPE_IMAGES}/${state.card.key}.webp" alt="">`, state.card.name)],
+                [t('sum_shape'), visual(`<img class="fit" src="${SHAPE_IMAGES}/${state.card.key}.webp${SHAPE_V}" alt="">`, state.card.name)],
                 [t('sum_tiers'), visual(TIER_ICON, TIER_LABELS[state.card.tiers])],
                 [t('sum_size'), visual(sizePicture(state.size), sizeLabel(state.size))],
                 ...(shape() === 'cone' ? [] : [[t('sum_layers'), visual(layersPic(state.layers), t('layers_n', { n: state.layers }))]]),
