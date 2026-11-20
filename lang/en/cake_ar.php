@@ -63,7 +63,7 @@ return [
         'alt_cake' => 'Custom cake',
         'attach' => 'Attach the cake photo',
         'gen_alt' => 'Generated cake',
-        'tab_shape' => 'Shape & tiers',
+        'tab_shape' => 'Shape<br>& tiers',
         'tab_size' => 'Size<br>& layers',
         'tab_desc' => 'AI<br>description',
         'tab_flavor' => 'Flavor<br>& filling',

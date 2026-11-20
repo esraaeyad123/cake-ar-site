@@ -384,7 +384,7 @@
     <div class="tabs" id="tabs">
         <button type="button" class="tab active" data-tab="0">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg>
-            {{ __('cake_ar.so.tab_shape') }}</button>
+            {!! __('cake_ar.so.tab_shape') !!}</button>
         <button type="button" class="tab" data-tab="1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="9.5" cy="10" rx="6.5" ry="2.3"/><path d="M3 10v6.5c0 1.3 2.9 2.3 6.5 2.3s6.5-1 6.5-2.3V10M3 4.5h13M3 3v3M16 3v3M20.5 9v9.5M19 9h3M19 18.5h3"/></svg>
             {!! __('cake_ar.so.tab_size') !!}</button>
