@@ -19,7 +19,7 @@
     <style>
         :root {
             /* خلفية الصفحة: كريمي دافي بدل الأبيض الصافي (يريح العين، والكروت البيضاء تبان) */
-            --bg: #FAF6F3;
+            --bg: #FDFAF8;
             --pink: #D4537E;
             --pink-dark: #993556;
             --pink-soft: #FBEAF0;
@@ -368,7 +368,7 @@
             ar-placement="floor"
             camera-controls
             auto-rotate
-            camera-orbit="0deg 66deg 88%"
+            camera-orbit="-25deg 66deg 88%"
             min-camera-orbit="auto 20deg auto"
             max-camera-orbit="auto 85deg auto"
             shadow-intensity="0.1"
