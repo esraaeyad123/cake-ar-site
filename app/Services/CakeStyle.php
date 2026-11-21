@@ -18,7 +18,8 @@ class CakeStyle
      */
     public static function images(): array
     {
-        $files = glob(public_path(self::DIR.'/*.{jpg,jpeg,png,webp}'), GLOB_BRACE) ?: [];
+        // من داخل المشروع نفسه (مو public_path): على السيرفر مجلد public منفصل عن المشروع
+        $files = glob(base_path('public/'.self::DIR.'/*.{jpg,jpeg,png,webp}'), GLOB_BRACE) ?: [];
         sort($files, SORT_NATURAL);
 
         return array_slice($files, 0, 10);
