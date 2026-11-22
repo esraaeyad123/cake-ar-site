@@ -579,7 +579,8 @@
         const sizeLabel = key => t('inch', { n: inches(key).join('/') });
         const people = key => key.startsWith('tier') ? tierPeople[key] : options.sizes[bottomInch(key)]?.people;
         const money = n => Math.round(n * 10) / 10 + RIYAL;
-        const extra = item => item ? (item.extra[bottomInch(state.size)] || 0) * factor() : 0;
+        // زيادة النكهة/الحشوة لكل دور وتنجمع (دورين 8/6 = زيادة 8 + زيادة 6)
+        const extra = item => item ? inches(state.size).reduce((sum, i) => sum + (item.extra[i] || 0), 0) * factor() : 0;
         const priceOf = (card, size, n) => {
             const p = prices[size]?.[n];
             return p === undefined ? undefined : p * (SHAPES[card.model]?.price_factor ?? 1);

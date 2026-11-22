@@ -16,7 +16,7 @@ class CakePricing
     /**
      * السعر المبدئي لكل مقاس/كومبو حسب الطبقات المسموحة في الصفحة:
      * ['4in' => [2 => 65, 3 => 75], 'tier2_6-4' => [2 => 110, ...], ...]
-     * كيكة الأدوار بسعر مقاس دورها السفلي (الأكبر) بنفس عدد الطبقات.
+     * كيكة الأدوار = مجموع سعر كل دور بمقاسه وبنفس عدد الطبقات (مثل نظام جوماكيك): دورين 8/6 = سعر 8 + سعر 6.
      */
     public function startingPrices(): array
     {
@@ -24,19 +24,33 @@ class CakePricing
         $prices = [];
 
         foreach (config('cake_ar.layers') as $sizeKey => $allowed) {
-            // "6in" => 6، "tier2_8-6" => 8 (الدور السفلي)
-            $inch = str_starts_with($sizeKey, 'tier')
-                ? explode('-', substr($sizeKey, strpos($sizeKey, '_') + 1))[0]
-                : rtrim($sizeKey, 'in');
+            $inches = self::inches($sizeKey);
 
             foreach ($allowed as $layers) {
-                if (isset($table[$inch]['layers'][$layers])) {
-                    $prices[$sizeKey][$layers] = $table[$inch]['base'] + $table[$inch]['layers'][$layers];
+                $sum = 0;
+                foreach ($inches as $inch) {
+                    if (! isset($table[$inch]['layers'][$layers])) {
+                        continue 2; // مقاس من الأدوار ما له سعر بهالطبقات: ما نعرض سعر ناقص
+                    }
+                    $sum += $table[$inch]['base'] + $table[$inch]['layers'][$layers];
                 }
+                $prices[$sizeKey][$layers] = $sum;
             }
         }
 
         return $prices;
+    }
+
+    /**
+     * مقاسات الأدوار بالإنش: "6in" => ['6']، "tier2_8-6" => ['8', '6']
+     *
+     * @return string[]
+     */
+    public static function inches(string $sizeKey): array
+    {
+        return str_starts_with($sizeKey, 'tier')
+            ? explode('-', substr($sizeKey, strpos($sizeKey, '_') + 1))
+            : [rtrim($sizeKey, 'in')];
     }
 
     /**
