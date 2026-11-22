@@ -177,6 +177,8 @@ class SpecialOrderTest extends TestCase
                 && str_starts_with($images[2] ?? '', 'jomacake-style-')
                 && str_contains($prompt, 'JOMACAKE HOUSE STYLE')
                 && str_contains($prompt, 'never rotated or diagonal')
+                && str_contains($prompt, 'CAMERA: photograph it exactly like JOMACAKE')
+                && ! str_contains($prompt, 'three-quarter view')
                 && str_contains($prompt, 'The LAST '.count(\App\Services\CakeStyle::images()).' images are photos of real JOMACAKE cakes')
                 && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'Image 1 is a grey clay mock-up')
                 && str_contains($parts->firstWhere('name', 'prompt')['contents'], 'heart-shaped');
