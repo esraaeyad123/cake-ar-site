@@ -493,7 +493,7 @@ class SpecialOrderController extends Controller
         return $rule.$intro.CakeStyle::rule($styleImages).'Create a realistic professional bakery photo of ONE cake. '
             .$specs.$finish.$note
             .$this->boardText($data)
-            .'Show the whole cake and board, front three-quarter view, on a plain light background. No people, no hands. '
+            .'Show the whole cake and board. No people, no hands. '
             ."Remember: {$outline}, {$tierText}.";
     }
 

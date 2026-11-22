@@ -39,6 +39,17 @@ class CakeStyle
     }
 
     /**
+     * زاوية التصوير مثل صور جوماكيك: من فوق ومن قدّام شوي يسار، وسطح الكيكة والرسمة واضحة، والملصق قدّام
+     */
+    public static function camera(): string
+    {
+        return 'CAMERA: photograph it exactly like JOMACAKE\'s own product photos: a HIGH angle from the front, looking down at the cake at about 45 to 60 degrees, '
+            .'slightly from the front-left, so the whole top surface and its design are clearly visible and the side is seen below it. '
+            .'The square board is visible under the cake with the JOMACAKE label on its front-left edge, nearest to the camera. '
+            .'The cake is centred and fills most of the frame, soft natural light, plain light background. ';
+    }
+
+    /**
      * قاعدة الأسلوب. $styleImages = كم صورة أسلوب في آخر الطلب (0 = القاعدة بس)
      */
     public static function rule(int $styleImages = 0): string
@@ -51,8 +62,9 @@ class CakeStyle
             .'NEVER an edible printed photo, never airbrushed or photo-realistic artwork, never printed logos or fondant cut-outs. '
             .'ORIENTATION: the top design and writing must be upright and straight, readable from the front of the board (the side with the JOMACAKE label), '
             .'aligned parallel to the board\'s front edge, never rotated or diagonal. '
+            .self::camera()
             .($styleImages > 0
-                ? "The LAST {$styleImages} images are photos of real JOMACAKE cakes: copy ONLY their decorating technique, buttercream finish, piping style and level of detail. "
+                ? "The LAST {$styleImages} images are photos of real JOMACAKE cakes: copy ONLY their decorating technique, buttercream finish, piping style, level of detail and camera angle. "
                     .'Do NOT copy their designs, characters, colours, text, shape, size or board. '
                 : '');
     }

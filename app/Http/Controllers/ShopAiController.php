@@ -320,7 +320,7 @@ class ShopAiController extends Controller
             .'Put the cake on a SQUARE flat '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board (NOT round), '
             .'with a small white rectangular label with "JOMACAKE" in pink serif capital letters at the front-left corner. '
             .CakeStyle::rule()
-            .'A realistic professional bakery photo of ONE cake, front three-quarter view, plain light background. No people, no hands. '
+            .'A realistic professional bakery photo of ONE cake, the whole cake and board. No people, no hands. '
             ."Remember: {$outline}.";
     }
 
