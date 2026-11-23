@@ -203,7 +203,13 @@
         .bubble { max-width: 85%; padding: 9px 12px; border-radius: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
-        .bubble.typing { color: var(--muted); }
+        .bubble.typing { color: var(--muted); padding: 12px 14px; }
+        /* مؤشر التفكير: ثلاث نقاط تتحرك (مثل واتساب) */
+        .bubble.typing .dots { display: inline-flex; gap: 5px; align-items: center; height: 10px; }
+        .bubble.typing .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--pink); opacity: .35; animation: think-dot 1.2s infinite ease-in-out; }
+        .bubble.typing .dots i:nth-child(2) { animation-delay: .2s; }
+        .bubble.typing .dots i:nth-child(3) { animation-delay: .4s; }
+        @keyframes think-dot { 0%, 80%, 100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
         /* بالإنجليزي: رسالة الزبون يمين والذكاء الاصطناعي يسار */
         [dir="ltr"] .bubble.user { align-self: flex-end; border-bottom-right-radius: 16px; border-bottom-left-radius: 4px; }
         [dir="ltr"] .bubble.assistant { align-self: flex-start; border-bottom-left-radius: 16px; border-bottom-right-radius: 4px; }
@@ -1006,11 +1012,23 @@
         // طلبات الزبون بالعربي (للملخص بدل خانة الوصف)
         const userRequests = [];
         const chatLog = [];
+        // الذكاء الاصطناعي "يفكر" شوي قبل ما يرد: ثلاث نقاط تتحرك، وأقل مدة ثانية ونص حتى للردود السريعة
+        const THINK_MS = 1500;
+        const sleep = ms => new Promise(res => setTimeout(res, ms));
+        const thinkRest = started => sleep(Math.max(0, THINK_MS - (Date.now() - started)));
+        async function thinking() {
+            const dots = bubble('assistant typing', '');
+            $('chat-send').disabled = true;
+            await sleep(THINK_MS);
+            dots.remove();
+            $('chat-send').disabled = false;
+        }
         function bubble(role, text, image) {
             if (!role.includes('typing')) { chatLog.push({ role, text, image: image || null }); saveDraft(); }
             const b = document.createElement('div');
             b.className = 'bubble ' + role;
-            b.textContent = text;
+            if (role.includes('typing')) b.innerHTML = '<span class="dots" aria-label="…"><i></i><i></i><i></i></span>';
+            else b.textContent = text;
             if (image) {
                 const img = document.createElement('img');
                 img.src = image;
@@ -1122,6 +1140,7 @@
             if (!aiImages.length) {
                 if (files.length) { refFiles.push(...files.slice(0, MAX_REFS - refFiles.length)); renderRef(); }
                 if (!refFiles.length) {
+                    await thinking();
                     bubble('assistant', t('attach_first_chat'));
                     userRequests.pop();
                     $('chat-input').value = text;
@@ -1129,15 +1148,17 @@
                 }
                 // ما نولّد على طول: نسأل الزبون في المحادثة، والذكاء الاصطناعي يفهم رده (يبي صورة ولا يكمّل والدعم يعالج الطلب)
                 const ASK = t('ask_generate');
-                if (!canGenerate()) { bubble('assistant', t('clear') + NO_MORE); return; }
+                if (!canGenerate()) { await thinking(); bubble('assistant', t('clear') + NO_MORE); return; }
                 if (!pendingFirst.length) {
                     pendingFirst.push(text === t('like_photo') ? '' : text);
                     firstChat.push({ role: 'user', content }, { role: 'assistant', content: ASK });
+                    await thinking();
                     bubble('assistant', ASK);
                     return;
                 }
                 firstChat.push({ role: 'user', content });
-                const typing = bubble('assistant typing', '…');
+                const typing = bubble('assistant typing', '');
+                const started = Date.now();
                 $('chat-send').disabled = true;
                 let answer;
                 try {
@@ -1163,6 +1184,7 @@
                         return;
                     }
                 }
+                await thinkRest(started);
                 typing.remove();
                 if (answer.reply) { bubble('assistant', answer.reply); firstChat.push({ role: 'assistant', content: answer.reply }); }
                 if (answer.action === 'ask') {
@@ -1183,7 +1205,8 @@
                 return;
             }
             chatMessages.push({ role: 'user', content });
-            const typing = bubble('assistant typing', '…');
+            const typing = bubble('assistant typing', '');
+            const started = Date.now();
             $('chat-send').disabled = true;
             try {
                 const res = await fetch(chatUrl, {
@@ -1192,6 +1215,7 @@
                     body: JSON.stringify({ ...specs(), messages: chatMessages.slice(-12) }),
                 });
                 const data = await res.json();
+                await thinkRest(started);
                 typing.remove();
                 if (!res.ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || t('error_retry'));
                 bubble('assistant', data.reply);
