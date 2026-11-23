@@ -527,7 +527,7 @@
 
     <div class="modal center" id="ai-wait-modal" role="dialog" aria-live="polite">
         <div class="sheet">
-            <div class="wait-icon">⏳</div>
+            @include('partials.cake-loader')
             <h2>{{ __('cake_ar.common.wait_title') }}</h2>
             <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => 0]) }}</div>
             <div class="hint">{{ __('cake_ar.so.wait_hint') }}</div>
