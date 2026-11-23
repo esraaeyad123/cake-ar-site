@@ -2,6 +2,10 @@
      وكيس الكريمة يرسم حواف فنتج (صدف) فوق وتحت، وبعدها حبال كريمة وكرز، ويعيد. خطوط بسيطة بألوان جوماكيك --}}
 <style>
     .cake-loader { width: 170px; height: 150px; display: block; margin: 0 auto 4px; overflow: visible; }
+    /* انميشن Lottie (cake-loader.json)، ولو ما اشتغلت مكتبته يبقى رسم SVG تحت احتياطي */
+    .cake-lottie { width: 200px; height: 180px; margin: 0 auto 2px; display: none; }
+    .cake-lottie.ready { display: block; }
+    .cake-lottie.ready + .cake-loader-fallback { display: none; }
     .cake-loader .ink { fill: none; stroke: #4B1528; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
     .cake-loader .cake { transform-box: fill-box; animation: cl-drop 5.6s ease-out infinite both; }
     .cake-loader .pipe { fill: none; stroke: #D4537E; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 220; }
@@ -43,7 +47,9 @@
         .cake-loader .bag { opacity: 0; }
     }
 </style>
-<svg class="cake-loader" viewBox="0 0 200 170" role="img" aria-hidden="true">
+{{-- انميشن Lottie: البيانات من resources/animations/cake-loader.json داخل الصفحة (ما تحتاج مجلد عام على السيرفر) --}}
+<div class="cake-lottie" aria-hidden="true"></div>
+<svg class="cake-loader cake-loader-fallback" viewBox="0 0 200 170" role="img" aria-hidden="true">
     {{-- القاعدة --}}
     <path class="ink" d="M22 152 H178" />
     <path d="M30 152 h140 v7 h-140 z" fill="#F7EEF1" stroke="#4B1528" stroke-width="2" stroke-linejoin="round" />
@@ -64,3 +70,24 @@
     <circle class="cherry" cx="100" cy="78" r="5" fill="#B4234D" stroke="#4B1528" stroke-width="1.6" />
     <circle class="cherry" cx="122" cy="80" r="5" fill="#B4234D" stroke="#4B1528" stroke-width="1.6" />
 </svg>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" defer></script>
+<script>
+    window.addEventListener('load', () => {
+        const box = document.querySelector('.cake-lottie');
+        if (!box || !window.lottie) return; // المكتبة ما تحمّلت: يبقى الرسم الاحتياطي
+        try {
+            const anim = lottie.loadAnimation({
+                container: box, renderer: 'svg', loop: true, autoplay: false,
+                animationData: @json(json_decode(file_get_contents(resource_path('animations/cake-loader.json')))),
+            });
+            anim.addEventListener('DOMLoaded', () => box.classList.add('ready'));
+            // يشتغل بس وقت نافذة الانتظار مفتوحة
+            const modal = box.closest('.modal');
+            const sync = () => (modal && !modal.classList.contains('show')) ? anim.stop() : anim.play();
+            if (modal) new MutationObserver(sync).observe(modal, { attributes: true, attributeFilter: ['class'] });
+            sync();
+        } catch (e) { /* يبقى الرسم الاحتياطي */ }
+    });
+</script>
