@@ -118,12 +118,10 @@ class SpecialOrderController extends Controller
             foreach ($images as $file) {
                 $pending->attach('image[]', file_get_contents($file->getRealPath()), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()]);
             }
-            // آخر شي: صور كيك جوماكيك الحقيقي، عشان ياخذ أسلوب التنفيذ (كريمة ورسم يدوي)
-            $styleImages = CakeStyle::attach($pending, count($images));
             $response = $pending
                 ->post('https://api.openai.com/v1/images/edits', [
                     'model' => config('services.openai.image_model'),
-                    'prompt' => $this->prompt($data, (bool) $shapeImage, count($request->file('references')), $styleImages),
+                    'prompt' => $this->prompt($data, (bool) $shapeImage, count($request->file('references'))),
                     'size' => '1024x1024',
                     'quality' => config('special_order.image_quality') ?: config('services.openai.image_quality'),
                     'n' => 1,
@@ -439,7 +437,7 @@ class SpecialOrderController extends Controller
         return $limit > 0 ? max(0, $limit - (int) Cache::get($this->usedKey(), 0)) : null;
     }
 
-    private function prompt(array $data, bool $withShapeImage, int $references = 1, int $styleImages = 0): string
+    private function prompt(array $data, bool $withShapeImage, int $references = 1): string
     {
         // "tier2_8-6" => [8, 6]، "6in" => [6]
         $inches = str_starts_with($data['size'], 'tier')
@@ -490,7 +488,7 @@ class SpecialOrderController extends Controller
             .'combine them if there are several, and re-arrange them on the required shape, covering the cake as much as the reference does '
             .'(if the reference sides and top are covered, cover the sides and top). ';
 
-        return $rule.$intro.CakeStyle::rule($styleImages).'Create a realistic professional bakery photo of ONE cake. '
+        return $rule.$intro.CakeStyle::rule().'Create a realistic professional bakery photo of ONE cake. '
             .$specs.$finish.$note
             .$this->boardText($data)
             .'Show the whole cake and board. No people, no hands. '
