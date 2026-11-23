@@ -19,8 +19,8 @@ return [
 
     // تعديل صورة المنتج بالذكاء الاصطناعي: عدد الصور لكل زائر (0 = بدون حد)، والجودة متوسطة
     // (المدير: الكعكة الخاصة أعلى جودة، ومنتجات جوماكيك متوسط)
-    'ai_limit' => (int) env('SHOP_AI_LIMIT', 5),
+    'ai_limit' => (int) env('SHOP_AI_LIMIT', 10),
     'image_quality' => env('SHOP_IMAGE_QUALITY', 'medium'),
     // رسائل المحادثة مع الذكاء الاصطناعي لكل زائر (0 = بدون حد)
-    'chat_limit' => (int) env('SHOP_CHAT_LIMIT', 30),
+    'chat_limit' => (int) env('SHOP_CHAT_LIMIT', 60),
 ];

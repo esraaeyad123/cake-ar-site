@@ -7,15 +7,15 @@
 return [
 
     // عدد صور الذكاء الاصطناعي لكل زائر (الصور اللي طلعت فعلًا)، ويتجدد مع "إرسال للمراجعة".
-    // 0 = بدون حد (وقت التجربة). يتغيّر من .env بدون تعديل الكود: SPECIAL_ORDER_AI_LIMIT=5
+    // 0 = بدون حد (وقت التجربة). يتغيّر من .env بدون تعديل الكود: SPECIAL_ORDER_AI_LIMIT=10
     // بعد الربط بنظام الطلبات: لكل رقم جوال، ويتجدد لما ينطلب الطلب
-    'ai_limit' => (int) env('SPECIAL_ORDER_AI_LIMIT', 5),
+    'ai_limit' => (int) env('SPECIAL_ORDER_AI_LIMIT', 10),
 
     // جودة صور الذكاء الاصطناعي في الكعكة الخاصة (low / medium / high)، وإذا فاضي تاخذ OPENAI_IMAGE_QUALITY
     'image_quality' => env('SPECIAL_ORDER_IMAGE_QUALITY'),
 
     // عدد رسائل المحادثة مع الذكاء الاصطناعي لكل زائر (0 = بدون حد). الصور المعدّلة تنحسب من ai_limit
-    'chat_limit' => (int) env('SPECIAL_ORDER_CHAT_LIMIT', 30),
+    'chat_limit' => (int) env('SPECIAL_ORDER_CHAT_LIMIT', 60),
 
     'cache_minutes' => 60,
 
