@@ -296,7 +296,13 @@
         .bubble { max-width: 85%; padding: 9px 12px; border-radius: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
-        .bubble.typing { color: var(--muted); }
+        .bubble.typing { color: var(--muted); padding: 12px 14px; }
+        /* مؤشر التفكير: ثلاث نقاط تتحرك (مثل واتساب) */
+        .bubble.typing .dots { display: inline-flex; gap: 5px; align-items: center; height: 10px; }
+        .bubble.typing .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--pink); opacity: .35; animation: think-dot 1.2s infinite ease-in-out; }
+        .bubble.typing .dots i:nth-child(2) { animation-delay: .2s; }
+        .bubble.typing .dots i:nth-child(3) { animation-delay: .4s; }
+        @keyframes think-dot { 0%, 80%, 100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
         /* خانة الكتابة مستطيل بعرض الصندوق، وزر الإرفاق وزر الإرسال تحتها */
@@ -959,10 +965,22 @@
         const chatUrl = "{{ route('shop.ai.chat', $product['id']) }}";
         const editUrl = "{{ route('shop.ai.edit', $product['id']) }}";
         const chatMessages = [];
+        // الذكاء الاصطناعي "يفكر" شوي قبل ما يرد: ثلاث نقاط تتحرك، وأقل مدة ثانية ونص حتى للردود السريعة
+        const THINK_MS = 1500;
+        const sleep = ms => new Promise(res => setTimeout(res, ms));
+        const thinkRest = started => sleep(Math.max(0, THINK_MS - (Date.now() - started)));
+        async function thinking() {
+            const dots = bubble('assistant typing', '');
+            $('chat-send').disabled = true;
+            await sleep(THINK_MS);
+            dots.remove();
+            $('chat-send').disabled = false;
+        }
         function bubble(role, text, image) {
             const b = document.createElement('div');
             b.className = 'bubble ' + role;
-            b.textContent = text;
+            if (role.includes('typing')) b.innerHTML = '<span class="dots" aria-label="…"><i></i><i></i><i></i></span>';
+            else b.textContent = text;
             if (image) {
                 const img = document.createElement('img');
                 img.src = image;
@@ -1069,7 +1087,8 @@
             // الموديل النصي ما يشوف الصور: نقول له إن فيه صور مرفقة، وتنرسل مع التعديل
             const content = files.length ? `${text} ${t('attached_n', { n: files.length })}` : text;
             chatMessages.push({ role: 'user', content });
-            const typing = bubble('assistant typing', '…');
+            const typing = bubble('assistant typing', '');
+            const started = Date.now();
             $('chat-send').disabled = true;
             try {
                 const res = await fetch(chatUrl, {
@@ -1078,6 +1097,7 @@
                     body: JSON.stringify({ ...specs(), messages: chatMessages.slice(-12) }),
                 });
                 const data = await res.json();
+                await thinkRest(started);
                 typing.remove();
                 if (!res.ok) throw new Error((data.errors && Object.values(data.errors)[0]?.[0]) || data.message || t('error_retry'));
                 bubble('assistant', data.reply);
