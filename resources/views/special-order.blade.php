@@ -19,7 +19,7 @@
     <style>
         :root {
             /* خلفية الصفحة: كريمي دافي بدل الأبيض الصافي (يريح العين، والكروت البيضاء تبان) */
-            --bg: #FDFAF8;
+            --bg: #FCF5F7;
             --pink: #D4537E;
             --pink-dark: #993556;
             --pink-soft: #FBEAF0;
@@ -234,18 +234,32 @@
         .step-shape .price-card, .step-shape .spec-bar { display: none; }
         .top-view { position: absolute; inset: 0; z-index: 2; background: var(--bg); border: none; width: 100%; }
         .top-view[hidden] { display: none; }
-        .attach-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px 58px; }
+        /* إرفاق الصور (مثل تصميم المدير): قبل = مربع منقّط، بعد = صور بولارويد فوق بعض وزر "إضافة صورة" */
+        .viewer-wrap.attach-mode model-viewer { height: 380px; max-height: none; }
+        .attach-view { display: flex; align-items: center; justify-content: center; padding: 92px 16px 66px; box-sizing: border-box; }
         .attach-view[hidden] { display: none; }
-        .attach-btn { border: none; background: none; cursor: pointer; color: #444; font-family: inherit; font-size: 18px; font-weight: 800; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .attach-btn svg { width: 110px; height: auto; transform: rotate(-35deg); }
-        .attach-view.has-refs .attach-btn svg { width: 64px; }
-        .attach-view.has-refs .attach-btn { font-size: 15px; }
-        /* الصور المرفقة تحت المشبك، صف واحد */
-        .refs-grid { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-        .refs-grid:empty { display: none; }
-        .refs-grid .ref { position: relative; width: 58px; height: 58px; border-radius: 10px; overflow: hidden; border: 1px solid var(--pink-line); background: #FAF3F5; }
-        .refs-grid .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .refs-grid .ref .remove { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #fff; background: var(--ink); color: #fff; font-size: 10px; line-height: 1; cursor: pointer; padding: 0; }
+        .attach-empty { width: min(80%, 330px); height: 100%; max-height: 230px; border: 2px dashed #E9A3BD; border-radius: 24px; background: #FBEFF3;
+            cursor: pointer; font-family: inherit; color: #2A1018; font-size: 19px; font-weight: 800;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
+        .attach-empty svg { width: 118px; height: auto; filter: drop-shadow(0 4px 8px rgba(224,85,139,.15)); }
+        .attach-filled { display: none; width: 100%; max-width: 420px; align-items: center; justify-content: space-between; gap: 10px; }
+        .attach-view.has-refs .attach-empty { display: none; }
+        .attach-view.has-refs .attach-filled { display: flex; }
+        .attach-add { flex: 0 0 auto; width: 118px; aspect-ratio: .82; border: 2px solid #EDA9C2; border-radius: 18px; background: #FDF4F7;
+            cursor: pointer; font-family: inherit; color: #2A1018; font-size: 15px; font-weight: 800;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 8px; }
+        .attach-add svg { width: 62px; height: auto; }
+        .attach-add:disabled { opacity: .45; cursor: default; }
+        /* الصور: الأمامية آخر صورة، واللي وراها مايلة لليسار شوي */
+        .polaroids { position: relative; flex: 1; height: 200px; }
+        .polaroids .ref { position: absolute; top: 8px; right: 8px; width: 140px; padding: 8px 8px 22px; background: #fff; border-radius: 10px;
+            box-shadow: 0 6px 16px rgba(75,21,40,.16), 0 1px 3px rgba(75,21,40,.08); transition: transform .25s ease; cursor: pointer; }
+        .polaroids .ref img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 6px; background: #F3ECEE; }
+        .polaroids .ref .remove { position: absolute; top: -8px; left: -8px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
+            background: var(--ink); color: #fff; font-size: 12px; line-height: 1; cursor: pointer; padding: 0; display: none; }
+        .polaroids .ref.front .remove { display: block; }
+        .polaroids .ref.front { cursor: default; }
+        [dir="ltr"] .polaroids .ref { right: auto; left: 8px; }
         /* الصورة المولّدة كاملة بدون قص ولا زوم، والجوانب بلون خلفية الصورة نفسها */
         .gen-view { background: #F4F1F0; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .gen-view[hidden] { display: none; }
@@ -359,14 +373,38 @@
             <div class="amount" id="price-amount">—</div>
             <div class="caption">{{ __('cake_ar.common.start_price') }}</div>
         </div>
-        {{-- في الشكل والحجم: المجسم 3D. من خطوة الوصف: المشبك لإرفاق الصور، والصور المرفقة صغيرة تحته (✕ لكل صورة)،
+        {{-- في الشكل والحجم: المجسم 3D. من خطوة الوصف: مربع إرفاق الصور، والصور المرفقة مثل صور بولارويد فوق بعض،
              وبعد التوليد الصورة المولّدة مكانهم --}}
         <div class="top-view attach-view" id="attach-view" hidden>
-            <button type="button" class="attach-btn" id="attach-btn">
-                <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M44 22 26.5 39.5a5 5 0 0 1-7-7L38 14a9 9 0 0 1 12.7 12.7L31 46.4a13 13 0 0 1-18.4-18.4L30 10.6"/></svg>
+            {{-- قبل الإرفاق: مربع منقّط فيه صورتين فوق بعض و"أرفقي الصورة المطلوبة" --}}
+            <button type="button" class="attach-empty" id="attach-btn">
+                <svg viewBox="0 0 120 100" aria-hidden="true">
+                    <rect x="14" y="22" width="56" height="62" rx="9" transform="rotate(-12 42 53)" fill="#FDF4F7" stroke="#EDA9C2" stroke-width="2.5"/>
+                    <rect x="40" y="10" width="62" height="70" rx="10" transform="rotate(8 71 45)" fill="#fff" stroke="#E36A98" stroke-width="2.8"/>
+                    <g transform="rotate(8 71 45)">
+                        <rect x="52" y="26" width="38" height="30" rx="5" fill="none" stroke="#E0558B" stroke-width="3.4"/>
+                        <circle cx="61" cy="35" r="3.6" fill="#E0558B"/>
+                        <path d="M55 54 66 42l7 7 5-4 10 9" fill="none" stroke="#E0558B" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+                    </g>
+                    <circle cx="91" cy="66" r="11" fill="#E0558B"/>
+                    <path d="M91 60v12M85 66h12" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+                </svg>
                 <span>{{ __('cake_ar.so.attach') }}</span>
             </button>
-            <div class="refs-grid" id="refs-grid"></div>
+            {{-- بعد الإرفاق: الصور مثل صور بولارويد فوق بعض، وزر "إضافة صورة" جنبها --}}
+            <div class="attach-filled">
+                <div class="polaroids" id="refs-grid"></div>
+                <button type="button" class="attach-add" id="attach-add">
+                    <svg viewBox="0 0 64 64" aria-hidden="true">
+                        <rect x="6" y="10" width="46" height="38" rx="7" fill="none" stroke="#E0558B" stroke-width="4"/>
+                        <circle cx="18" cy="22" r="4.5" fill="#E0558B"/>
+                        <path d="M10 44 25 29l9 9 6-5 12 11" fill="none" stroke="#E0558B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+                        <circle cx="50" cy="46" r="11" fill="#E0558B" stroke="#FDF4F7" stroke-width="3"/>
+                        <path d="M50 40v12M44 46h12" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+                    </svg>
+                    <span>{{ __('cake_ar.so.add_photo') }}</span>
+                </button>
+            </div>
         </div>
         <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple hidden>
         <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="{{ __('cake_ar.so.gen_alt') }}" onload="genEdgeColor(this)"></div>
@@ -763,9 +801,12 @@
             $('gen-view').hidden = !(after && state.aiImage);
             $('attach-view').hidden = !(after && !state.aiImage);
             $('attach-view').classList.toggle('has-refs', refFiles.length > 0);
+            // مربع الإرفاق يحتاج مكان أطول من المجسم، تحت السعر
+            document.querySelector('.viewer-wrap').classList.toggle('attach-mode', after && !state.aiImage);
             if (state.aiImage && $('gen-image').getAttribute('src') !== state.aiImage) $('gen-image').src = state.aiImage;
         }
         $('attach-btn').addEventListener('click', () => aiRef.click());
+        $('attach-add').addEventListener('click', () => aiRef.click());
 
         function goTo(i, scroll = true) {
             state.tab = i;
@@ -805,14 +846,25 @@
         const canGenerate = () => state.aiRemaining === null || state.aiRemaining > 0;
         const MAX_REFS = 6;
         const refFiles = [];
+        // الصور المرفقة فوق بعض مثل صور بولارويد: آخر صورة قدّام، وأقدم صورتين وراها مايلين.
+        // الضغط على صورة ورا يجيبها قدّام، و✕ على الصورة اللي قدّام يحذفها
+        const STACK = ['translateX(0) rotate(4deg)', 'translateX(-38px) rotate(-4deg)', 'translateX(-70px) rotate(-11deg)'];
+        const STACK_LTR = ['translateX(0) rotate(-4deg)', 'translateX(38px) rotate(4deg)', 'translateX(70px) rotate(11deg)'];
         function renderRef() {
             const grid = $('refs-grid');
             grid.innerHTML = '';
+            const ltr = document.documentElement.dir === 'ltr';
             refFiles.forEach((f, i) => {
-                const box = thumb(f, () => { refFiles.splice(i, 1); renderRef(); });
-                box.className = 'ref';
-                grid.appendChild(box);
+                const depth = refFiles.length - 1 - i; // 0 = قدّام
+                if (depth >= STACK.length) return;
+                const box = thumb(f, e => { e.stopPropagation(); refFiles.splice(i, 1); renderRef(); });
+                box.className = 'ref' + (depth === 0 ? ' front' : '');
+                box.style.transform = (ltr ? STACK_LTR : STACK)[depth];
+                box.style.zIndex = String(10 - depth);
+                if (depth > 0) box.addEventListener('click', () => { refFiles.push(...refFiles.splice(i, 1)); renderRef(); });
+                grid.prepend(box);
             });
+            $('attach-add').disabled = refFiles.length >= MAX_REFS;
             saveDraft();
             renderSummary($('summary')); // صور الكيكة تظهر في الملخص
             updateTop();

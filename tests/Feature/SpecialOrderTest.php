@@ -48,14 +48,14 @@ class SpecialOrderTest extends TestCase
         // الافتراضي عربي
         $this->get('/special-order')->assertOk()
             ->assertSee('dir="rtl"', false)
-            ->assertSee('ارفق الصورة المطلوبة');
+            ->assertSee('أرفقي الصورة المطلوبة');
 
         // ?lang=en إنجليزي، ويبقى إنجليزي في الجلسة
         $this->get('/special-order?lang=en')->assertOk()
             ->assertSee('dir="ltr"', false)
             ->assertSee('Attach the cake photo')
             ->assertSee('Send for review')
-            ->assertDontSee('ارفق الصورة المطلوبة');
+            ->assertDontSee('أرفقي الصورة المطلوبة');
         $this->get('/special-order')->assertSee('Attach the cake photo');
 
         // رسائل السيرفر بنفس اللغة
@@ -73,7 +73,7 @@ class SpecialOrderTest extends TestCase
         $this->get('/special-order')
             ->assertOk()
             ->assertSeeInOrder(['data-tab="0"', 'الشكل', 'data-tab="1"', 'الحجم', 'data-tab="2"', 'الوصف', 'data-tab="3"', 'النكهة', 'data-tab="4"', 'التاريخ'], false)
-            ->assertSee('ارفق الصورة المطلوبة')
+            ->assertSee('أرفقي الصورة المطلوبة')
             ->assertSee('شاهد على طاولتك')
             ->assertDontSee('سجّلي وصف صوتي')
             ->assertSee('إرسال للمراجعة')

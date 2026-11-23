@@ -62,6 +62,7 @@ return [
         'title' => 'Custom Cake Order - JOMACAKE',
         'alt_cake' => 'Custom cake',
         'attach' => 'Attach the cake photo',
+        'add_photo' => 'Add photo',
         'gen_alt' => 'Generated cake',
         'tab_shape' => 'Shape<br>& tiers',
         'tab_size' => 'Size<br>& layers',
