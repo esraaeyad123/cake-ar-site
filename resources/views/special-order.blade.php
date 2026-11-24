@@ -37,6 +37,8 @@
             padding: 10px 16px; border-bottom: 1px solid #F3E3E9; background: #fff;
         }
         /* الجزء الثابت فوق (الهيدر، المجسم، الملخص): الخيارات تتحرك تحته والكيكة تبقى قدام الزبون */
+        /* وقت الكتابة في المحادثة (الكيبورد مفتوح) الجزء العلوي ما يبقى ثابت، عشان يبان اللي ينكتب */
+        body.typing .top-fixed { position: relative; }
         .top-fixed { position: sticky; top: 0; z-index: 20; background: var(--bg); box-shadow: 0 4px 8px -6px rgba(75,21,40,0.18); }
         .site-header .logo { height: 34px; }
         .site-header nav { display: flex; gap: 16px; font-size: 13px; font-weight: 700; }
@@ -1467,7 +1469,8 @@
         const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 200) + 'px'; };
         t.addEventListener('input', grow);
         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
-        t.addEventListener('focus', show);
+        t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });
+        t.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== t) document.body.classList.remove('typing'); }, 200));
         if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (document.activeElement === t) show(); });
         // لو تغيّر النص من الكود (مثل بعد الإرسال) نرجّع الحجم
         let last = t.value;
