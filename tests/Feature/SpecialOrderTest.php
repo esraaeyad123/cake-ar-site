@@ -174,6 +174,8 @@ class SpecialOrderTest extends TestCase
             // صور الزبون بس (بدون صور أمثلة: كان ينسخ رسوماتها)، والأسلوب قاعدة مكتوبة
             return $images === ['shape.png', 'cake.jpg']
                 && str_contains($prompt, 'NOTHING EXTRA')
+                && str_contains($prompt, 'SHAPE ADAPTATION')
+                && str_contains($prompt, 'WRITING: put text on the cake ONLY when the customer explicitly asks')
                 && str_contains($prompt, 'JOMACAKE HOUSE STYLE')
                 && str_contains($prompt, 'never rotated or diagonal')
                 && str_contains($prompt, 'CAMERA: photograph it exactly like JOMACAKE')

@@ -20,6 +20,30 @@ class CakeStyle
             .'The cake is centred and fills most of the frame, soft natural light, plain light background. ';
     }
 
+    /**
+     * الشكل المختار هو جسم الكيكة، وتصميم الصورة يتشكّل عليه (فستان على مخروط = المخروط تنورة والصدر فوقه)،
+     * مو رسمة مسطحة على الشكل
+     */
+    public static function adapt(): string
+    {
+        return 'SHAPE ADAPTATION: the chosen shape is the cake\'s body. Turn the reference design into a cake BUILT FROM that body, '
+            .'never a flat picture drawn or printed on it. For example: a wedding-dress reference on a cone = the cone becomes the dress skirt, '
+            .'its folds and ruffles wrapping around the cone from top to bottom, with a small dress bodice as a topper on the tip; '
+            .'a character or animal on a round cake = the round cake is the body with the character\'s features piped and sculpted around and on it. '
+            .'Small toppers on top are allowed, but the main silhouette, size and proportions stay the chosen shape. ';
+    }
+
+    /**
+     * ما يكتب كلام على الكيكة إلا إذا الزبون طلب صراحة (كان يكتب وصف الطلب والمقاسات على الكيكة)
+     */
+    public static function writing(): string
+    {
+        return 'WRITING: put text on the cake ONLY when the customer explicitly asks to write specific words (for example "اكتبي …", "write …", or words in quotes), '
+            .'or when the writing is already visible on the customer\'s reference cake photo. Never write the customer\'s description, requests, '
+            .'instructions, sizes, inches, layer or tier counts, flavours, fillings or any other order details on the cake. '
+            .'If no writing is requested, the cake has NO writing at all. ';
+    }
+
     public static function rule(): string
     {
         return 'JOMACAKE HOUSE STYLE (very important): this must look like a real handmade JOMACAKE cake that the bakery can actually make. '
@@ -28,6 +52,8 @@ class CakeStyle
             .'outlined with thin piped lines, in a charming naive hand-drawn style with limited detail; people are drawn simply, often with blank faces. '
             .'Writing is piped by hand in cursive or rounded lettering. Borders, shells, rosettes and roses, when used, are piped buttercream. '
             .'NEVER an edible printed photo, never airbrushed or photo-realistic artwork, never printed logos or fondant cut-outs. '
+            .self::adapt()
+            .self::writing()
             .'NOTHING EXTRA: do NOT add any drawing, figure, person, character, scene, text or decoration that the customer did not ask for '
             .'and that is not in the customer\'s reference photos. '
             .'ORIENTATION: the top design and writing must be upright and straight, readable from the front of the board (the side with the JOMACAKE label), '
