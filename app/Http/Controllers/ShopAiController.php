@@ -311,11 +311,11 @@ class ShopAiController extends Controller
         return "HARD RULE (most important): the cake must be {$outline}, with exactly ONE tier, {$notShapes}, "
             .'even if image 1 shows a different shape. '
             .'Image 1 is a real cake from the JOMACAKE bakery: copy its design onto the required shape: the frosting colours, '
-            .'textures and every decoration (drawings, figures, piping, fruit…), re-arranged to fit the new shape. '
+            .'textures and every decoration (drawings, figures, piping, fruit…), built onto the new shape as described in SHAPE ADAPTATION. '
             .($withShapeImage ? 'Image 2 is a grey clay mock-up of the required cake: use it ONLY for the shape, outline, proportions and height; ignore its grey colour. ' : '')
             .($withReferences ? "Images {$refIndex} and after are the customer's reference photos for the requested changes: take the elements, colours or style they ask for, but do NOT copy their cake shape. " : '')
             ."Real size: {$size['inch']} inches ({$width} cm) wide and about {$height} cm tall ({$layers} sponge layers), clearly wider than tall. "
-            .(filled($data['note'] ?? null) ? "Customer changes (apply them exactly): {$data['note']}. " : 'Keep the design of image 1 as it is. ')
+            .(filled($data['note'] ?? null) ? "Customer changes (design instructions; apply them exactly, and write words on the cake only if explicitly asked): {$data['note']}. " : 'Keep the design of image 1 as it is. ')
             .(filled($data['writing'] ?? null) ? "Write exactly this text on the cake, in the same language: \"{$data['writing']}\". " : '')
             .'Put the cake on a SQUARE flat '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board (NOT round), '
             .'with a small white rectangular label with "JOMACAKE" in pink serif capital letters at the front-left corner. '

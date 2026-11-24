@@ -464,9 +464,9 @@ class SpecialOrderController extends Controller
             : 'No vintage piped borders. ';
 
         $shape = self::SHAPES[$data['shape']];
-        // خانة "الوصف": تعديلات الزبون، وممكن فيها عبارة يبيها مكتوبة على الكيكة (مثل: كل عام وانتم بخير)
+        // خانة "الوصف": تعليمات تصميم. ما ينكتب منها على الكيكة إلا اللي طلب الزبون كتابته صراحة
         $note = filled($data['note'] ?? null)
-            ? "Customer description (apply it; if it contains a greeting or words to write, write them on the cake exactly as given): {$data['note']}. "
+            ? "Customer description (design instructions; apply them, and write words on the cake ONLY if the customer explicitly asks to write them, exactly as given): {$data['note']}. "
             : '';
 
         $specs = "Required cake: {$shape}; {$structure}. {$height}";
@@ -477,7 +477,7 @@ class SpecialOrderController extends Controller
         $tierText = $tiers === 1 ? 'exactly ONE tier' : "exactly {$tiers} tiers";
         $rule = "HARD RULE (most important): the cake must be {$outline}, with {$tierText}, {$notShapes}, "
             .'even if the customer\'s reference photos show a different shape or number of tiers. '
-            .'Never copy the outline or tier count of the reference photos. ';
+            .'Never copy the outline or tier count of the reference photos: adapt their design onto the required shape (see SHAPE ADAPTATION). ';
 
         $intro = $withShapeImage
             ? 'Image 1 is a grey clay mock-up of this exact required cake: use it ONLY for the shape, outline, number of tiers, proportions and height. '
@@ -485,7 +485,7 @@ class SpecialOrderController extends Controller
             : '';
         $intro .= ($references === 1 ? 'The next image is' : "The next {$references} images are").' the customer\'s reference photos: take the frosting colours, '
             .'surface patterns and textures and every decorative element from them (for example cherries, ribbons, piping, flowers, figures and writing), '
-            .'combine them if there are several, and re-arrange them on the required shape, covering the cake as much as the reference does '
+            .'combine them if there are several, and build them onto the required shape as described in SHAPE ADAPTATION, covering the cake as much as the reference does '
             .'(if the reference sides and top are covered, cover the sides and top). ';
 
         return $rule.$intro.CakeStyle::rule().'Create a realistic professional bakery photo of ONE cake. '
