@@ -534,7 +534,7 @@
         <div class="sheet">
             @include('partials.cake-loader')
             <h2>{{ __('cake_ar.common.wait_title') }}</h2>
-            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => 129]) }}</div>
+            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => ['high' => 129, 'medium' => 60, 'low' => 30][config('shop.image_quality') ?: config('services.openai.image_quality')] ?? 60]) }}</div>
             <div class="hint">{{ __('cake_ar.so.wait_hint') }}</div>
             <button type="button" class="btn light" id="ai-cancel">{{ __('cake_ar.common.cancel') }}</button>
         </div>
@@ -572,8 +572,8 @@
         const LOCALE = @json(app()->getLocale());
         const TR = { ...@json(__('cake_ar.common')), ...@json(__('cake_ar.shop')) };
         const t = (k, r = {}) => String(TR[k] ?? k).replace(/:(\w+)/g, (m, n) => (n in r ? r[n] : m));
-        // عداد تنازلي وقت التوليد (طلب المدير): يبدأ من 129 ثانية، ولو طوّل أكثر يكتب "قربنا…"
-        const WAIT_SECONDS = 129;
+        // عداد تنازلي وقت التوليد (طلب المدير) حسب جودة الصور: عالية 129 ثانية، متوسطة 60، منخفضة 30. لو طوّل يكتب "قربنا…"
+        const WAIT_SECONDS = @json(['high' => 129, 'medium' => 60, 'low' => 30][config('shop.image_quality') ?: config('services.openai.image_quality')] ?? 60);
         const countdown = started => {
             const left = WAIT_SECONDS - Math.round((Date.now() - started) / 1000);
             return left > 0 ? t('seconds', { n: left }) : t('almost_ready');
