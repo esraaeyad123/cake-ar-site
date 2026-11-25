@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AiCakeChat;
 use App\Services\CakeStyle;
+use App\Services\SimplePrompt;
 use App\Services\CakePricing;
 use App\Services\SpecialOrderOptions;
 use Illuminate\Http\Client\ConnectionException;
@@ -342,9 +343,32 @@ class SpecialOrderController extends Controller
             .'; a square JOMACAKE board with its logo label.';
     }
 
+    // المواصفات بجملة قصيرة للتعليمات البسيطة: "cone-shaped, 1 tier, 6 inches, 2 sponge layers"
+    private function simpleSpecs(array $data): string
+    {
+        $f = $this->fixedSpecs($data);
+        $tiers = substr_count($f['size'], '/') + 1;
+
+        return self::SHAPES[$data['shape']].', '.($data['shape'] === 'wall' ? '2 tiers (front half only)' : ($tiers === 1 ? '1 tier' : "{$tiers} tiers"))
+            .", {$f['size']}, {$data['layers']} sponge layers"
+            .($data['style'] === 'vintage' ? ', with vintage piped borders' : '');
+    }
+
+    private function simpleBoard(array $data): string
+    {
+        if ($data['shape'] === 'wall') {
+            return 'a square white board standing upright behind it';
+        }
+
+        return 'a square '.($data['size'] === '4in' ? 'very light pink' : 'off-white').' cake board';
+    }
+
     private function editPrompt(array $data, bool $withReferences = false): string
     {
         $f = $this->fixedSpecs($data);
+        if (SimplePrompt::on()) {
+            return SimplePrompt::edit($f['outline'], $this->simpleSpecs($data), $this->simpleBoard($data), $data['instruction'], $data['previous'] ?? [], $withReferences);
+        }
 
         return "HARD RULE (most important): the cake must stay {$f['outline']}, with {$f['tiers']}, {$f['not']}. "
             .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
@@ -439,6 +463,10 @@ class SpecialOrderController extends Controller
 
     private function prompt(array $data, bool $withShapeImage, int $references = 1): string
     {
+        if (SimplePrompt::on()) {
+            return SimplePrompt::generate(self::OUTLINES[$data['shape']][0], $this->simpleSpecs($data), $this->simpleBoard($data), $withShapeImage, $references, $data['note'] ?? null);
+        }
+
         // "tier2_8-6" => [8, 6]، "6in" => [6]
         $inches = str_starts_with($data['size'], 'tier')
             ? array_map('intval', explode('-', substr($data['size'], strpos($data['size'], '_') + 1)))

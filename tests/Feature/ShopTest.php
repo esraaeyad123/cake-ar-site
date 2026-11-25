@@ -10,6 +10,13 @@ use Tests\TestCase;
 
 class ShopTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // الاختبارات القديمة على التعليمات الطويلة، والقصيرة لها اختبارها الخاص
+        config(['cake_ar.prompt_style' => 'strict']);
+    }
+
     private const API = 'https://jomacake.com/api/customer/v1';
 
     private function discount(int $id, int $amount, array $sizes, string $from, ?string $to, array $stores = [['id' => 1]]): array

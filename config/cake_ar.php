@@ -67,4 +67,9 @@ return [
         ],
     ],
 
+
+    // تعليمات الذكاء الاصطناعي للصور: simple = قصيرة مثل ChatGPT (تركّز على صورة الزبون والشكل)،
+    // strict = القديمة الطويلة (أسلوب جوماكيك، الزاوية، القواعد). التبديل من .env: AI_PROMPT_STYLE=strict
+    'prompt_style' => env('AI_PROMPT_STYLE', 'simple'),
+
 ];
