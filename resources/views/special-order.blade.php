@@ -218,10 +218,12 @@
         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
         /* خانة الكتابة مستطيل بعرض الصندوق، وزر الإرفاق وزر الإرسال تحتها */
-        .chat-input { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "text text text" "attach . send"; gap: 8px; align-items: center; }
-        .chat-input textarea { grid-area: text; width: 100%; box-sizing: border-box; min-height: 96px; height: 96px; max-height: 200px; border-radius: 12px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
-        .chat-input .chat-attach { grid-area: attach; }
-        .chat-input .btn { grid-area: send; width: auto; margin: 0; padding: 12px 26px; }
+        /* خانة نحيفة و + جنبها، والإرسال من زر الكيبورد (Enter). الخانة تكبر لو الكتابة زادت */
+        .chat-input { display: flex; gap: 8px; align-items: flex-end; }
+        .chat-input textarea { flex: 1; min-width: 0; box-sizing: border-box; min-height: 46px; height: 46px; max-height: 160px; padding: 11px 14px; border-radius: 14px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
+        .chat-input .btn#chat-send { display: none; }
+        .chat-count { font-size: 11px; font-weight: 800; color: var(--pink-dark); text-align: center; margin: 0 0 6px; }
+        .chat-count:empty { display: none; }
         /* إرفاق صور للتوضيح أثناء المحادثة */
         .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .chat-attach svg { width: 22px; height: 22px; }
@@ -250,6 +252,7 @@
         .attach-add { flex: 0 0 auto; width: 100px; aspect-ratio: .86; border: 2px solid #EDA9C2; border-radius: 18px; background: #FDF4F7;
             cursor: pointer; font-family: inherit; color: #2A1018; font-size: 15px; font-weight: 800;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 8px; }
+        .attach-add .refs-count { font-size: 12px; font-weight: 800; color: var(--pink-dark); margin-top: -6px; }
         .attach-add svg { width: 50px; height: auto; }
         .attach-add:disabled { opacity: .45; cursor: default; }
         /* الصور: الأمامية آخر صورة، واللي وراها مايلة لليسار شوي */
@@ -405,6 +408,7 @@
                         <path d="M50 40v12M44 46h12" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
                     </svg>
                     <span>{{ __('cake_ar.so.add_photo') }}</span>
+                    <small class="refs-count" id="refs-count"></small>
                 </button>
             </div>
         </div>
@@ -491,12 +495,13 @@
                     <div class="hint" style="margin-top:0" id="chat-hint">{{ __('cake_ar.so.chat_hint') }}</div>
                     <div class="chat-thread" id="chat-thread"></div>
                     <div class="thumbs" id="chat-thumbs"></div>
+                    <div class="chat-count" id="chat-count"></div>
                     <div class="chat-input">
                         <label class="chat-attach" title="{{ __('cake_ar.common.chat_attach') }}" aria-label="{{ __('cake_ar.common.chat_attach') }}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
                             <input type="file" id="chat-files" accept="image/png,image/jpeg,image/webp" multiple>
                         </label>
-                        <textarea id="chat-input" maxlength="500" placeholder="{{ __('cake_ar.so.chat_placeholder') }}"></textarea>
+                        <textarea id="chat-input" maxlength="500" rows="1" enterkeyhint="send" placeholder="{{ __('cake_ar.so.chat_placeholder') }}"></textarea>
                         <button type="button" class="btn" id="chat-send">{{ __('cake_ar.common.send') }}</button>
                     </div>
                     <div class="message error" id="chat-message"></div>
@@ -865,6 +870,7 @@
                 grid.prepend(box);
             });
             $('attach-add').disabled = refFiles.length >= MAX_REFS;
+            $('refs-count').textContent = t('photos_count', { n: refFiles.length, max: MAX_REFS });
             saveDraft();
             renderSummary($('summary')); // صور الكيكة تظهر في الملخص
             updateTop();
@@ -1167,6 +1173,8 @@
                 thumb.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
                 $('chat-thumbs').appendChild(thumb);
             });
+            // عداد الصور المرفقة (مثل 5/6)
+            $('chat-count').textContent = chatFiles.length ? t('photos_count', { n: chatFiles.length, max: 6 }) : '';
         }
         $('chat-files').addEventListener('change', e => {
             chatFiles = [...chatFiles, ...e.target.files].slice(0, 6);
@@ -1304,6 +1312,8 @@
         const NO_MORE = t('no_more');
         $('chat-send').addEventListener('click', sendChat);
         $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+        // بعض كيبوردات الجوال (أندرويد) ما ترسل Enter كزر: لو انضاف سطر جديد نرسل بدل ما ننزل سطر
+        $('chat-input').addEventListener('beforeinput', e => { if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') { e.preventDefault(); sendChat(); } });
 
         $('ai-approve').addEventListener('click', () => {
             state.aiApproved = true;
@@ -1473,7 +1483,7 @@
     (function () {
         const t = document.getElementById('chat-input');
         if (!t) return;
-        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 200) + 'px'; };
+        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 160) + 'px'; };
         t.addEventListener('input', grow);
         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
         t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });

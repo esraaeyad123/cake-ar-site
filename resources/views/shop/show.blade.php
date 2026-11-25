@@ -308,10 +308,12 @@
         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
         /* خانة الكتابة مستطيل بعرض الصندوق، وزر الإرفاق وزر الإرسال تحتها */
-        .chat-input { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "text text text" "attach . send"; gap: 8px; align-items: center; }
-        .chat-input textarea { grid-area: text; width: 100%; box-sizing: border-box; min-height: 96px; height: 96px; max-height: 200px; border-radius: 12px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
-        .chat-input .chat-attach { grid-area: attach; }
-        .chat-input .btn { grid-area: send; width: auto; margin: 0; padding: 12px 26px; }
+        /* خانة نحيفة و + جنبها، والإرسال من زر الكيبورد (Enter). الخانة تكبر لو الكتابة زادت */
+        .chat-input { display: flex; gap: 8px; align-items: flex-end; }
+        .chat-input textarea { flex: 1; min-width: 0; box-sizing: border-box; min-height: 46px; height: 46px; max-height: 160px; padding: 11px 14px; border-radius: 14px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
+        .chat-input .btn#chat-send { display: none; }
+        .chat-count { font-size: 11px; font-weight: 800; color: var(--pink-dark); text-align: center; margin: 0 0 6px; }
+        .chat-count:empty { display: none; }
         /* إرفاق صور للتوضيح أثناء المحادثة */
         .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .chat-attach svg { width: 22px; height: 22px; }
@@ -476,12 +478,13 @@
                     <div class="hint" style="margin-top:0">{{ __('cake_ar.shop.chat_hint') }}</div>
                     <div class="chat-thread" id="chat-thread"></div>
                     <div class="thumbs" id="chat-thumbs"></div>
+                    <div class="chat-count" id="chat-count"></div>
                     <div class="chat-input">
                         <label class="chat-attach" title="{{ __('cake_ar.common.chat_attach') }}" aria-label="{{ __('cake_ar.common.chat_attach') }}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
                             <input type="file" id="chat-files" accept="image/png,image/jpeg,image/webp" multiple>
                         </label>
-                        <textarea id="chat-input" maxlength="500" placeholder="{{ __('cake_ar.shop.chat_placeholder') }}"></textarea>
+                        <textarea id="chat-input" maxlength="500" rows="1" enterkeyhint="send" placeholder="{{ __('cake_ar.shop.chat_placeholder') }}"></textarea>
                         <button type="button" class="btn" id="chat-send">{{ __('cake_ar.common.send') }}</button>
                     </div>
                     <div class="message error" id="chat-message"></div>
@@ -1069,6 +1072,8 @@
                 thumb.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
                 $('chat-thumbs').appendChild(thumb);
             });
+            // عداد الصور المرفقة (مثل 5/6)
+            $('chat-count').textContent = chatFiles.length ? t('photos_count', { n: chatFiles.length, max: 6 }) : '';
         }
         $('chat-files').addEventListener('change', e => {
             chatFiles = [...chatFiles, ...e.target.files].slice(0, 6);
@@ -1127,6 +1132,8 @@
         }
         $('chat-send').addEventListener('click', sendChat);
         $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+        // بعض كيبوردات الجوال (أندرويد) ما ترسل Enter كزر: لو انضاف سطر جديد نرسل بدل ما ننزل سطر
+        $('chat-input').addEventListener('beforeinput', e => { if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') { e.preventDefault(); sendChat(); } });
 
         $('ai-approve').addEventListener('click', () => {
             state.aiApproved = true;
@@ -1196,7 +1203,7 @@
     (function () {
         const t = document.getElementById('chat-input');
         if (!t) return;
-        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 200) + 'px'; };
+        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 160) + 'px'; };
         t.addEventListener('input', grow);
         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
         t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });
