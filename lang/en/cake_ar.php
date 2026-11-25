@@ -22,6 +22,7 @@ return [
         'tier2' => '2 tiers',
         'tier3' => '3 tiers',
         'seconds' => ':n sec',
+        'almost_ready' => 'Almost ready…',
         'send' => 'Send',
         'cancel' => 'Cancel',
         'prev' => 'Back',
