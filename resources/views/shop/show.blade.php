@@ -937,6 +937,9 @@
                     });
                     data = await res.json();
                     ok = res.ok;
+                    // الاستضافة قطعت الطلب (502/503/504/524…) أو رجّعت رد بدون رسالة، والصورة ممكن تكون طلعت في السيرفر:
+                    // نسأل عن النتيجة بدل ما نقول "صار خطأ"
+                    if (!ok && !(data && (data.message || data.errors))) throw new Error('gateway');
                 } catch (cut) {
                     if (abort.signal.aborted) throw cut;
                     ({ data, ok } = await waitForJob(job, abort.signal));
@@ -1031,6 +1034,9 @@
                     });
                     data = await res.json();
                     ok = res.ok;
+                    // الاستضافة قطعت الطلب (502/503/504/524…) أو رجّعت رد بدون رسالة، والصورة ممكن تكون طلعت في السيرفر:
+                    // نسأل عن النتيجة بدل ما نقول "صار خطأ"
+                    if (!ok && !(data && (data.message || data.errors))) throw new Error('gateway');
                 } catch (cut) {
                     if (abort.signal.aborted) throw cut;
                     ({ data, ok } = await waitForJob(job, abort.signal));
