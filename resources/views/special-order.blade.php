@@ -222,6 +222,8 @@
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
         .chat-input textarea { flex: 1; min-width: 0; box-sizing: border-box; min-height: 46px; height: 46px; max-height: 160px; padding: 11px 14px; border-radius: 14px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
         .chat-input .btn#chat-send { display: none; }
+        /* زر + (إرفاق صور للذكاء الاصطناعي) على اليسار دائمًا */
+        [dir="rtl"] .chat-input .chat-attach { order: 2; }
         .chat-count { font-size: 11px; font-weight: 800; color: var(--pink-dark); text-align: center; margin: 0 0 6px; }
         .chat-count:empty { display: none; }
         /* إرفاق صور للتوضيح أثناء المحادثة */
