@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AiCakeChat;
 use App\Services\CakeStyle;
+use App\Services\SimplePrompt;
 use App\Services\ShopProducts;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
@@ -200,7 +201,9 @@ class ShopAiController extends Controller
             }
             $response = $pending->post('https://api.openai.com/v1/images/edits', [
                     'model' => config('services.openai.image_model'),
-                    'prompt' => "HARD RULE (most important): the cake must stay {$outline}, with exactly ONE tier, {$notShapes}. "
+                    'prompt' => SimplePrompt::on()
+                        ? SimplePrompt::edit($outline, "{$data['shape']}, 1 tier, {$size['inch']} inches, {$data['layers']} sponge layers", 'a square '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board', $data['instruction'], $data['previous'] ?? [], (bool) $request->file('references'))
+                        : "HARD RULE (most important): the cake must stay {$outline}, with exactly ONE tier, {$notShapes}. "
                         .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
                         .$this->keepText($data['previous'] ?? [])
                         // صور أرفقها الزبون مع رسالته للتوضيح
@@ -306,6 +309,20 @@ class ShopAiController extends Controller
         $height = $layers * ((int) $size['inch'] <= 4 ? 3 : 4);
         [$outline, $notShapes] = self::OUTLINES[$data['shape']];
         $refIndex = $withShapeImage ? 3 : 2;
+
+        if (SimplePrompt::on()) {
+            // صورة 1 = المنتج (التصميم)، صورة 2 = المجسم (الشكل)، وبعدها صور الزبون
+            return 'Image 1 is a real JOMACAKE cake: recreate it with the SAME design (same colours, decorations and details). '
+                .($withShapeImage ? 'Image 2 is a plain grey mock-up of the required cake: use it ONLY for the shape, size and proportions. ' : '')
+                ."Build that design onto this cake: {$data['shape']}, 1 tier, {$size['inch']} inches, {$layers} sponge layers. "
+                .($withReferences ? "Images {$refIndex} and after are the customer's photos for the requested changes; take only what they ask for. " : '')
+                .(filled($data['note'] ?? null) ? "Customer changes: {$data['note']}. " : '')
+                .(filled($data['writing'] ?? null) ? "Write exactly this text on the cake: \"{$data['writing']}\". " : '')
+                .'Make it a real buttercream cake on a square '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board with a small white "JOMACAKE" label (pink letters) at its front-left corner. '
+                .'Realistic bakery photo from the front, slightly above, plain light background, no people or hands. '
+                .'Do not write any other words on the cake. '
+                ."Remember: the cake shape is {$outline}.";
+        }
 
         // نفس درس الطلب الخاص: الشكل شرط أول، وإلا ينسخ شكل صورة المنتج
         return "HARD RULE (most important): the cake must be {$outline}, with exactly ONE tier, {$notShapes}, "

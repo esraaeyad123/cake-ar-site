@@ -18,6 +18,8 @@ class SpecialOrderTest extends TestCase
         parent::setUp();
 
         config(['services.openai.key' => 'test-key']);
+        // الاختبارات القديمة على التعليمات الطويلة، والقصيرة لها اختبارها الخاص
+        config(['cake_ar.prompt_style' => 'strict']);
     }
 
     private function fakeJomacake(): void
@@ -151,6 +153,32 @@ class SpecialOrderTest extends TestCase
                 && str_contains($prompt, '3 sponge layers')
                 && str_contains($prompt, 'Lambeth')
                 && str_contains($prompt, 'ورد أبيض');
+        });
+    }
+
+    public function test_simple_prompt_is_short_and_keeps_shape_size_and_customer_request(): void
+    {
+        config(['cake_ar.prompt_style' => 'simple']);
+        Storage::fake('public');
+        Http::fake(['api.openai.com/*' => Http::response(['data' => [['b64_json' => base64_encode('png')]]])]);
+
+        $this->post('/special-order/ai', [
+            'shape' => 'cone', 'size' => '6in', 'layers' => 2, 'style' => 'plain', 'note' => 'ابغاها زي الصورة',
+            'references' => [UploadedFile::fake()->image('dress.jpg')], 'job' => 'job-'.Str::random(10),
+            'shape_image' => UploadedFile::fake()->image('shape.png'),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        Http::assertSent(function ($request) {
+            $prompt = collect($request->data())->firstWhere('name', 'prompt')['contents'] ?? '';
+
+            return str_word_count($prompt) < 200
+                && str_contains($prompt, 'Image 1 is a plain grey mock-up')
+                && str_contains($prompt, 'SAME design')
+                && str_contains($prompt, 'cone')
+                && str_contains($prompt, '6 inches')
+                && str_contains($prompt, 'ابغاها زي الصورة')
+                && str_contains($prompt, 'JOMACAKE')
+                && ! str_contains($prompt, 'HOUSE STYLE');
         });
     }
 
