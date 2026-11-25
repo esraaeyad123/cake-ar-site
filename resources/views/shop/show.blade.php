@@ -534,7 +534,7 @@
         <div class="sheet">
             @include('partials.cake-loader')
             <h2>{{ __('cake_ar.common.wait_title') }}</h2>
-            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => 0]) }}</div>
+            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => 129]) }}</div>
             <div class="hint">{{ __('cake_ar.so.wait_hint') }}</div>
             <button type="button" class="btn light" id="ai-cancel">{{ __('cake_ar.common.cancel') }}</button>
         </div>
@@ -572,6 +572,12 @@
         const LOCALE = @json(app()->getLocale());
         const TR = { ...@json(__('cake_ar.common')), ...@json(__('cake_ar.shop')) };
         const t = (k, r = {}) => String(TR[k] ?? k).replace(/:(\w+)/g, (m, n) => (n in r ? r[n] : m));
+        // عداد تنازلي وقت التوليد (طلب المدير): يبدأ من 129 ثانية، ولو طوّل أكثر يكتب "قربنا…"
+        const WAIT_SECONDS = 129;
+        const countdown = started => {
+            const left = WAIT_SECONDS - Math.round((Date.now() - started) / 1000);
+            return left > 0 ? t('seconds', { n: left }) : t('almost_ready');
+        };
         // اسم الصنف (نكهة/حشوة) بلغة الموقع
         const itemName = item => (LOCALE === 'en' && item?.title_en) ? item.title_en : item?.name;
         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="' + t('riyal') + '"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
@@ -910,7 +916,7 @@
         $('ai-generate').addEventListener('click', async () => {
             const abort = aiAbort = new AbortController();
             const started = Date.now();
-            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
+            const tick = () => { $('ai-wait-time').textContent = countdown(started); };
             tick();
             const timer = setInterval(tick, 1000);
             $('ai-wait-modal').classList.add('show');
@@ -1013,7 +1019,7 @@
             const base = state.aiImage;
             const abort = aiAbort = new AbortController();
             const started = Date.now();
-            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
+            const tick = () => { $('ai-wait-time').textContent = countdown(started); };
             tick();
             const timer = setInterval(tick, 1000);
             $('ai-wait-modal').classList.add('show');
