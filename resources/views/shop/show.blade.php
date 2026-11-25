@@ -39,6 +39,8 @@
         /* الجزء الثابت فوق (الهيدر، المجسم، الملخص): الخيارات تتحرك تحته والكيكة تبقى قدام الزبون */
         /* وقت الكتابة في المحادثة (الكيبورد مفتوح) الجزء العلوي ما يبقى ثابت، عشان يبان اللي ينكتب */
         body.typing .top-fixed { position: relative; }
+        /* وقت الكتابة (الكيبورد مفتوح) نخفي السابق والتالي، وترجع لما يسكّر الكيبورد */
+        body.typing .nav-buttons { display: none; }
         .top-fixed { position: sticky; top: 0; z-index: 20; background: var(--bg); box-shadow: 0 4px 8px -6px rgba(75,21,40,0.18); }
         .site-header .logo { height: 34px; }
         .site-header nav { display: flex; gap: 16px; font-size: 13px; font-weight: 700; }
