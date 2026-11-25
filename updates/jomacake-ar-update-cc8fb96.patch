@@ -1,0 +1,599 @@
+diff --git a/app/Http/Controllers/ShopAiController.php b/app/Http/Controllers/ShopAiController.php
+index b253f63..3dd1562 100644
+--- a/app/Http/Controllers/ShopAiController.php
++++ b/app/Http/Controllers/ShopAiController.php
+@@ -4,6 +4,7 @@
+ 
+ use App\Services\AiCakeChat;
+ use App\Services\CakeStyle;
++use App\Services\SimplePrompt;
+ use App\Services\ShopProducts;
+ use Illuminate\Http\Client\ConnectionException;
+ use Illuminate\Http\Request;
+@@ -200,7 +201,9 @@ public function edit(Request $request, int $id, ShopProducts $shop)
+             }
+             $response = $pending->post('https://api.openai.com/v1/images/edits', [
+                     'model' => config('services.openai.image_model'),
+-                    'prompt' => "HARD RULE (most important): the cake must stay {$outline}, with exactly ONE tier, {$notShapes}. "
++                    'prompt' => SimplePrompt::on()
++                        ? SimplePrompt::edit($outline, "{$data['shape']}, 1 tier, {$size['inch']} inches, {$data['layers']} sponge layers", 'a square '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board', $data['instruction'], $data['previous'] ?? [], (bool) $request->file('references'))
++                        : "HARD RULE (most important): the cake must stay {$outline}, with exactly ONE tier, {$notShapes}. "
+                         .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
+                         .$this->keepText($data['previous'] ?? [])
+                         // صور أرفقها الزبون مع رسالته للتوضيح
+@@ -307,6 +310,20 @@ private function prompt(array $data, array $size, bool $withShapeImage, bool $wi
+         [$outline, $notShapes] = self::OUTLINES[$data['shape']];
+         $refIndex = $withShapeImage ? 3 : 2;
+ 
++        if (SimplePrompt::on()) {
++            // صورة 1 = المنتج (التصميم)، صورة 2 = المجسم (الشكل)، وبعدها صور الزبون
++            return 'Image 1 is a real JOMACAKE cake: recreate it with the SAME design (same colours, decorations and details). '
++                .($withShapeImage ? 'Image 2 is a plain grey mock-up of the required cake: use it ONLY for the shape, size and proportions. ' : '')
++                ."Build that design onto this cake: {$data['shape']}, 1 tier, {$size['inch']} inches, {$layers} sponge layers. "
++                .($withReferences ? "Images {$refIndex} and after are the customer's photos for the requested changes; take only what they ask for. " : '')
++                .(filled($data['note'] ?? null) ? "Customer changes: {$data['note']}. " : '')
++                .(filled($data['writing'] ?? null) ? "Write exactly this text on the cake: \"{$data['writing']}\". " : '')
++                .'Make it a real buttercream cake on a square '.((int) $size['inch'] <= 4 ? 'very light pink' : 'off-white').' cake board with a small white "JOMACAKE" label (pink letters) at its front-left corner. '
++                .'Realistic bakery photo from the front, slightly above, plain light background, no people or hands. '
++                .'Do not write any other words on the cake. '
++                ."Remember: the cake shape is {$outline}.";
++        }
++
+         // نفس درس الطلب الخاص: الشكل شرط أول، وإلا ينسخ شكل صورة المنتج
+         return "HARD RULE (most important): the cake must be {$outline}, with exactly ONE tier, {$notShapes}, "
+             .'even if image 1 shows a different shape. '
+diff --git a/app/Http/Controllers/SpecialOrderController.php b/app/Http/Controllers/SpecialOrderController.php
+index 6923778..21c7e55 100644
+--- a/app/Http/Controllers/SpecialOrderController.php
++++ b/app/Http/Controllers/SpecialOrderController.php
+@@ -4,6 +4,7 @@
+ 
+ use App\Services\AiCakeChat;
+ use App\Services\CakeStyle;
++use App\Services\SimplePrompt;
+ use App\Services\CakePricing;
+ use App\Services\SpecialOrderOptions;
+ use Illuminate\Http\Client\ConnectionException;
+@@ -342,9 +343,32 @@ private function chatSpecs(array $data): string
+             .'; a square JOMACAKE board with its logo label.';
+     }
+ 
++    // المواصفات بجملة قصيرة للتعليمات البسيطة: "cone-shaped, 1 tier, 6 inches, 2 sponge layers"
++    private function simpleSpecs(array $data): string
++    {
++        $f = $this->fixedSpecs($data);
++        $tiers = substr_count($f['size'], '/') + 1;
++
++        return self::SHAPES[$data['shape']].', '.($data['shape'] === 'wall' ? '2 tiers (front half only)' : ($tiers === 1 ? '1 tier' : "{$tiers} tiers"))
++            .", {$f['size']}, {$data['layers']} sponge layers"
++            .($data['style'] === 'vintage' ? ', with vintage piped borders' : '');
++    }
++
++    private function simpleBoard(array $data): string
++    {
++        if ($data['shape'] === 'wall') {
++            return 'a square white board standing upright behind it';
++        }
++
++        return 'a square '.($data['size'] === '4in' ? 'very light pink' : 'off-white').' cake board';
++    }
++
+     private function editPrompt(array $data, bool $withReferences = false): string
+     {
+         $f = $this->fixedSpecs($data);
++        if (SimplePrompt::on()) {
++            return SimplePrompt::edit($f['outline'], $this->simpleSpecs($data), $this->simpleBoard($data), $data['instruction'], $data['previous'] ?? [], $withReferences);
++        }
+ 
+         return "HARD RULE (most important): the cake must stay {$f['outline']}, with {$f['tiers']}, {$f['not']}. "
+             .'This image is the customer\'s current cake design from JOMACAKE bakery. Apply ONLY these new changes: '.$data['instruction'].' '
+@@ -439,6 +463,10 @@ private function remaining(): ?int
+ 
+     private function prompt(array $data, bool $withShapeImage, int $references = 1): string
+     {
++        if (SimplePrompt::on()) {
++            return SimplePrompt::generate(self::OUTLINES[$data['shape']][0], $this->simpleSpecs($data), $this->simpleBoard($data), $withShapeImage, $references, $data['note'] ?? null);
++        }
++
+         // "tier2_8-6" => [8, 6]، "6in" => [6]
+         $inches = str_starts_with($data['size'], 'tier')
+             ? array_map('intval', explode('-', substr($data['size'], strpos($data['size'], '_') + 1)))
+diff --git a/app/Services/SimplePrompt.php b/app/Services/SimplePrompt.php
+new file mode 100644
+index 0000000..b99ebf9
+--- /dev/null
++++ b/app/Services/SimplePrompt.php
+@@ -0,0 +1,48 @@
++<?php
++
++namespace App\Services;
++
++/**
++ * تعليمات قصيرة للصور (مثل طريقة المدير مع ChatGPT): مجسم الشكل + صورة الزبون + المواصفات الأساسية.
++ * القديمة الطويلة باقية في الكنترولرات، وتشتغل لو AI_PROMPT_STYLE=strict
++ */
++class SimplePrompt
++{
++    public static function on(): bool
++    {
++        return config('cake_ar.prompt_style', 'simple') !== 'strict';
++    }
++
++    private static function finish(string $board, string $shape): string
++    {
++        return "Make it a real buttercream cake that a bakery can make, on {$board} with a small white \"JOMACAKE\" label (pink letters) at its front-left corner. "
++            .'Realistic bakery photo from the front, slightly above, plain light background, no people or hands. '
++            .'Do not write any words on the cake unless the customer asked for specific words. '
++            ."Remember: the cake shape is {$shape}.";
++    }
++
++    /**
++     * أول صورة. $specs مثل "cone-shaped, 1 tier, 6 inches, 2 sponge layers"
++     */
++    public static function generate(string $shape, string $specs, string $board, bool $withShapeImage, int $references, ?string $note, string $what = 'the customer\'s cake'): string
++    {
++        $refs = $references === 1 ? 'the next image' : "the next {$references} images";
++
++        return ($withShapeImage ? 'Image 1 is a plain grey mock-up of the required cake: use it ONLY for the shape, size and proportions. ' : '')
++            .'Recreate '.($withShapeImage ? $refs : 'the attached image').' ('.$what.') with the SAME design: the same colours, decorations and details. '
++            ."Build that design onto this cake: {$specs}. "
++            .(filled($note) ? "Customer request: {$note}. " : '')
++            .self::finish($board, $shape);
++    }
++
++    public static function edit(string $shape, string $specs, string $board, string $instruction, array $previous, bool $withReferences): string
++    {
++        $previous = array_values(array_filter(array_map('trim', $previous)));
++
++        return "Edit this cake photo. Change ONLY this: {$instruction}. "
++            .($withReferences ? 'The other images show what the customer means; take only that from them. ' : '')
++            .($previous ? 'Keep these earlier changes: '.implode('; ', $previous).'. ' : '')
++            ."Keep everything else exactly the same: the cake ({$specs}), its decorations, the board, angle and background. "
++            .self::finish($board, $shape);
++    }
++}
+diff --git a/config/cake_ar.php b/config/cake_ar.php
+index 52a3320..4583933 100644
+--- a/config/cake_ar.php
++++ b/config/cake_ar.php
+@@ -67,4 +67,9 @@
+         ],
+     ],
+ 
++
++    // تعليمات الذكاء الاصطناعي للصور: simple = قصيرة مثل ChatGPT (تركّز على صورة الزبون والشكل)،
++    // strict = القديمة الطويلة (أسلوب جوماكيك، الزاوية، القواعد). التبديل من .env: AI_PROMPT_STYLE=strict
++    'prompt_style' => env('AI_PROMPT_STYLE', 'simple'),
++
+ ];
+diff --git a/lang/ar/cake_ar.php b/lang/ar/cake_ar.php
+index ffbb693..7518849 100644
+--- a/lang/ar/cake_ar.php
++++ b/lang/ar/cake_ar.php
+@@ -22,6 +22,7 @@
+         'tier2' => 'دورين',
+         'tier3' => '3 أدوار',
+         'seconds' => ':n ثانية',
++        'almost_ready' => 'قربنا… ثواني بس',
+         'send' => 'إرسال',
+         'cancel' => 'إلغاء',
+         'prev' => 'السابق',
+@@ -63,6 +64,7 @@
+         'alt_cake' => 'كيكة خاصة',
+         'attach' => 'أرفقي الصورة المطلوبة',
+         'add_photo' => 'إضافة صورة',
++        'photos_count' => ':n/:max صور',
+         'gen_alt' => 'الكيكة المولّدة',
+         'tab_shape' => 'الشكل<br>والأدوار',
+         'tab_size' => 'الحجم<br>والطبقات',
+@@ -79,8 +81,8 @@
+         'reject' => 'ما عجبني',
+         'approved' => '✓ تم اعتماد التصميم، بيظهر في ملخص الطلب',
+         'history' => 'صورك اللي طلعت (اضغطي على صورة عشان تختارينها):',
+-        'chat_hint' => 'مثل: أبغاها مثل الصورة واكتبي كل عام وانتم بخير، أو اضغطي إرسال بدون كتابة.',
+-        'chat_placeholder' => 'مثال: خلي الورد أبيض وزيدي لمسة ذهبي',
++        'chat_hint' => 'مثل: أبغاها مثل الصورة واكتبي كل عام وانتم بخير. وللإرسال اضغطي زر الإرسال في الكيبورد.',
++        'chat_placeholder' => 'مثال: خلي الورد أبيض',
+         'flavor_title' => 'النكهة',
+         'filling_title' => 'الحشوة',
+         'whole_cake' => '(لكل الكيكة)',
+@@ -113,6 +115,7 @@
+         'ask_generate' => 'كلامك واضح 👌 تبين أولّد لك صورة للكيكة بالذكاء الاصطناعي؟',
+         'clear' => 'كلامك واضح 👌 ',
+         'made_it' => 'سويت الصورة بطلبك.',
++        'retry_yes' => 'اكتبي «أيوه» عشان نجرب مرة ثانية.',
+         'no_more' => 'تمام 👍 اضغطي «التالي» وكمّلي طلبك، وفريق الدعم يكمّل معالجته بالصور والوصف.',
+         'reject_msg' => 'اكتبي في المحادثة تحت وش تبين يتغيّر، والذكاء الاصطناعي يعدّل على الصورة. أو كمّلي الطلب بالوصف والصور.',
+         'reject_msg2' => 'تقدرين تكمّلين الطلب بالوصف والصور.',
+@@ -123,6 +126,7 @@
+     ],
+     'shop' => [
+         'title' => 'المتجر',
++        'photos_count' => ':n/:max صور',
+         'heading' => 'كيك جاهز',
+         'sub' => 'اختاري الكيكة، وحددي المقاس والنكهة والحشوة',
+         'unavailable' => 'المتجر مو متاح الحين، جربي بعد شوي.',
+@@ -150,7 +154,7 @@
+         'history' => 'صورك اللي طلعت (اضغطي على صورة عشان تختارينها):',
+         'chat_title' => '💬 تبين تعديل؟ اكتبي للذكاء الاصطناعي',
+         'chat_hint' => 'يعدّل على الصورة اللي فوق، ويلتزم بالشكل والحجم والطبقات اللي اخترتيها.',
+-        'chat_placeholder' => 'مثال: اكتبي Happy Birthday بالذهبي',
++        'chat_placeholder' => 'مثال: اكتبي Happy Birthday',
+         'note_hint' => 'اكتبي التعديل (لون، إضافة…)، وارفعي صور للي تبينه إذا عندك، والذكاء الاصطناعي يوريك الكيكة بالشكل والمقاس اللي اخترتيها.',
+         'note_placeholder' => 'مثال: خلي اللون وردي فاتح، واكتبي Happy Birthday Sara',
+         'upload' => '📷 صور للتعديل (اختياري، لين 6)',
+diff --git a/lang/en/cake_ar.php b/lang/en/cake_ar.php
+index bc1be30..5eacde1 100644
+--- a/lang/en/cake_ar.php
++++ b/lang/en/cake_ar.php
+@@ -22,6 +22,7 @@
+         'tier2' => '2 tiers',
+         'tier3' => '3 tiers',
+         'seconds' => ':n sec',
++        'almost_ready' => 'Almost ready…',
+         'send' => 'Send',
+         'cancel' => 'Cancel',
+         'prev' => 'Back',
+@@ -63,6 +64,7 @@
+         'alt_cake' => 'Custom cake',
+         'attach' => 'Attach the cake photo',
+         'add_photo' => 'Add photo',
++        'photos_count' => ':n/:max photos',
+         'gen_alt' => 'Generated cake',
+         'tab_shape' => 'Shape<br>& tiers',
+         'tab_size' => 'Size<br>& layers',
+@@ -79,8 +81,8 @@
+         'reject' => 'I don\'t like it',
+         'approved' => '✓ Design approved, it will appear in the order summary',
+         'history' => 'Your generated images (tap one to choose it):',
+-        'chat_hint' => 'e.g. "Like the photo, and write Happy Birthday", or press Send without typing.',
+-        'chat_placeholder' => 'e.g. Make the flowers white and add a touch of gold',
++        'chat_hint' => 'e.g. "Like the photo, and write Happy Birthday". Press the send/enter key on your keyboard to send.',
++        'chat_placeholder' => 'e.g. Make the flowers white',
+         'flavor_title' => 'Flavor',
+         'filling_title' => 'Filling',
+         'whole_cake' => '(whole cake)',
+@@ -113,6 +115,7 @@
+         'ask_generate' => 'Got it 👌 Would you like me to generate an AI image of your cake?',
+         'clear' => 'Got it 👌 ',
+         'made_it' => 'I made the image as you asked.',
++        'retry_yes' => 'Reply "yes" to try again.',
+         'no_more' => 'Great 👍 Press "Next" to continue your order, and our support team will complete it with your photos and description.',
+         'reject_msg' => 'Write in the chat below what you want to change, and the AI will edit the image. Or complete the order with the description and photos.',
+         'reject_msg2' => 'You can complete the order with the description and photos.',
+@@ -123,6 +126,7 @@
+     ],
+     'shop' => [
+         'title' => 'Shop',
++        'photos_count' => ':n/:max photos',
+         'heading' => 'Ready-made cakes',
+         'sub' => 'Choose a cake, then pick the size, flavor and filling',
+         'unavailable' => 'The shop is not available right now. Please try again shortly.',
+@@ -150,7 +154,7 @@
+         'history' => 'Your generated images (tap one to choose it):',
+         'chat_title' => '💬 Want a change? Write to the AI',
+         'chat_hint' => 'It edits the image above and keeps the shape, size and layers you chose.',
+-        'chat_placeholder' => 'e.g. Write Happy Birthday in gold',
++        'chat_placeholder' => 'e.g. Write Happy Birthday',
+         'note_hint' => 'Write the change (colour, an addition…) and upload photos of what you want if you have any, and the AI will show you the cake in the shape and size you chose.',
+         'note_placeholder' => 'e.g. Make it light pink and write Happy Birthday Sara',
+         'upload' => '📷 Photos for the edit (optional, up to 6)',
+diff --git a/resources/views/shop/show.blade.php b/resources/views/shop/show.blade.php
+index 66421fa..76fcf35 100644
+--- a/resources/views/shop/show.blade.php
++++ b/resources/views/shop/show.blade.php
+@@ -308,10 +308,14 @@
+         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
+         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
+         /* خانة الكتابة مستطيل بعرض الصندوق، وزر الإرفاق وزر الإرسال تحتها */
+-        .chat-input { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "text text text" "attach . send"; gap: 8px; align-items: center; }
+-        .chat-input textarea { grid-area: text; width: 100%; box-sizing: border-box; min-height: 96px; height: 96px; max-height: 200px; border-radius: 12px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
+-        .chat-input .chat-attach { grid-area: attach; }
+-        .chat-input .btn { grid-area: send; width: auto; margin: 0; padding: 12px 26px; }
++        /* خانة نحيفة و + جنبها، والإرسال من زر الكيبورد (Enter). الخانة تكبر لو الكتابة زادت */
++        .chat-input { display: flex; gap: 8px; align-items: flex-end; }
++        .chat-input textarea { flex: 1; min-width: 0; box-sizing: border-box; min-height: 46px; height: 46px; max-height: 160px; padding: 11px 14px; border-radius: 14px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
++        .chat-input .btn#chat-send { display: none; }
++        /* زر + (إرفاق صور للذكاء الاصطناعي) على اليسار دائمًا */
++        [dir="rtl"] .chat-input .chat-attach { order: 2; }
++        .chat-count { font-size: 11px; font-weight: 800; color: var(--pink-dark); text-align: center; margin: 0 0 6px; }
++        .chat-count:empty { display: none; }
+         /* إرفاق صور للتوضيح أثناء المحادثة */
+         .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+         .chat-attach svg { width: 22px; height: 22px; }
+@@ -476,12 +480,13 @@
+                     <div class="hint" style="margin-top:0">{{ __('cake_ar.shop.chat_hint') }}</div>
+                     <div class="chat-thread" id="chat-thread"></div>
+                     <div class="thumbs" id="chat-thumbs"></div>
++                    <div class="chat-count" id="chat-count"></div>
+                     <div class="chat-input">
+                         <label class="chat-attach" title="{{ __('cake_ar.common.chat_attach') }}" aria-label="{{ __('cake_ar.common.chat_attach') }}">
+                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                             <input type="file" id="chat-files" accept="image/png,image/jpeg,image/webp" multiple>
+                         </label>
+-                        <textarea id="chat-input" maxlength="500" placeholder="{{ __('cake_ar.shop.chat_placeholder') }}"></textarea>
++                        <textarea id="chat-input" maxlength="500" rows="1" enterkeyhint="send" placeholder="{{ __('cake_ar.shop.chat_placeholder') }}"></textarea>
+                         <button type="button" class="btn" id="chat-send">{{ __('cake_ar.common.send') }}</button>
+                     </div>
+                     <div class="message error" id="chat-message"></div>
+@@ -531,7 +536,7 @@
+         <div class="sheet">
+             @include('partials.cake-loader')
+             <h2>{{ __('cake_ar.common.wait_title') }}</h2>
+-            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => 0]) }}</div>
++            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => ['high' => 129, 'medium' => 60, 'low' => 30][config('shop.image_quality') ?: config('services.openai.image_quality')] ?? 60]) }}</div>
+             <div class="hint">{{ __('cake_ar.so.wait_hint') }}</div>
+             <button type="button" class="btn light" id="ai-cancel">{{ __('cake_ar.common.cancel') }}</button>
+         </div>
+@@ -569,6 +574,12 @@
+         const LOCALE = @json(app()->getLocale());
+         const TR = { ...@json(__('cake_ar.common')), ...@json(__('cake_ar.shop')) };
+         const t = (k, r = {}) => String(TR[k] ?? k).replace(/:(\w+)/g, (m, n) => (n in r ? r[n] : m));
++        // عداد تنازلي وقت التوليد (طلب المدير) حسب جودة الصور: عالية 129 ثانية، متوسطة 60، منخفضة 30. لو طوّل يكتب "قربنا…"
++        const WAIT_SECONDS = @json(['high' => 129, 'medium' => 60, 'low' => 30][config('shop.image_quality') ?: config('services.openai.image_quality')] ?? 60);
++        const countdown = started => {
++            const left = WAIT_SECONDS - Math.round((Date.now() - started) / 1000);
++            return left > 0 ? t('seconds', { n: left }) : t('almost_ready');
++        };
+         // اسم الصنف (نكهة/حشوة) بلغة الموقع
+         const itemName = item => (LOCALE === 'en' && item?.title_en) ? item.title_en : item?.name;
+         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="' + t('riyal') + '"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
+@@ -907,7 +918,7 @@ function showAiImage(url) {
+         $('ai-generate').addEventListener('click', async () => {
+             const abort = aiAbort = new AbortController();
+             const started = Date.now();
+-            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
++            const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
+             $('ai-wait-modal').classList.add('show');
+@@ -937,6 +948,9 @@ function showAiImage(url) {
+                     });
+                     data = await res.json();
+                     ok = res.ok;
++                    // الاستضافة قطعت الطلب (502/503/504/524…) أو رجّعت رد بدون رسالة، والصورة ممكن تكون طلعت في السيرفر:
++                    // نسأل عن النتيجة بدل ما نقول "صار خطأ"
++                    if (!ok && !(data && (data.message || data.errors))) throw new Error('gateway');
+                 } catch (cut) {
+                     if (abort.signal.aborted) throw cut;
+                     ({ data, ok } = await waitForJob(job, abort.signal));
+@@ -1007,7 +1021,7 @@ function bubble(role, text, image) {
+             const base = state.aiImage;
+             const abort = aiAbort = new AbortController();
+             const started = Date.now();
+-            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
++            const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
+             $('ai-wait-modal').classList.add('show');
+@@ -1031,6 +1045,9 @@ function bubble(role, text, image) {
+                     });
+                     data = await res.json();
+                     ok = res.ok;
++                    // الاستضافة قطعت الطلب (502/503/504/524…) أو رجّعت رد بدون رسالة، والصورة ممكن تكون طلعت في السيرفر:
++                    // نسأل عن النتيجة بدل ما نقول "صار خطأ"
++                    if (!ok && !(data && (data.message || data.errors))) throw new Error('gateway');
+                 } catch (cut) {
+                     if (abort.signal.aborted) throw cut;
+                     ({ data, ok } = await waitForJob(job, abort.signal));
+@@ -1063,6 +1080,8 @@ function renderChatFiles() {
+                 thumb.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
+                 $('chat-thumbs').appendChild(thumb);
+             });
++            // عداد الصور المرفقة (مثل 5/6)
++            $('chat-count').textContent = chatFiles.length ? t('photos_count', { n: chatFiles.length, max: 6 }) : '';
+         }
+         $('chat-files').addEventListener('change', e => {
+             chatFiles = [...chatFiles, ...e.target.files].slice(0, 6);
+@@ -1121,6 +1140,8 @@ function renderChatFiles() {
+         }
+         $('chat-send').addEventListener('click', sendChat);
+         $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
++        // بعض كيبوردات الجوال (أندرويد) ما ترسل Enter كزر: لو انضاف سطر جديد نرسل بدل ما ننزل سطر
++        $('chat-input').addEventListener('beforeinput', e => { if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') { e.preventDefault(); sendChat(); } });
+ 
+         $('ai-approve').addEventListener('click', () => {
+             state.aiApproved = true;
+@@ -1190,7 +1211,7 @@ function renderSummary(box) {
+     (function () {
+         const t = document.getElementById('chat-input');
+         if (!t) return;
+-        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 200) + 'px'; };
++        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 160) + 'px'; };
+         t.addEventListener('input', grow);
+         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
+         t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });
+diff --git a/resources/views/special-order.blade.php b/resources/views/special-order.blade.php
+index fb44d25..e6c4671 100644
+--- a/resources/views/special-order.blade.php
++++ b/resources/views/special-order.blade.php
+@@ -218,10 +218,14 @@
+         .bubble-download { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); font-size: 12px; font-weight: 800; text-decoration: none; }
+         .bubble img { display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 12px; margin-top: 6px; cursor: pointer; border: 1px solid var(--pink-line); }
+         /* خانة الكتابة مستطيل بعرض الصندوق، وزر الإرفاق وزر الإرسال تحتها */
+-        .chat-input { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "text text text" "attach . send"; gap: 8px; align-items: center; }
+-        .chat-input textarea { grid-area: text; width: 100%; box-sizing: border-box; min-height: 96px; height: 96px; max-height: 200px; border-radius: 12px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
+-        .chat-input .chat-attach { grid-area: attach; }
+-        .chat-input .btn { grid-area: send; width: auto; margin: 0; padding: 12px 26px; }
++        /* خانة نحيفة و + جنبها، والإرسال من زر الكيبورد (Enter). الخانة تكبر لو الكتابة زادت */
++        .chat-input { display: flex; gap: 8px; align-items: flex-end; }
++        .chat-input textarea { flex: 1; min-width: 0; box-sizing: border-box; min-height: 46px; height: 46px; max-height: 160px; padding: 11px 14px; border-radius: 14px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
++        .chat-input .btn#chat-send { display: none; }
++        /* زر + (إرفاق صور للذكاء الاصطناعي) على اليسار دائمًا */
++        [dir="rtl"] .chat-input .chat-attach { order: 2; }
++        .chat-count { font-size: 11px; font-weight: 800; color: var(--pink-dark); text-align: center; margin: 0 0 6px; }
++        .chat-count:empty { display: none; }
+         /* إرفاق صور للتوضيح أثناء المحادثة */
+         .chat-attach { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--pink-line); background: #fff; color: var(--pink-dark); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+         .chat-attach svg { width: 22px; height: 22px; }
+@@ -237,24 +241,25 @@
+         .top-view { position: absolute; inset: 0; z-index: 2; background: var(--bg); border: none; width: 100%; }
+         .top-view[hidden] { display: none; }
+         /* إرفاق الصور (مثل تصميم المدير): قبل = مربع منقّط، بعد = صور بولارويد فوق بعض وزر "إضافة صورة" */
+-        .viewer-wrap.attach-mode model-viewer { height: 380px; max-height: none; }
+-        .attach-view { display: flex; align-items: center; justify-content: center; padding: 92px 16px 66px; box-sizing: border-box; }
++        /* نفس ارتفاع المجسم 3D (ما يكبر المكان)، والمحتوى بين السعر فوق وزر 3D تحت */
++        .attach-view { display: flex; align-items: center; justify-content: center; padding: 10px 16px 54px; box-sizing: border-box; }
+         .attach-view[hidden] { display: none; }
+-        .attach-empty { width: min(80%, 330px); height: 100%; max-height: 230px; border: 2px dashed #E9A3BD; border-radius: 24px; background: #FBEFF3;
++        .attach-empty { width: min(62%, 280px); height: 100%; max-height: 200px; border: 2px dashed #E9A3BD; border-radius: 24px; background: #FBEFF3;
+             cursor: pointer; font-family: inherit; color: #2A1018; font-size: 19px; font-weight: 800;
+             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
+-        .attach-empty svg { width: 118px; height: auto; filter: drop-shadow(0 4px 8px rgba(224,85,139,.15)); }
++        .attach-empty svg { width: 92px; height: auto; filter: drop-shadow(0 4px 8px rgba(224,85,139,.15)); }
+         .attach-filled { display: none; width: 100%; max-width: 420px; align-items: center; justify-content: space-between; gap: 10px; }
+         .attach-view.has-refs .attach-empty { display: none; }
+         .attach-view.has-refs .attach-filled { display: flex; }
+-        .attach-add { flex: 0 0 auto; width: 118px; aspect-ratio: .82; border: 2px solid #EDA9C2; border-radius: 18px; background: #FDF4F7;
++        .attach-add { flex: 0 0 auto; width: 100px; aspect-ratio: .86; border: 2px solid #EDA9C2; border-radius: 18px; background: #FDF4F7;
+             cursor: pointer; font-family: inherit; color: #2A1018; font-size: 15px; font-weight: 800;
+             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 8px; }
+-        .attach-add svg { width: 62px; height: auto; }
++        .attach-add .refs-count { font-size: 12px; font-weight: 800; color: var(--pink-dark); margin-top: -6px; }
++        .attach-add svg { width: 50px; height: auto; }
+         .attach-add:disabled { opacity: .45; cursor: default; }
+         /* الصور: الأمامية آخر صورة، واللي وراها مايلة لليسار شوي */
+-        .polaroids { position: relative; flex: 1; height: 200px; }
+-        .polaroids .ref { position: absolute; top: 8px; right: 8px; width: 140px; padding: 8px 8px 22px; background: #fff; border-radius: 10px;
++        .polaroids { position: relative; flex: 1; height: 170px; }
++        .polaroids .ref { position: absolute; top: 14px; right: 112px; width: 118px; padding: 7px 7px 18px; background: #fff; border-radius: 10px;
+             box-shadow: 0 6px 16px rgba(75,21,40,.16), 0 1px 3px rgba(75,21,40,.08); transition: transform .25s ease; cursor: pointer; }
+         .polaroids .ref img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 6px; background: #F3ECEE; }
+         .polaroids .ref .remove { position: absolute; top: -8px; left: -8px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
+@@ -405,6 +410,7 @@ function genEdgeColor(img) {
+                         <path d="M50 40v12M44 46h12" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+                     </svg>
+                     <span>{{ __('cake_ar.so.add_photo') }}</span>
++                    <small class="refs-count" id="refs-count"></small>
+                 </button>
+             </div>
+         </div>
+@@ -491,12 +497,13 @@ function genEdgeColor(img) {
+                     <div class="hint" style="margin-top:0" id="chat-hint">{{ __('cake_ar.so.chat_hint') }}</div>
+                     <div class="chat-thread" id="chat-thread"></div>
+                     <div class="thumbs" id="chat-thumbs"></div>
++                    <div class="chat-count" id="chat-count"></div>
+                     <div class="chat-input">
+                         <label class="chat-attach" title="{{ __('cake_ar.common.chat_attach') }}" aria-label="{{ __('cake_ar.common.chat_attach') }}">
+                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                             <input type="file" id="chat-files" accept="image/png,image/jpeg,image/webp" multiple>
+                         </label>
+-                        <textarea id="chat-input" maxlength="500" placeholder="{{ __('cake_ar.so.chat_placeholder') }}"></textarea>
++                        <textarea id="chat-input" maxlength="500" rows="1" enterkeyhint="send" placeholder="{{ __('cake_ar.so.chat_placeholder') }}"></textarea>
+                         <button type="button" class="btn" id="chat-send">{{ __('cake_ar.common.send') }}</button>
+                     </div>
+                     <div class="message error" id="chat-message"></div>
+@@ -535,7 +542,7 @@ function genEdgeColor(img) {
+         <div class="sheet">
+             @include('partials.cake-loader')
+             <h2>{{ __('cake_ar.common.wait_title') }}</h2>
+-            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => 0]) }}</div>
++            <div class="wait-time" id="ai-wait-time">{{ __('cake_ar.common.seconds', ['n' => ['high' => 129, 'medium' => 60, 'low' => 30][config('special_order.image_quality') ?: config('services.openai.image_quality')] ?? 60]) }}</div>
+             <div class="hint">{{ __('cake_ar.so.wait_hint') }}</div>
+             <button type="button" class="btn light" id="ai-cancel">{{ __('cake_ar.common.cancel') }}</button>
+         </div>
+@@ -571,6 +578,12 @@ function genEdgeColor(img) {
+         const LOCALE = @json(app()->getLocale());
+         const TR = { ...@json(__('cake_ar.common')), ...@json(__('cake_ar.so')) };
+         const t = (k, r = {}) => String(TR[k] ?? k).replace(/:(\w+)/g, (m, n) => (n in r ? r[n] : m));
++        // عداد تنازلي وقت التوليد (طلب المدير) حسب جودة الصور: عالية 129 ثانية، متوسطة 60، منخفضة 30. لو طوّل يكتب "قربنا…"
++        const WAIT_SECONDS = @json(['high' => 129, 'medium' => 60, 'low' => 30][config('special_order.image_quality') ?: config('services.openai.image_quality')] ?? 60);
++        const countdown = started => {
++            const left = WAIT_SECONDS - Math.round((Date.now() - started) / 1000);
++            return left > 0 ? t('seconds', { n: left }) : t('almost_ready');
++        };
+         // اسم الصنف (نكهة/حشوة) بلغة الموقع
+         const itemName = item => (LOCALE === 'en' && item?.title_en) ? item.title_en : item?.name;
+         const RIYAL = '<svg class="riyal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="' + t('riyal') + '"><path d="M8.5 2.5v14.5M14 4.5v15.5M3 11.5l18-4M3 16l18-4M14.5 20.5l6.5-1.5"/></svg>';
+@@ -803,8 +816,6 @@ function updateTop() {
+             $('gen-view').hidden = !(after && state.aiImage);
+             $('attach-view').hidden = !(after && !state.aiImage);
+             $('attach-view').classList.toggle('has-refs', refFiles.length > 0);
+-            // مربع الإرفاق يحتاج مكان أطول من المجسم، تحت السعر
+-            document.querySelector('.viewer-wrap').classList.toggle('attach-mode', after && !state.aiImage);
+             if (state.aiImage && $('gen-image').getAttribute('src') !== state.aiImage) $('gen-image').src = state.aiImage;
+         }
+         $('attach-btn').addEventListener('click', () => aiRef.click());
+@@ -867,6 +878,7 @@ function renderRef() {
+                 grid.prepend(box);
+             });
+             $('attach-add').disabled = refFiles.length >= MAX_REFS;
++            $('refs-count').textContent = t('photos_count', { n: refFiles.length, max: MAX_REFS });
+             saveDraft();
+             renderSummary($('summary')); // صور الكيكة تظهر في الملخص
+             updateTop();
+@@ -998,7 +1010,7 @@ function showAiImage(url) {
+             }
+             const abort = aiAbort = new AbortController();
+             const started = Date.now();
+-            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
++            const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
+             $('ai-wait-modal').classList.add('show');
+@@ -1030,6 +1042,9 @@ function showAiImage(url) {
+                     });
+                     data = await res.json();
+                     ok = res.ok;
++                    // الاستضافة قطعت الطلب (502/503/504/524…) أو رجّعت رد بدون رسالة، والصورة ممكن تكون طلعت في السيرفر:
++                    // نسأل عن النتيجة بدل ما نقول "صار خطأ"
++                    if (!ok && !(data && (data.message || data.errors))) throw new Error('gateway');
+                 } catch (cut) {
+                     if (abort.signal.aborted) throw cut;
+                     // الاستضافة قطعت الانتظار (أو رجعت صفحة خطأ)، والتوليد مكمّل في السيرفر: ننتظر نتيجته
+@@ -1107,7 +1122,7 @@ function bubble(role, text, image) {
+             const base = state.aiImage;
+             const abort = aiAbort = new AbortController();
+             const started = Date.now();
+-            const tick = () => { $('ai-wait-time').textContent = t('seconds', { n: Math.round((Date.now() - started) / 1000) }); };
++            const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
+             $('ai-wait-modal').classList.add('show');
+@@ -1131,6 +1146,9 @@ function bubble(role, text, image) {
+                     });
+                     data = await res.json();
+                     ok = res.ok;
++                    // الاستضافة قطعت الطلب (502/503/504/524…) أو رجّعت رد بدون رسالة، والصورة ممكن تكون طلعت في السيرفر:
++                    // نسأل عن النتيجة بدل ما نقول "صار خطأ"
++                    if (!ok && !(data && (data.message || data.errors))) throw new Error('gateway');
+                 } catch (cut) {
+                     if (abort.signal.aborted) throw cut;
+                     ({ data, ok } = await waitForJob(job, abort.signal));
+@@ -1163,6 +1181,8 @@ function renderChatFiles() {
+                 thumb.querySelector('button').addEventListener('click', () => { chatFiles.splice(i, 1); renderChatFiles(); });
+                 $('chat-thumbs').appendChild(thumb);
+             });
++            // عداد الصور المرفقة (مثل 5/6)
++            $('chat-count').textContent = chatFiles.length ? t('photos_count', { n: chatFiles.length, max: 6 }) : '';
+         }
+         $('chat-files').addEventListener('change', e => {
+             chatFiles = [...chatFiles, ...e.target.files].slice(0, 6);
+@@ -1252,6 +1272,9 @@ function renderChatFiles() {
+                             pendingFirst.length = 0;
+                             firstChat.length = 0;
+                             bubble('assistant', t('here_is_cake'), state.aiImage);
++                        } else {
++                            // ما طلعت الصورة: نوضح السبب في المحادثة نفسها (كان يطلع فوق بس والزبون ما ينتبه)
++                            bubble('assistant', ($('ai-message').textContent || t('error_retry')) + ' ' + t('retry_yes'));
+                         }
+                     }
+                 }
+@@ -1297,6 +1320,8 @@ function renderChatFiles() {
+         const NO_MORE = t('no_more');
+         $('chat-send').addEventListener('click', sendChat);
+         $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
++        // بعض كيبوردات الجوال (أندرويد) ما ترسل Enter كزر: لو انضاف سطر جديد نرسل بدل ما ننزل سطر
++        $('chat-input').addEventListener('beforeinput', e => { if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') { e.preventDefault(); sendChat(); } });
+ 
+         $('ai-approve').addEventListener('click', () => {
+             state.aiApproved = true;
+@@ -1466,7 +1491,7 @@ function saveDraft() {
+     (function () {
+         const t = document.getElementById('chat-input');
+         if (!t) return;
+-        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 200) + 'px'; };
++        const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 160) + 'px'; };
+         t.addEventListener('input', grow);
+         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
+         t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });
