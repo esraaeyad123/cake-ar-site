@@ -62,8 +62,10 @@
             position: absolute; background: #fff; border: 1.5px solid var(--pink-line);
             border-radius: 14px; padding: 7px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); text-align: center;
         }
-        .price-card { top: 12px; right: 12px; }
-        .price-card .amount { font-size: 18px; font-weight: 800; white-space: nowrap; }
+        /* السعر: مربع صغير (أضيق من اليمين واليسار) */
+        .price-card { top: 12px; right: 12px; padding: 6px 9px; border-radius: 12px; }
+        .price-card .caption { font-size: 9px; line-height: 1.2; }
+        .price-card .amount { font-size: 17px; font-weight: 800; white-space: nowrap; line-height: 1.2; }
         .float-card .caption { font-size: 10px; font-weight: 700; color: var(--pink-dark); }
         .riyal { width: 0.85em; height: 0.85em; vertical-align: -0.08em; margin-inline-start: 2px; }
 
@@ -248,7 +250,7 @@
             cursor: pointer; font-family: inherit; color: #2A1018; font-size: 19px; font-weight: 800;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
         .attach-empty svg { width: 92px; height: auto; filter: drop-shadow(0 4px 8px rgba(224,85,139,.15)); }
-        .attach-filled { display: none; width: 100%; max-width: 420px; align-items: center; justify-content: space-between; gap: 10px; }
+        .attach-filled { display: none; width: 100%; max-width: 420px; align-items: center; justify-content: center; gap: 24px; padding-inline-start: 78px; box-sizing: border-box; }
         .attach-view.has-refs .attach-empty { display: none; }
         .attach-view.has-refs .attach-filled { display: flex; }
         .attach-add { flex: 0 0 auto; width: 100px; aspect-ratio: .86; border: 2px solid #EDA9C2; border-radius: 18px; background: #FDF4F7;
@@ -258,15 +260,17 @@
         .attach-add svg { width: 50px; height: auto; }
         .attach-add:disabled { opacity: .45; cursor: default; }
         /* الصور: الأمامية آخر صورة، واللي وراها مايلة لليسار شوي */
-        .polaroids { position: relative; flex: 1; height: 170px; }
-        .polaroids .ref { position: absolute; top: 14px; right: 112px; width: 118px; padding: 7px 7px 18px; background: #fff; border-radius: 10px;
+        .polaroids { position: relative; flex: 0 0 130px; width: 130px; height: 160px; }
+        .polaroids .ref { position: absolute; top: 12px; left: 50%; margin-left: -52px; width: 104px; padding: 7px 7px 18px; background: #fff; border-radius: 10px;
             box-shadow: 0 6px 16px rgba(75,21,40,.16), 0 1px 3px rgba(75,21,40,.08); transition: transform .25s ease; cursor: pointer; }
         .polaroids .ref img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 6px; background: #F3ECEE; }
+        .photo-zoom { position: fixed; inset: 0; z-index: 100; background: rgba(30,10,16,.85); display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+        .photo-zoom img { max-width: 100%; max-height: 85vh; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+        .photo-zoom button { position: absolute; top: 16px; left: 16px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; color: var(--ink); font-size: 18px; cursor: pointer; }
         .polaroids .ref .remove { position: absolute; top: -8px; left: -8px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
             background: var(--ink); color: #fff; font-size: 12px; line-height: 1; cursor: pointer; padding: 0; display: none; }
         .polaroids .ref.front .remove { display: block; }
-        .polaroids .ref.front { cursor: default; }
-        [dir="ltr"] .polaroids .ref { right: auto; left: 8px; }
+        .polaroids .ref.front { cursor: zoom-in; }
         /* الصورة المولّدة كاملة بدون قص ولا زوم، والجوانب بلون خلفية الصورة نفسها */
         .gen-view { background: #F4F1F0; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .gen-view[hidden] { display: none; }
@@ -861,20 +865,29 @@
         const refFiles = [];
         // الصور المرفقة فوق بعض مثل صور بولارويد: آخر صورة قدّام، وأقدم صورتين وراها مايلين.
         // الضغط على صورة ورا يجيبها قدّام، و✕ على الصورة اللي قدّام يحذفها
-        const STACK = ['translateX(0) rotate(4deg)', 'translateX(-38px) rotate(-4deg)', 'translateX(-70px) rotate(-11deg)'];
-        const STACK_LTR = ['translateX(0) rotate(-4deg)', 'translateX(38px) rotate(4deg)', 'translateX(70px) rotate(11deg)'];
+        // لين 6 صور فوق بعض: الأمامية مستقيمة تقريبًا، واللي وراها مروحة خفيفة (كلها باينة)
+        const STACK = [[0, 3], [-10, -4], [9, 8], [-18, -9], [16, 12], [-24, -13]];
+        // تكبير الصورة المرفقة (الضغط على الصورة اللي قدّام)
+        function zoomPhoto(file) {
+            const box = document.createElement('div');
+            box.className = 'photo-zoom';
+            box.innerHTML = `<img src="${URL.createObjectURL(file)}" alt=""><button type="button" aria-label="${t('close')}">✕</button>`;
+            box.addEventListener('click', () => box.remove());
+            document.body.appendChild(box);
+        }
         function renderRef() {
             const grid = $('refs-grid');
             grid.innerHTML = '';
             const ltr = document.documentElement.dir === 'ltr';
             refFiles.forEach((f, i) => {
                 const depth = refFiles.length - 1 - i; // 0 = قدّام
-                if (depth >= STACK.length) return;
                 const box = thumb(f, e => { e.stopPropagation(); refFiles.splice(i, 1); renderRef(); });
                 box.className = 'ref' + (depth === 0 ? ' front' : '');
-                box.style.transform = (ltr ? STACK_LTR : STACK)[depth];
+                const [x, r] = STACK[Math.min(depth, STACK.length - 1)];
+                box.style.transform = `translateX(${ltr ? -x : x}px) rotate(${ltr ? -r : r}deg)`;
                 box.style.zIndex = String(10 - depth);
-                if (depth > 0) box.addEventListener('click', () => { refFiles.push(...refFiles.splice(i, 1)); renderRef(); });
+                // الصورة اللي قدّام: تكبر. اللي ورا: تجي قدّام
+                box.addEventListener('click', () => depth > 0 ? (refFiles.push(...refFiles.splice(i, 1)), renderRef()) : zoomPhoto(f));
                 grid.prepend(box);
             });
             $('attach-add').disabled = refFiles.length >= MAX_REFS;
@@ -886,7 +899,6 @@
         aiRef.addEventListener('change', () => {
             const picked = [...aiRef.files], room = MAX_REFS - refFiles.length;
             refFiles.push(...picked.slice(0, room));
-            if (picked.length > room) showAiMessage(t('max_refs', { max: MAX_REFS, n: Math.max(room, 0) }), 'error');
             aiRef.value = ''; // حتى يقدر يختار نفس الصورة مرة ثانية بعد الحذف
             renderRef();
         });

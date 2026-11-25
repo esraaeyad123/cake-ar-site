@@ -62,8 +62,10 @@
             position: absolute; background: #fff; border: 1.5px solid var(--pink-line);
             border-radius: 14px; padding: 7px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); text-align: center;
         }
-        .price-card { top: 12px; right: 12px; }
-        .price-card .amount { font-size: 18px; font-weight: 800; white-space: nowrap; }
+        /* السعر: مربع صغير (أضيق من اليمين واليسار) */
+        .price-card { top: 12px; right: 12px; padding: 6px 9px; border-radius: 12px; }
+        .price-card .caption { font-size: 9px; line-height: 1.2; }
+        .price-card .amount { font-size: 17px; font-weight: 800; white-space: nowrap; line-height: 1.2; }
         .float-card .caption { font-size: 10px; font-weight: 700; color: var(--pink-dark); }
         .riyal { width: 0.85em; height: 0.85em; vertical-align: -0.08em; margin-inline-start: 2px; }
 

@@ -110,6 +110,7 @@ return [
         'generate_again' => '✨ Generate another image',
         'here_is_specs' => 'Here is your cake with the specs you chose. If you want a change, write it in the chat.',
         'cancelled' => 'Cancelled. Change what you like and generate again.',
+        'close' => 'Close',
         'like_photo' => 'Make it like the photo',
         'attach_first_chat' => 'Attach the cake photo first with the paperclip above 📎, then send your request.',
         'ask_generate' => 'Got it 👌 Would you like me to generate an AI image of your cake?',
