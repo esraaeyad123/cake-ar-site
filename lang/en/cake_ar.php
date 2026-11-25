@@ -113,6 +113,7 @@ return [
         'ask_generate' => 'Got it 👌 Would you like me to generate an AI image of your cake?',
         'clear' => 'Got it 👌 ',
         'made_it' => 'I made the image as you asked.',
+        'retry_yes' => 'Reply "yes" to try again.',
         'no_more' => 'Great 👍 Press "Next" to continue your order, and our support team will complete it with your photos and description.',
         'reject_msg' => 'Write in the chat below what you want to change, and the AI will edit the image. Or complete the order with the description and photos.',
         'reject_msg2' => 'You can complete the order with the description and photos.',

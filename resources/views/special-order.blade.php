@@ -237,24 +237,24 @@
         .top-view { position: absolute; inset: 0; z-index: 2; background: var(--bg); border: none; width: 100%; }
         .top-view[hidden] { display: none; }
         /* إرفاق الصور (مثل تصميم المدير): قبل = مربع منقّط، بعد = صور بولارويد فوق بعض وزر "إضافة صورة" */
-        .viewer-wrap.attach-mode model-viewer { height: 380px; max-height: none; }
-        .attach-view { display: flex; align-items: center; justify-content: center; padding: 92px 16px 66px; box-sizing: border-box; }
+        /* نفس ارتفاع المجسم 3D (ما يكبر المكان)، والمحتوى بين السعر فوق وزر 3D تحت */
+        .attach-view { display: flex; align-items: center; justify-content: center; padding: 10px 16px 54px; box-sizing: border-box; }
         .attach-view[hidden] { display: none; }
-        .attach-empty { width: min(80%, 330px); height: 100%; max-height: 230px; border: 2px dashed #E9A3BD; border-radius: 24px; background: #FBEFF3;
+        .attach-empty { width: min(62%, 280px); height: 100%; max-height: 200px; border: 2px dashed #E9A3BD; border-radius: 24px; background: #FBEFF3;
             cursor: pointer; font-family: inherit; color: #2A1018; font-size: 19px; font-weight: 800;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
-        .attach-empty svg { width: 118px; height: auto; filter: drop-shadow(0 4px 8px rgba(224,85,139,.15)); }
+        .attach-empty svg { width: 92px; height: auto; filter: drop-shadow(0 4px 8px rgba(224,85,139,.15)); }
         .attach-filled { display: none; width: 100%; max-width: 420px; align-items: center; justify-content: space-between; gap: 10px; }
         .attach-view.has-refs .attach-empty { display: none; }
         .attach-view.has-refs .attach-filled { display: flex; }
-        .attach-add { flex: 0 0 auto; width: 118px; aspect-ratio: .82; border: 2px solid #EDA9C2; border-radius: 18px; background: #FDF4F7;
+        .attach-add { flex: 0 0 auto; width: 100px; aspect-ratio: .86; border: 2px solid #EDA9C2; border-radius: 18px; background: #FDF4F7;
             cursor: pointer; font-family: inherit; color: #2A1018; font-size: 15px; font-weight: 800;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 8px; }
-        .attach-add svg { width: 62px; height: auto; }
+        .attach-add svg { width: 50px; height: auto; }
         .attach-add:disabled { opacity: .45; cursor: default; }
         /* الصور: الأمامية آخر صورة، واللي وراها مايلة لليسار شوي */
-        .polaroids { position: relative; flex: 1; height: 200px; }
-        .polaroids .ref { position: absolute; top: 8px; right: 8px; width: 140px; padding: 8px 8px 22px; background: #fff; border-radius: 10px;
+        .polaroids { position: relative; flex: 1; height: 170px; }
+        .polaroids .ref { position: absolute; top: 14px; right: 112px; width: 118px; padding: 7px 7px 18px; background: #fff; border-radius: 10px;
             box-shadow: 0 6px 16px rgba(75,21,40,.16), 0 1px 3px rgba(75,21,40,.08); transition: transform .25s ease; cursor: pointer; }
         .polaroids .ref img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 6px; background: #F3ECEE; }
         .polaroids .ref .remove { position: absolute; top: -8px; left: -8px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
@@ -803,8 +803,6 @@
             $('gen-view').hidden = !(after && state.aiImage);
             $('attach-view').hidden = !(after && !state.aiImage);
             $('attach-view').classList.toggle('has-refs', refFiles.length > 0);
-            // مربع الإرفاق يحتاج مكان أطول من المجسم، تحت السعر
-            document.querySelector('.viewer-wrap').classList.toggle('attach-mode', after && !state.aiImage);
             if (state.aiImage && $('gen-image').getAttribute('src') !== state.aiImage) $('gen-image').src = state.aiImage;
         }
         $('attach-btn').addEventListener('click', () => aiRef.click());
@@ -1252,6 +1250,9 @@
                             pendingFirst.length = 0;
                             firstChat.length = 0;
                             bubble('assistant', t('here_is_cake'), state.aiImage);
+                        } else {
+                            // ما طلعت الصورة: نوضح السبب في المحادثة نفسها (كان يطلع فوق بس والزبون ما ينتبه)
+                            bubble('assistant', ($('ai-message').textContent || t('error_retry')) + ' ' + t('retry_yes'));
                         }
                     }
                 }
