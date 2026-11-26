@@ -182,6 +182,17 @@ class SpecialOrderTest extends TestCase
         });
     }
 
+    public function test_simple_edit_prompt_applies_the_change_and_does_not_freeze_decorations(): void
+    {
+        $prompt = \App\Services\SimplePrompt::edit('perfectly ROUND', 'round, 1 tier, 6 inches', 'a square board', 'Make all the ribbons white.', [], false);
+
+        // كان "خل الزينة زي ما هي" يمنع تغيير لون الشرايط
+        $this->assertStringContainsString('Apply this change clearly and completely', $prompt);
+        $this->assertStringContainsString('Make all the ribbons white.', $prompt);
+        $this->assertStringNotContainsString('white..', $prompt);
+        $this->assertStringNotContainsString('its decorations', $prompt);
+    }
+
     public function test_3d_snapshot_is_sent_first_to_set_the_shape(): void
     {
         Storage::fake('public');

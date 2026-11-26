@@ -38,11 +38,14 @@ class SimplePrompt
     public static function edit(string $shape, string $specs, string $board, string $instruction, array $previous, bool $withReferences): string
     {
         $previous = array_values(array_filter(array_map('trim', $previous)));
+        $instruction = rtrim(trim($instruction), '.');
 
-        return "Edit this cake photo. Change ONLY this: {$instruction}. "
+        // التعديل لازم يبان بوضوح. كانت جملة "خل الزينة زي ما هي" تمنع تعديل الزينة نفسها (شرايط حمرا ما صارت بيضا)
+        return "Edit this cake photo. Apply this change clearly and completely, so it is obvious in the new photo: {$instruction}. "
+            .'If the change is about a colour, recolour every matching element. '
             .($withReferences ? 'The other images show what the customer means; take only that from them. ' : '')
             .($previous ? 'Keep these earlier changes: '.implode('; ', $previous).'. ' : '')
-            ."Keep everything else exactly the same: the cake ({$specs}), its decorations, the board, angle and background. "
+            ."Everything the change does not mention stays as it is: the cake ({$specs}), the board, the camera angle and the background. "
             .self::finish($board, $shape);
     }
 }
