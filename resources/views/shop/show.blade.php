@@ -925,6 +925,9 @@
             const tick = () => { $('ai-wait-time').textContent = countdown(started); };
             tick();
             const timer = setInterval(tick, 1000);
+            // التوليد بدأ: نسكّر الكيبورد عشان تبان شاشة الانتظار كاملة
+            $('chat-input').blur();
+            document.body.classList.remove('typing');
             $('ai-wait-modal').classList.add('show');
             aiMessage('');
             $('ai-generate').disabled = true;
@@ -1028,6 +1031,9 @@
             const tick = () => { $('ai-wait-time').textContent = countdown(started); };
             tick();
             const timer = setInterval(tick, 1000);
+            // التوليد بدأ: نسكّر الكيبورد عشان تبان شاشة الانتظار كاملة
+            $('chat-input').blur();
+            document.body.classList.remove('typing');
             $('ai-wait-modal').classList.add('show');
             const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
             try {
@@ -1220,7 +1226,7 @@
         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
         t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });
         t.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== t) document.body.classList.remove('typing'); }, 200));
-        if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (document.activeElement === t) show(); });
+        // ما نرجّع الصفحة للخانة مع كل تغيير في الشاشة: كان يسحب الزبون لتحت كل ما حاول يطلع لفوق
         // لو تغيّر النص من الكود (مثل بعد الإرسال) نرجّع الحجم
         let last = t.value;
         setInterval(() => { if (t.value !== last) { last = t.value; t.value ? grow() : (t.style.height = ''); } }, 400);
