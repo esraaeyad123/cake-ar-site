@@ -298,7 +298,8 @@
         /* المحادثة */
         .ai-chat { margin-top: 14px; border-top: 1px dashed var(--pink-line); padding-top: 12px; }
         .ai-chat h4 { margin: 0 0 2px; font-size: 14px; }
-        .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; max-height: 360px; overflow-y: auto; padding: 2px; }
+        /* المحادثة تنسحب مع الصفحة نفسها (بدون صندوق سحب صغير داخلها، كان يتعارض مع سحب الصفحة) */
+        .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; padding: 2px; }
         .bubble { max-width: 85%; padding: 9px 12px; border-radius: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
@@ -1019,7 +1020,10 @@
                 b.appendChild(dl);
             }
             $('chat-thread').appendChild(b);
-            $('chat-thread').scrollTop = $('chat-thread').scrollHeight;
+            // ننزل للرسالة الجديدة (مو وقت استرجاع المسودة)
+            let quiet = false;
+            try { quiet = restoring; } catch (e) { /* قبل تعريف المسودة */ }
+            if (!quiet) requestAnimationFrame(() => b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
             return b;
         }
         const specs = () => ({ shape: shape(), size: state.size.id, layers: state.layers });
