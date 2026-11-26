@@ -266,9 +266,17 @@
         .polaroids .ref { position: absolute; top: 12px; left: 50%; margin-left: -52px; width: 104px; padding: 7px 7px 18px; background: #fff; border-radius: 10px;
             box-shadow: 0 6px 16px rgba(75,21,40,.16), 0 1px 3px rgba(75,21,40,.08); transition: transform .25s ease; cursor: pointer; }
         .polaroids .ref img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 6px; background: #F3ECEE; }
-        .photo-zoom { position: fixed; inset: 0; z-index: 100; background: rgba(30,10,16,.85); display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
-        .photo-zoom img { max-width: 100%; max-height: 85vh; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
-        .photo-zoom button { position: absolute; top: 16px; left: 16px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; color: var(--ink); font-size: 18px; cursor: pointer; }
+        .photo-zoom { position: fixed; inset: 0; z-index: 100; background: rgba(30,10,16,.96); display: flex; flex-direction: column; }
+        .zoom-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; color: #fff; font-weight: 800; }
+        .zoom-close { width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; color: var(--ink); font-size: 18px; cursor: pointer; }
+        .zoom-delete { border: none; border-radius: 20px; background: #fff; color: #B4234D; font-family: inherit; font-size: 14px; font-weight: 800; padding: 9px 16px; cursor: pointer; }
+        .zoom-track { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+        .zoom-track::-webkit-scrollbar { display: none; }
+        .zoom-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; padding: 10px 20px 40px; box-sizing: border-box; }
+        .zoom-slide img { max-width: 100%; max-height: 78vh; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+        /* زر التالي يلمع لما الزبون يختار يكمّل بدون صورة */
+        #next.pulse { animation: next-pulse 1s ease-in-out 3; }
+        @keyframes next-pulse { 50% { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(212,83,126,.25); } }
         .polaroids .ref .remove { position: absolute; top: -8px; left: -8px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
             background: var(--ink); color: #fff; font-size: 12px; line-height: 1; cursor: pointer; padding: 0; display: none; }
         .polaroids .ref.front .remove { display: block; }
@@ -870,12 +878,44 @@
         // لين 6 صور فوق بعض: الأمامية مستقيمة تقريبًا، واللي وراها مروحة خفيفة (كلها باينة)
         const STACK = [[0, 3], [-10, -4], [9, 8], [-18, -9], [16, 12], [-24, -13]];
         // تكبير الصورة المرفقة (الضغط على الصورة اللي قدّام)
+        // معرض الصور المرفقة: يسحب يمين ويسار يشوف كل الصور، و"حذف" يشيل الصورة اللي يشوفها
         function zoomPhoto(file) {
+            document.querySelector('.photo-zoom')?.remove();
             const box = document.createElement('div');
             box.className = 'photo-zoom';
-            box.innerHTML = `<img src="${URL.createObjectURL(file)}" alt=""><button type="button" aria-label="${t('close')}">✕</button>`;
-            box.addEventListener('click', () => box.remove());
+            const track = document.createElement('div');
+            track.className = 'zoom-track';
+            const order = [...refFiles].reverse(); // نفس ترتيب الكروت: الأمامية (الأحدث) أول
+            order.forEach(f => {
+                const slide = document.createElement('div');
+                slide.className = 'zoom-slide';
+                slide.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`;
+                track.appendChild(slide);
+            });
+            const bar = document.createElement('div');
+            bar.className = 'zoom-bar';
+            bar.innerHTML = `<button type="button" class="zoom-close" aria-label="${t('close')}">✕</button>`
+                + `<span class="zoom-count" dir="ltr"></span>`
+                + `<button type="button" class="zoom-delete">🗑 ${t('remove_photo')}</button>`;
+            box.append(bar, track);
             document.body.appendChild(box);
+            const current = () => Math.round(Math.abs(track.scrollLeft) / track.clientWidth);
+            const count = () => { bar.querySelector('.zoom-count').textContent = `${current() + 1} / ${order.length}`; };
+            track.addEventListener('scroll', count, { passive: true });
+            const start = Math.max(0, order.indexOf(file));
+            requestAnimationFrame(() => { track.scrollLeft = (document.documentElement.dir === 'rtl' ? -1 : 1) * start * track.clientWidth; count(); });
+            bar.querySelector('.zoom-close').addEventListener('click', () => box.remove());
+            bar.querySelector('.zoom-delete').addEventListener('click', () => {
+                const i = current();
+                refFiles.splice(refFiles.indexOf(order[i]), 1);
+                renderRef();
+                box.remove();
+                // نكمّل على الصورة اللي بعدها (أو آخر صورة)، ولو ما بقى صور نسكّر
+                const rest = [...refFiles].reverse();
+                if (rest.length) zoomPhoto(rest[Math.min(i, rest.length - 1)]);
+            });
+            // الضغط على الخلفية (مو الصورة) يسكّر
+            track.addEventListener('click', e => { if (e.target === track || e.target.classList.contains('zoom-slide')) box.remove(); });
         }
         function renderRef() {
             const grid = $('refs-grid');
@@ -1236,7 +1276,7 @@
                 }
                 // ما نولّد على طول: نسأل الزبون في المحادثة، والذكاء الاصطناعي يفهم رده (يبي صورة ولا يكمّل والدعم يعالج الطلب)
                 const ASK = t('ask_generate');
-                if (!canGenerate()) { await thinking(); bubble('assistant', t('clear') + NO_MORE); return; }
+                if (!canGenerate()) { await thinking(); bubble('assistant', t('clear') + NO_MORE); showNext(); return; }
                 if (!pendingFirst.length) {
                     pendingFirst.push(text === t('like_photo') ? '' : text);
                     firstChat.push({ role: 'user', content }, { role: 'assistant', content: ASK });
@@ -1277,6 +1317,9 @@
                 if (answer.reply) { bubble('assistant', answer.reply); firstChat.push({ role: 'assistant', content: answer.reply }); }
                 if (answer.action === 'ask') {
                     pendingFirst.push(text);
+                } else if (answer.action === 'skip') {
+                    userRequests.pop();
+                    showNext();
                 } else {
                     userRequests.pop(); // "أيوه" أو "لا" مو جزء من الوصف
                     if (answer.action === 'generate') {
@@ -1325,6 +1368,15 @@
             } finally {
                 $('chat-send').disabled = false;
             }
+        }
+        // الزبون يكمّل بدون صورة: نسكّر الكيبورد عشان يبان "التالي"، وننزل له ونخليه يلمع
+        function showNext() {
+            $('chat-input').blur();
+            document.body.classList.remove('typing');
+            setTimeout(() => {
+                $('next').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                $('next').classList.remove('pulse'); void $('next').offsetWidth; $('next').classList.add('pulse');
+            }, 350);
         }
         // الوصف (مع الصور) اللي ينتظر رد الزبون: يبي صورة بالذكاء الاصطناعي أو لا
         const pendingFirst = [];
