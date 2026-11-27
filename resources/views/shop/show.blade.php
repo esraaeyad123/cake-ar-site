@@ -291,6 +291,8 @@
         /* زر AR: أيقونة أكبر وواضحة مع الكلمة */
         .ar-float { gap: 7px; }
         .ar-float svg { width: 30px !important; height: 30px !important; stroke-width: 1.6; }
+        /* مفرّغ: خلفية بيضاء بحد وردي، والكلمة والأيقونة وردي */
+        .ar-float { background: #fff !important; color: var(--pink-dark) !important; border: 1.8px solid var(--pink) !important; box-shadow: 0 2px 8px rgba(75,21,40,.12) !important; }
         [dir="ltr"] .bubble.user { align-self: flex-end; border-bottom-right-radius: 16px; border-bottom-left-radius: 4px; }
         [dir="ltr"] .bubble.assistant { align-self: flex-start; border-bottom-left-radius: 16px; border-bottom-right-radius: 4px; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
