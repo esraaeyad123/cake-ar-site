@@ -296,9 +296,9 @@
         /* زر AR: أيقونة أكبر وواضحة مع الكلمة */
         .ar-float { gap: 7px; }
         /* أيقونة بس بدون كلمة (طلب المدير)، وأكبر */
-        .ar-float { font-size: 0 !important; padding: 8px 10px !important; border-radius: 16px !important; }
+        .ar-float { font-size: 0 !important; padding: 6px 8px !important; border-radius: 16px !important; }
         .ar-float span { display: none; }
-        .ar-float svg { width: 36px !important; height: 36px !important; stroke-width: 1.5; }
+        .ar-float svg { width: 42px !important; height: 40px !important; stroke-width: 1.1; }
         /* مفرّغ: خلفية بيضاء بحد وردي، والكلمة والأيقونة وردي */
         .ar-float { background: #fff !important; color: var(--pink-dark) !important; border: 1.8px solid var(--pink) !important; box-shadow: 0 2px 8px rgba(75,21,40,.12) !important; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
@@ -440,7 +440,7 @@
         <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple hidden>
         <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="{{ __('cake_ar.so.gen_alt') }}" onload="genEdgeColor(this)"></div>
         <button type="button" class="ar-btn ar-float" id="ar-btn" aria-label="AR" title="AR">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5 5 4v3l3 1.5L11 7V4z"/><path d="m5 4 3 1.5L11 4M8 5.5v3"/><path d="M3 10.5 7.5 8l4.5 2.5v5.5L7.5 18.5 3 16z"/><path d="m3 10.5 4.5 2.5 4.5-2.5M7.5 13v5.5"/><rect x="12.5" y="14" width="9" height="7" rx="1.6"/><path d="M15 14l1-1.5h2l1 1.5"/><circle cx="17" cy="17.5" r="1.7"/><path d="M19.5 6.5v3M18 8h3"/></svg>
+            <svg viewBox="0 0 36 34" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5.5 15.5 14 12.5l8.5 3L14 18.5z"/><path d="M5.5 15.5v10l8.5 3v-10M22.5 15.5v10l-8.5 3"/><path d="M10.5 7v4.8l4 2.2 4-2.2V7z" fill="#fff"/><path d="M14.5 9.2V14"/><path d="M10.5 7 14.5 4.8 18.5 7 14.5 9.2z" fill="#fff"/><rect x="18" y="20.5" width="12.5" height="8.5" rx="2" fill="#fff"/><path d="M21.2 20.5l1-1.7h3.4l1 1.7"/><circle cx="24.25" cy="24.8" r="2.3"/><path d="M28.5 10c.3 1.9.6 2.2 2.5 2.5-1.9.3-2.2.6-2.5 2.5-.3-1.9-.6-2.2-2.5-2.5 1.9-.3 2.2-.6 2.5-2.5z" fill="currentColor" stroke="none"/></svg>
             {{ __('cake_ar.common.ar_button') }}
         </button>
     </div>
