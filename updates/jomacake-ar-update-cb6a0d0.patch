@@ -1,0 +1,312 @@
+diff --git a/app/Services/SimplePrompt.php b/app/Services/SimplePrompt.php
+index b99ebf9..84f16f4 100644
+--- a/app/Services/SimplePrompt.php
++++ b/app/Services/SimplePrompt.php
+@@ -38,11 +38,14 @@ public static function generate(string $shape, string $specs, string $board, boo
+     public static function edit(string $shape, string $specs, string $board, string $instruction, array $previous, bool $withReferences): string
+     {
+         $previous = array_values(array_filter(array_map('trim', $previous)));
++        $instruction = rtrim(trim($instruction), '.');
+ 
+-        return "Edit this cake photo. Change ONLY this: {$instruction}. "
++        // التعديل لازم يبان بوضوح. كانت جملة "خل الزينة زي ما هي" تمنع تعديل الزينة نفسها (شرايط حمرا ما صارت بيضا)
++        return "Edit this cake photo. Apply this change clearly and completely, so it is obvious in the new photo: {$instruction}. "
++            .'If the change is about a colour, recolour every matching element. '
+             .($withReferences ? 'The other images show what the customer means; take only that from them. ' : '')
+             .($previous ? 'Keep these earlier changes: '.implode('; ', $previous).'. ' : '')
+-            ."Keep everything else exactly the same: the cake ({$specs}), its decorations, the board, angle and background. "
++            ."Everything the change does not mention stays as it is: the cake ({$specs}), the board, the camera angle and the background. "
+             .self::finish($board, $shape);
+     }
+ }
+diff --git a/lang/ar/cake_ar.php b/lang/ar/cake_ar.php
+index f6aad9f..8e542cd 100644
+--- a/lang/ar/cake_ar.php
++++ b/lang/ar/cake_ar.php
+@@ -12,7 +12,7 @@
+         'banner' => 'يمكنك إرسال تصميم الكعكة للمراجعة وتحديد السعر لاحقًا. لا يتم إنشاء طلب شراء أو خصم مبلغ في هذه المرحلة.',
+         'preparing' => 'جاري تجهيز الكيكة…',
+         'start_price' => 'السعر المبدئي',
+-        'ar_button' => '3D',
++        'ar_button' => 'AR',
+         'riyal' => 'ريال',
+         'inch' => ':n إنش',
+         'people' => ':n أشخاص',
+diff --git a/lang/en/cake_ar.php b/lang/en/cake_ar.php
+index dff030a..b624361 100644
+--- a/lang/en/cake_ar.php
++++ b/lang/en/cake_ar.php
+@@ -12,7 +12,7 @@
+         'banner' => 'You can send your cake design for review and get the price later. No purchase order is created and nothing is charged at this stage.',
+         'preparing' => 'Preparing the cake…',
+         'start_price' => 'Starting price',
+-        'ar_button' => '3D',
++        'ar_button' => 'AR',
+         'riyal' => 'SAR',
+         'inch' => ':n in',
+         'people' => ':n people',
+diff --git a/resources/views/shop/show.blade.php b/resources/views/shop/show.blade.php
+index ba28f3f..7b25fc2 100644
+--- a/resources/views/shop/show.blade.php
++++ b/resources/views/shop/show.blade.php
+@@ -288,6 +288,14 @@
+         [dir="ltr"] .price-card { right: auto; left: 12px; }
+         [dir="ltr"] .photo-card { right: auto; left: 12px; }
+         [dir="ltr"] .ar-float { left: auto; right: 12px; }
++        /* زر AR: أيقونة أكبر وواضحة مع الكلمة */
++        .ar-float { gap: 7px; }
++        /* أيقونة بس بدون كلمة (طلب المدير)، وأكبر */
++        .ar-float { font-size: 0 !important; padding: 6px 8px !important; border-radius: 16px !important; }
++        .ar-float span { display: none; }
++        .ar-float svg { width: 42px !important; height: 40px !important; stroke-width: 1.1; }
++        /* مفرّغ: خلفية بيضاء بحد وردي، والكلمة والأيقونة وردي */
++        .ar-float { background: #fff !important; color: var(--pink-dark) !important; border: 1.8px solid var(--pink) !important; box-shadow: 0 2px 8px rgba(75,21,40,.12) !important; }
+         [dir="ltr"] .bubble.user { align-self: flex-end; border-bottom-right-radius: 16px; border-bottom-left-radius: 4px; }
+         [dir="ltr"] .bubble.assistant { align-self: flex-start; border-bottom-left-radius: 16px; border-bottom-right-radius: 4px; }
+         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+@@ -298,7 +306,8 @@
+         /* المحادثة */
+         .ai-chat { margin-top: 14px; border-top: 1px dashed var(--pink-line); padding-top: 12px; }
+         .ai-chat h4 { margin: 0 0 2px; font-size: 14px; }
+-        .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; max-height: 360px; overflow-y: auto; padding: 2px; }
++        /* المحادثة تنسحب مع الصفحة نفسها (بدون صندوق سحب صغير داخلها، كان يتعارض مع سحب الصفحة) */
++        .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; padding: 2px; }
+         .bubble { max-width: 85%; padding: 9px 12px; border-radius: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
+         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
+@@ -399,8 +408,8 @@
+         <div class="photo-view show" id="photo-view">
+             <img id="photo-big" src="{{ $product['image'] }}" alt="{{ $title }}">
+         </div>
+-        <button type="button" class="ar-btn ar-float" id="ar-btn">
+-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
++        <button type="button" class="ar-btn ar-float" id="ar-btn" aria-label="AR" title="AR">
++            <svg viewBox="0 0 36 34" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5.5 15.5 14 12.5l8.5 3L14 18.5z"/><path d="M5.5 15.5v10l8.5 3v-10M22.5 15.5v10l-8.5 3"/><path d="M10.5 7v4.8l4 2.2 4-2.2V7z" fill="#fff"/><path d="M14.5 9.2V14"/><path d="M10.5 7 14.5 4.8 18.5 7 14.5 9.2z" fill="#fff"/><rect x="18" y="20.5" width="12.5" height="8.5" rx="2" fill="#fff"/><path d="M21.2 20.5l1-1.7h3.4l1 1.7"/><circle cx="24.25" cy="24.8" r="2.3"/><path d="M28.5 10c.3 1.9.6 2.2 2.5 2.5-1.9.3-2.2.6-2.5 2.5-.3-1.9-.6-2.2-2.5-2.5 1.9-.3 2.2-.6 2.5-2.5z" fill="currentColor" stroke="none"/></svg>
+             <span>{{ __('cake_ar.common.ar_button') }}</span>
+         </button>
+     </div>
+@@ -925,6 +934,9 @@ function showAiImage(url) {
+             const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
++            // التوليد بدأ: نسكّر الكيبورد عشان تبان شاشة الانتظار كاملة
++            $('chat-input').blur();
++            document.body.classList.remove('typing');
+             $('ai-wait-modal').classList.add('show');
+             aiMessage('');
+             $('ai-generate').disabled = true;
+@@ -1016,7 +1028,10 @@ function bubble(role, text, image) {
+                 b.appendChild(dl);
+             }
+             $('chat-thread').appendChild(b);
+-            $('chat-thread').scrollTop = $('chat-thread').scrollHeight;
++            // ننزل للرسالة الجديدة (مو وقت استرجاع المسودة)
++            let quiet = false;
++            try { quiet = restoring; } catch (e) { /* قبل تعريف المسودة */ }
++            if (!quiet) requestAnimationFrame(() => b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+             return b;
+         }
+         const specs = () => ({ shape: shape(), size: state.size.id, layers: state.layers });
+@@ -1028,6 +1043,9 @@ function bubble(role, text, image) {
+             const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
++            // التوليد بدأ: نسكّر الكيبورد عشان تبان شاشة الانتظار كاملة
++            $('chat-input').blur();
++            document.body.classList.remove('typing');
+             $('ai-wait-modal').classList.add('show');
+             const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+             try {
+@@ -1220,7 +1238,7 @@ function renderSummary(box) {
+         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
+         t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });
+         t.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== t) document.body.classList.remove('typing'); }, 200));
+-        if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (document.activeElement === t) show(); });
++        // ما نرجّع الصفحة للخانة مع كل تغيير في الشاشة: كان يسحب الزبون لتحت كل ما حاول يطلع لفوق
+         // لو تغيّر النص من الكود (مثل بعد الإرسال) نرجّع الحجم
+         let last = t.value;
+         setInterval(() => { if (t.value !== last) { last = t.value; t.value ? grow() : (t.style.height = ''); } }, 400);
+diff --git a/resources/views/special-order.blade.php b/resources/views/special-order.blade.php
+index dca6813..6d05554 100644
+--- a/resources/views/special-order.blade.php
++++ b/resources/views/special-order.blade.php
+@@ -205,7 +205,8 @@
+         /* المحادثة مع الذكاء الاصطناعي بعد أول صورة */
+         .ai-chat { margin-top: 4px; }
+         .ai-chat h4 { margin: 0 0 2px; font-size: 14px; }
+-        .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; max-height: 360px; overflow-y: auto; padding: 2px; }
++        /* المحادثة تنسحب مع الصفحة نفسها (بدون صندوق سحب صغير داخلها، كان يتعارض مع سحب الصفحة) */
++        .chat-thread { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; padding: 2px; }
+         .bubble { max-width: 85%; padding: 9px 12px; border-radius: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+         .bubble.user { align-self: flex-start; background: var(--pink); color: #fff; border-bottom-right-radius: 4px; }
+         .bubble.assistant { align-self: flex-end; background: #FAF3F5; color: var(--ink); border-bottom-left-radius: 4px; }
+@@ -266,9 +267,17 @@
+         .polaroids .ref { position: absolute; top: 12px; left: 50%; margin-left: -52px; width: 104px; padding: 7px 7px 18px; background: #fff; border-radius: 10px;
+             box-shadow: 0 6px 16px rgba(75,21,40,.16), 0 1px 3px rgba(75,21,40,.08); transition: transform .25s ease; cursor: pointer; }
+         .polaroids .ref img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 6px; background: #F3ECEE; }
+-        .photo-zoom { position: fixed; inset: 0; z-index: 100; background: rgba(30,10,16,.85); display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+-        .photo-zoom img { max-width: 100%; max-height: 85vh; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+-        .photo-zoom button { position: absolute; top: 16px; left: 16px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; color: var(--ink); font-size: 18px; cursor: pointer; }
++        .photo-zoom { position: fixed; inset: 0; z-index: 100; background: rgba(30,10,16,.96); display: flex; flex-direction: column; }
++        .zoom-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; color: #fff; font-weight: 800; }
++        .zoom-close { width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; color: var(--ink); font-size: 18px; cursor: pointer; }
++        .zoom-delete { border: none; border-radius: 20px; background: #fff; color: #B4234D; font-family: inherit; font-size: 14px; font-weight: 800; padding: 9px 16px; cursor: pointer; }
++        .zoom-track { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
++        .zoom-track::-webkit-scrollbar { display: none; }
++        .zoom-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; padding: 10px 20px 40px; box-sizing: border-box; }
++        .zoom-slide img { max-width: 100%; max-height: 78vh; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
++        /* زر التالي يلمع لما الزبون يختار يكمّل بدون صورة */
++        #next.pulse { animation: next-pulse 1s ease-in-out 3; }
++        @keyframes next-pulse { 50% { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(212,83,126,.25); } }
+         .polaroids .ref .remove { position: absolute; top: -8px; left: -8px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
+             background: var(--ink); color: #fff; font-size: 12px; line-height: 1; cursor: pointer; padding: 0; display: none; }
+         .polaroids .ref.front .remove { display: block; }
+@@ -284,6 +293,14 @@
+         /* بالإنجليزي (من اليسار لليمين): السعر يسار وزر الطاولة يمين */
+         [dir="ltr"] .price-card { right: auto; left: 12px; }
+         [dir="ltr"] .ar-float { left: auto; right: 12px; }
++        /* زر AR: أيقونة أكبر وواضحة مع الكلمة */
++        .ar-float { gap: 7px; }
++        /* أيقونة بس بدون كلمة (طلب المدير)، وأكبر */
++        .ar-float { font-size: 0 !important; padding: 6px 8px !important; border-radius: 16px !important; }
++        .ar-float span { display: none; }
++        .ar-float svg { width: 42px !important; height: 40px !important; stroke-width: 1.1; }
++        /* مفرّغ: خلفية بيضاء بحد وردي، والكلمة والأيقونة وردي */
++        .ar-float { background: #fff !important; color: var(--pink-dark) !important; border: 1.8px solid var(--pink) !important; box-shadow: 0 2px 8px rgba(75,21,40,.12) !important; }
+         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+         .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
+         .spec-bar .spec { font-size: 13px; gap: 6px; }
+@@ -422,8 +439,8 @@ function genEdgeColor(img) {
+         </div>
+         <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple hidden>
+         <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="{{ __('cake_ar.so.gen_alt') }}" onload="genEdgeColor(this)"></div>
+-        <button type="button" class="ar-btn ar-float" id="ar-btn">
+-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
++        <button type="button" class="ar-btn ar-float" id="ar-btn" aria-label="AR" title="AR">
++            <svg viewBox="0 0 36 34" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5.5 15.5 14 12.5l8.5 3L14 18.5z"/><path d="M5.5 15.5v10l8.5 3v-10M22.5 15.5v10l-8.5 3"/><path d="M10.5 7v4.8l4 2.2 4-2.2V7z" fill="#fff"/><path d="M14.5 9.2V14"/><path d="M10.5 7 14.5 4.8 18.5 7 14.5 9.2z" fill="#fff"/><rect x="18" y="20.5" width="12.5" height="8.5" rx="2" fill="#fff"/><path d="M21.2 20.5l1-1.7h3.4l1 1.7"/><circle cx="24.25" cy="24.8" r="2.3"/><path d="M28.5 10c.3 1.9.6 2.2 2.5 2.5-1.9.3-2.2.6-2.5 2.5-.3-1.9-.6-2.2-2.5-2.5 1.9-.3 2.2-.6 2.5-2.5z" fill="currentColor" stroke="none"/></svg>
+             {{ __('cake_ar.common.ar_button') }}
+         </button>
+     </div>
+@@ -870,12 +887,44 @@ function thumb(file, onRemove) {
+         // لين 6 صور فوق بعض: الأمامية مستقيمة تقريبًا، واللي وراها مروحة خفيفة (كلها باينة)
+         const STACK = [[0, 3], [-10, -4], [9, 8], [-18, -9], [16, 12], [-24, -13]];
+         // تكبير الصورة المرفقة (الضغط على الصورة اللي قدّام)
++        // معرض الصور المرفقة: يسحب يمين ويسار يشوف كل الصور، و"حذف" يشيل الصورة اللي يشوفها
+         function zoomPhoto(file) {
++            document.querySelector('.photo-zoom')?.remove();
+             const box = document.createElement('div');
+             box.className = 'photo-zoom';
+-            box.innerHTML = `<img src="${URL.createObjectURL(file)}" alt=""><button type="button" aria-label="${t('close')}">✕</button>`;
+-            box.addEventListener('click', () => box.remove());
++            const track = document.createElement('div');
++            track.className = 'zoom-track';
++            const order = [...refFiles].reverse(); // نفس ترتيب الكروت: الأمامية (الأحدث) أول
++            order.forEach(f => {
++                const slide = document.createElement('div');
++                slide.className = 'zoom-slide';
++                slide.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`;
++                track.appendChild(slide);
++            });
++            const bar = document.createElement('div');
++            bar.className = 'zoom-bar';
++            bar.innerHTML = `<button type="button" class="zoom-close" aria-label="${t('close')}">✕</button>`
++                + `<span class="zoom-count" dir="ltr"></span>`
++                + `<button type="button" class="zoom-delete">🗑 ${t('remove_photo')}</button>`;
++            box.append(bar, track);
+             document.body.appendChild(box);
++            const current = () => Math.round(Math.abs(track.scrollLeft) / track.clientWidth);
++            const count = () => { bar.querySelector('.zoom-count').textContent = `${current() + 1} / ${order.length}`; };
++            track.addEventListener('scroll', count, { passive: true });
++            const start = Math.max(0, order.indexOf(file));
++            requestAnimationFrame(() => { track.scrollLeft = (document.documentElement.dir === 'rtl' ? -1 : 1) * start * track.clientWidth; count(); });
++            bar.querySelector('.zoom-close').addEventListener('click', () => box.remove());
++            bar.querySelector('.zoom-delete').addEventListener('click', () => {
++                const i = current();
++                refFiles.splice(refFiles.indexOf(order[i]), 1);
++                renderRef();
++                box.remove();
++                // نكمّل على الصورة اللي بعدها (أو آخر صورة)، ولو ما بقى صور نسكّر
++                const rest = [...refFiles].reverse();
++                if (rest.length) zoomPhoto(rest[Math.min(i, rest.length - 1)]);
++            });
++            // الضغط على الخلفية (مو الصورة) يسكّر
++            track.addEventListener('click', e => { if (e.target === track || e.target.classList.contains('zoom-slide')) box.remove(); });
+         }
+         function renderRef() {
+             const grid = $('refs-grid');
+@@ -1027,6 +1076,9 @@ function showAiImage(url) {
+             const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
++            // التوليد بدأ: نسكّر الكيبورد عشان تبان شاشة الانتظار كاملة
++            $('chat-input').blur();
++            document.body.classList.remove('typing');
+             $('ai-wait-modal').classList.add('show');
+             showAiMessage('', 'info');
+             const form = new FormData();
+@@ -1127,7 +1179,10 @@ function bubble(role, text, image) {
+                 b.appendChild(dl);
+             }
+             $('chat-thread').appendChild(b);
+-            $('chat-thread').scrollTop = $('chat-thread').scrollHeight;
++            // ننزل للرسالة الجديدة (مو وقت استرجاع المسودة)
++            let quiet = false;
++            try { quiet = restoring; } catch (e) { /* قبل تعريف المسودة */ }
++            if (!quiet) requestAnimationFrame(() => b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+             return b;
+         }
+         const specs = () => ({ shape: shape(), size: state.size, layers: state.layers, style: STYLE });
+@@ -1139,6 +1194,9 @@ function bubble(role, text, image) {
+             const tick = () => { $('ai-wait-time').textContent = countdown(started); };
+             tick();
+             const timer = setInterval(tick, 1000);
++            // التوليد بدأ: نسكّر الكيبورد عشان تبان شاشة الانتظار كاملة
++            $('chat-input').blur();
++            document.body.classList.remove('typing');
+             $('ai-wait-modal').classList.add('show');
+             const job = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+             try {
+@@ -1236,7 +1294,7 @@ function renderChatFiles() {
+                 }
+                 // ما نولّد على طول: نسأل الزبون في المحادثة، والذكاء الاصطناعي يفهم رده (يبي صورة ولا يكمّل والدعم يعالج الطلب)
+                 const ASK = t('ask_generate');
+-                if (!canGenerate()) { await thinking(); bubble('assistant', t('clear') + NO_MORE); return; }
++                if (!canGenerate()) { await thinking(); bubble('assistant', t('clear') + NO_MORE); showNext(); return; }
+                 if (!pendingFirst.length) {
+                     pendingFirst.push(text === t('like_photo') ? '' : text);
+                     firstChat.push({ role: 'user', content }, { role: 'assistant', content: ASK });
+@@ -1277,6 +1335,9 @@ function renderChatFiles() {
+                 if (answer.reply) { bubble('assistant', answer.reply); firstChat.push({ role: 'assistant', content: answer.reply }); }
+                 if (answer.action === 'ask') {
+                     pendingFirst.push(text);
++                } else if (answer.action === 'skip') {
++                    userRequests.pop();
++                    showNext();
+                 } else {
+                     userRequests.pop(); // "أيوه" أو "لا" مو جزء من الوصف
+                     if (answer.action === 'generate') {
+@@ -1326,6 +1387,15 @@ function renderChatFiles() {
+                 $('chat-send').disabled = false;
+             }
+         }
++        // الزبون يكمّل بدون صورة: نسكّر الكيبورد عشان يبان "التالي"، وننزل له ونخليه يلمع
++        function showNext() {
++            $('chat-input').blur();
++            document.body.classList.remove('typing');
++            setTimeout(() => {
++                $('next').scrollIntoView({ behavior: 'smooth', block: 'center' });
++                $('next').classList.remove('pulse'); void $('next').offsetWidth; $('next').classList.add('pulse');
++            }, 350);
++        }
+         // الوصف (مع الصور) اللي ينتظر رد الزبون: يبي صورة بالذكاء الاصطناعي أو لا
+         const pendingFirst = [];
+         const firstChat = []; // محادثة ما قبل أول صورة (للذكاء الاصطناعي يفهم رد الزبون)
+@@ -1510,7 +1580,7 @@ function saveDraft() {
+         const show = () => setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
+         t.addEventListener('focus', () => { document.body.classList.add('typing'); show(); });
+         t.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== t) document.body.classList.remove('typing'); }, 200));
+-        if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (document.activeElement === t) show(); });
++        // ما نرجّع الصفحة للخانة مع كل تغيير في الشاشة: كان يسحب الزبون لتحت كل ما حاول يطلع لفوق
+         // لو تغيّر النص من الكود (مثل بعد الإرسال) نرجّع الحجم
+         let last = t.value;
+         setInterval(() => { if (t.value !== last) { last = t.value; t.value ? grow() : (t.style.height = ''); } }, 400);
