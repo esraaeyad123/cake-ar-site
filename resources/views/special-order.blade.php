@@ -293,6 +293,9 @@
         /* بالإنجليزي (من اليسار لليمين): السعر يسار وزر الطاولة يمين */
         [dir="ltr"] .price-card { right: auto; left: 12px; }
         [dir="ltr"] .ar-float { left: auto; right: 12px; }
+        /* زر AR: أيقونة أكبر وواضحة مع الكلمة */
+        .ar-float { gap: 7px; }
+        .ar-float svg { width: 30px !important; height: 30px !important; stroke-width: 1.6; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
         .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
         .spec-bar .spec { font-size: 13px; gap: 6px; }
