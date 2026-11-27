@@ -401,7 +401,7 @@
             <img id="photo-big" src="{{ $product['image'] }}" alt="{{ $title }}">
         </div>
         <button type="button" class="ar-btn ar-float" id="ar-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5 5 4v3l3 1.5L11 7V4z"/><path d="m5 4 3 1.5L11 4M8 5.5v3"/><path d="M3 10.5 7.5 8l4.5 2.5v5.5L7.5 18.5 3 16z"/><path d="m3 10.5 4.5 2.5 4.5-2.5M7.5 13v5.5"/><rect x="12.5" y="14" width="9" height="7" rx="1.6"/><path d="M15 14l1-1.5h2l1 1.5"/><circle cx="17" cy="17.5" r="1.7"/><path d="M19.5 6.5v3M18 8h3"/></svg>
             <span>{{ __('cake_ar.common.ar_button') }}</span>
         </button>
     </div>
