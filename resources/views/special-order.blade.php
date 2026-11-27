@@ -295,7 +295,10 @@
         [dir="ltr"] .ar-float { left: auto; right: 12px; }
         /* زر AR: أيقونة أكبر وواضحة مع الكلمة */
         .ar-float { gap: 7px; }
-        .ar-float svg { width: 30px !important; height: 30px !important; stroke-width: 1.6; }
+        /* أيقونة بس بدون كلمة (طلب المدير)، وأكبر */
+        .ar-float { font-size: 0 !important; padding: 8px 10px !important; border-radius: 16px !important; }
+        .ar-float span { display: none; }
+        .ar-float svg { width: 36px !important; height: 36px !important; stroke-width: 1.5; }
         /* مفرّغ: خلفية بيضاء بحد وردي، والكلمة والأيقونة وردي */
         .ar-float { background: #fff !important; color: var(--pink-dark) !important; border: 1.8px solid var(--pink) !important; box-shadow: 0 2px 8px rgba(75,21,40,.12) !important; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
@@ -436,7 +439,7 @@
         </div>
         <input type="file" id="ai-reference" accept="image/png,image/jpeg,image/webp" multiple hidden>
         <div class="top-view gen-view" id="gen-view" hidden><img id="gen-image" alt="{{ __('cake_ar.so.gen_alt') }}" onload="genEdgeColor(this)"></div>
-        <button type="button" class="ar-btn ar-float" id="ar-btn">
+        <button type="button" class="ar-btn ar-float" id="ar-btn" aria-label="AR" title="AR">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5 5 4v3l3 1.5L11 7V4z"/><path d="m5 4 3 1.5L11 4M8 5.5v3"/><path d="M3 10.5 7.5 8l4.5 2.5v5.5L7.5 18.5 3 16z"/><path d="m3 10.5 4.5 2.5 4.5-2.5M7.5 13v5.5"/><rect x="12.5" y="14" width="9" height="7" rx="1.6"/><path d="M15 14l1-1.5h2l1 1.5"/><circle cx="17" cy="17.5" r="1.7"/><path d="M19.5 6.5v3M18 8h3"/></svg>
             {{ __('cake_ar.common.ar_button') }}
         </button>
