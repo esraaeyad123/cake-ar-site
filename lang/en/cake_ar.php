@@ -12,7 +12,7 @@ return [
         'banner' => 'You can send your cake design for review and get the price later. No purchase order is created and nothing is charged at this stage.',
         'preparing' => 'Preparing the cake…',
         'start_price' => 'Starting price',
-        'ar_button' => '3D',
+        'ar_button' => 'AR',
         'riyal' => 'SAR',
         'inch' => ':n in',
         'people' => ':n people',
