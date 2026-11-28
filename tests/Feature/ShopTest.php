@@ -176,6 +176,27 @@ class ShopTest extends TestCase
         $this->postJson('/products/1305/ai', ['shape' => 'round', 'note' => 'أزرق', 'size' => 9, 'layers' => 2, 'job' => 'job-cccccccc'])->assertStatus(429);
     }
 
+    public function test_product_chat_first_step_asks_generate_or_continue(): void
+    {
+        config(['services.openai.key' => 'test-key']);
+        $this->withoutMiddleware(ThrottleRequests::class);
+        $this->fakeShop();
+        Http::fake([
+            'https://api.openai.com/v1/chat/completions' => Http::response(['choices' => [['message' => ['content' => json_encode(
+                ['reply' => 'تمام، اضغطي التالي', 'action' => 'skip', 'note' => 'لون وردي'], JSON_UNESCAPED_UNICODE)]]]]),
+        ]);
+
+        $this->postJson('/products/1305/ai/chat', ['shape' => 'star', 'size' => 4, 'layers' => 2, 'stage' => 'first', 'messages' => [
+            ['role' => 'user', 'content' => 'خليها وردي'],
+            ['role' => 'assistant', 'content' => 'تبين أولّد لك صورة؟'],
+            ['role' => 'user', 'content' => 'لا كملي'],
+        ]])->assertOk()->assertJsonPath('action', 'skip');
+
+        // تعليمات صفحة المنتج: يكمّل على نفس المنتج والوصف
+        Http::assertSent(fn ($r) => str_contains($r['messages'][0]['content'] ?? '', 'ready-made JOMACAKE shop cake')
+            && str_contains($r['messages'][0]['content'], '"generate"|"skip"|"ask"'));
+    }
+
     public function test_product_chat_knows_the_fixed_specs_and_edit_keeps_the_shape(): void
     {
         Storage::fake('public');

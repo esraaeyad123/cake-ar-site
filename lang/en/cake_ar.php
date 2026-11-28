@@ -127,6 +127,10 @@ return [
     ],
     'shop' => [
         'title' => 'Shop',
+        'ask_generate' => 'Got it 👌 Would you like me to generate an image of the cake with your changes? Or continue with the same product and the description you wrote?',
+        'no_more' => 'Great 👍 Press "Next" to continue your order; our team will complete it on the same product with your description.',
+        'clear' => 'Got it 👌 ',
+        'retry_yes' => 'Reply "yes" to try again.',
         'made_it' => 'I made the image as you asked.',
         'retry_send' => 'Send your message again to retry.',
         'photos_count' => ':n/:max photos',
