@@ -106,7 +106,7 @@
         .scroll-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scroll-snap-type: x proximity; scrollbar-width: none; }
         .scroll-row::-webkit-scrollbar { display: none; }
         .shape-card {
-            flex: 0 0 132px; scroll-snap-align: start; border: 1.5px solid transparent; background: #fff; border-radius: 16px; box-shadow: 0 1px 6px rgba(75,21,40,.07);
+            flex: 0 0 132px; scroll-snap-align: start; border: 1.5px solid #F1DDE5; background: var(--bg); border-radius: 16px; box-shadow: none;
             padding: 8px 6px 10px; cursor: pointer; text-align: center; color: var(--ink);
         }
         .shape-card img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
@@ -300,7 +300,7 @@
         .ar-float span { display: none; }
         .ar-float svg { width: 42px !important; height: 40px !important; stroke-width: 1.1; }
         /* مفرّغ: خلفية بيضاء بحد وردي، والكلمة والأيقونة وردي */
-        .ar-float { background: #fff !important; color: var(--pink-dark) !important; border: 1.8px solid var(--pink) !important; box-shadow: 0 2px 8px rgba(75,21,40,.12) !important; }
+        .ar-float { background: var(--bg) !important; color: var(--pink-dark) !important; border: 1.8px solid var(--pink) !important; box-shadow: 0 2px 8px rgba(75,21,40,.12) !important; }
         .ar-float { position: absolute; left: 12px; bottom: 12px; z-index: 3; font-size: 12px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
         .spec-bar .specs { justify-content: space-around; gap: 10px; padding: 12px 10px; }
         .spec-bar .spec { font-size: 13px; gap: 6px; }
