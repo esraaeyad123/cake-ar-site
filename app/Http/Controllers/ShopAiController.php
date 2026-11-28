@@ -129,6 +129,7 @@ class ShopAiController extends Controller
             'messages' => ['required', 'array', 'min:1', 'max:20'],
             'messages.*.role' => ['required', 'in:user,assistant'],
             'messages.*.content' => ['required', 'string', 'max:500'],
+            'stage' => ['nullable', 'in:first'],
         ]);
 
         if (blank(config('services.openai.key'))) {
@@ -142,10 +143,11 @@ class ShopAiController extends Controller
 
         [$outline] = self::OUTLINES[$data['shape']];
         try {
-            $answer = app(AiCakeChat::class)->reply(
-                "shape {$outline}; exactly ONE tier; size {$size['inch']} inches; {$data['layers']} sponge layers; a square JOMACAKE board with its logo label. The design comes from a JOMACAKE shop product.",
-                $data['messages'],
-            );
+            $specs = "shape {$outline}; exactly ONE tier; size {$size['inch']} inches; {$data['layers']} sponge layers; a square JOMACAKE board with its logo label. The design comes from a JOMACAKE shop product.";
+            // قبل أول صورة: يفهم رد الزبون (يولّد صورة ولا يكمّل على نفس الشكل والوصف)
+            $answer = ($data['stage'] ?? null) === 'first'
+                ? app(AiCakeChat::class)->firstStep($specs, $data['messages'], true)
+                : app(AiCakeChat::class)->reply($specs, $data['messages']);
         } catch (ConnectionException) {
             return response()->json(['message' => __('cake_ar.srv.openai_unreachable')], 422);
         }

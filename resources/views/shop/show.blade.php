@@ -326,6 +326,8 @@
         .chat-input { display: flex; gap: 8px; align-items: flex-end; }
         .chat-input textarea { flex: 1; min-width: 0; box-sizing: border-box; min-height: 46px; height: 46px; max-height: 160px; padding: 11px 14px; border-radius: 14px; font-size: 16px; line-height: 1.5; resize: none; overflow-y: auto; }
         .chat-input .btn#chat-send { display: none; }
+        #next.pulse { animation: next-pulse 1s ease-in-out 3; }
+        @keyframes next-pulse { 50% { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(212,83,126,.25); } }
         /* زر + (إرفاق صور للذكاء الاصطناعي) على اليسار دائمًا */
         [dir="rtl"] .chat-input .chat-attach { order: 2; }
         .chat-count { font-size: 11px; font-weight: 800; color: var(--pink-dark); text-align: center; margin: 0 0 6px; }
@@ -1114,6 +1116,26 @@
             renderChatFiles();
         });
 
+        // قبل أول صورة: وصف الزبون (يروح مع الطلب حتى لو ما ولّد صورة)، والرد على سؤال "تبين أولّد؟"
+        const pendingFirst = [];
+        const firstChat = [];
+        const YES = /^(اي+وه?|ايوا|إي+|أيو[هة]|ايو[هة]|اي|نعم|اكيد|أكيد|يس|yes|y|ok|okay|sure|yeah|yep|please|go ahead|اوك|اوكي|أوكي|تمام|طيب|ماشي|ولدي?|ولّدي?|يلا|بدي|ابي|أبي|ابغى|أبغى)( .*)?$/i;
+        const NO = /^(لا+|لأ|لاء|no|n|nope|no thanks|not now|مابدي|ما بدي|مابي|ما ابي|ما أبي|ماابغى|ما ابغى|ما أبغى|بدون|مو لازم|لا شكرا|كملي|أكمل|اكمل)( .*)?$/i;
+        function keepNote(text) {
+            if (!text || text === t('edit_by_refs')) return;
+            const prev = $('ai-note').value.trim();
+            $('ai-note').value = prev ? `${prev}\n${text}` : text;
+            renderSummary($('summary'));
+        }
+        // يكمّل بدون صورة: نسكّر الكيبورد عشان يبان "التالي"، وننزل له ونخليه يلمع
+        function showNext() {
+            $('chat-input').blur();
+            document.body.classList.remove('typing');
+            setTimeout(() => {
+                $('next').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                $('next').classList.remove('pulse'); void $('next').offsetWidth; $('next').classList.add('pulse');
+            }, 350);
+        }
         async function sendChat() {
             const files = chatFiles.slice();
             let text = $('chat-input').value.trim();
@@ -1132,17 +1154,62 @@
             }
             // الموديل النصي ما يشوف الصور: نقول له إن فيه صور مرفقة، وتنرسل مع التعديل
             const content = files.length ? `${text} ${t('attached_n', { n: files.length })}` : text;
-            // ما فيه صورة لسا: أول رسالة تطلع الكيكة بالتعديل (صورة المنتج + كلام الزبون + صوره)
+            // ما فيه صورة لسا: نسأل الزبون يولّد صورة بالتعديل، أو يكمّل على نفس شكل المنتج والوصف اللي كتبه
             if (!aiImages.length) {
-                if (!canGenerate()) { await thinking(); bubble('assistant', t('no_more_tries')); return; }
-                $('ai-note').value = text === t('edit_by_refs') ? '' : text;
-                refFiles = files.slice(0, MAX_REFERENCES);
-                renderRefs();
+                if (files.length) { refFiles = [...refFiles, ...files].slice(0, MAX_REFERENCES); renderRefs(); }
+                if (!canGenerate()) { await thinking(); bubble('assistant', t('clear') + t('no_more')); keepNote(text); showNext(); return; }
+                if (!pendingFirst.length) {
+                    pendingFirst.push(text === t('edit_by_refs') ? '' : text);
+                    keepNote(text);
+                    firstChat.push({ role: 'user', content }, { role: 'assistant', content: t('ask_generate') });
+                    await thinking();
+                    bubble('assistant', t('ask_generate'));
+                    return;
+                }
+                firstChat.push({ role: 'user', content });
+                const typing = bubble('assistant typing', '');
+                const started = Date.now();
                 $('chat-send').disabled = true;
-                if (await generateFirst()) {
-                    chatMessages.push({ role: 'user', content }, { role: 'assistant', content: t('made_it') });
-                } else {
-                    bubble('assistant', ($('ai-message').textContent || t('error_retry')) + ' ' + t('retry_send'));
+                let answer;
+                try {
+                    const res = await fetch(chatUrl, {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: JSON.stringify({ ...specs(), stage: 'first', messages: firstChat.slice(-12) }),
+                    });
+                    answer = await res.json();
+                    if (!res.ok) throw new Error((answer.errors && Object.values(answer.errors)[0]?.[0]) || answer.message || t('error_retry'));
+                } catch (e) {
+                    // ما رد الذكاء الاصطناعي: نفهم الردود الواضحة بنفسنا
+                    const short = text.replace(/[.!؟?،,\s]+/g, ' ').trim();
+                    answer = YES.test(short) ? { action: 'generate', reply: '', note: '' }
+                        : NO.test(short) && short.split(' ').length <= 3 ? { action: 'skip', reply: t('no_more') }
+                        : null;
+                    if (!answer) {
+                        typing.remove(); firstChat.pop();
+                        $('chat-message').textContent = e.message;
+                        $('chat-input').value = text;
+                        $('chat-send').disabled = false;
+                        return;
+                    }
+                }
+                await thinkRest(started);
+                typing.remove();
+                if (answer.reply) { bubble('assistant', answer.reply); firstChat.push({ role: 'assistant', content: answer.reply }); }
+                if (answer.action === 'ask') {
+                    pendingFirst.push(text);
+                    keepNote(text);
+                } else if (answer.action === 'skip') {
+                    showNext();
+                } else if (answer.action === 'generate') {
+                    $('ai-note').value = (answer.note || pendingFirst.filter(Boolean).join('\n')).trim();
+                    if (await generateFirst()) {
+                        chatMessages.push({ role: 'user', content: $('ai-note').value || t('made_it') }, { role: 'assistant', content: t('made_it') });
+                        pendingFirst.length = 0;
+                        firstChat.length = 0;
+                    } else {
+                        bubble('assistant', ($('ai-message').textContent || t('error_retry')) + ' ' + t('retry_yes'));
+                    }
                 }
                 $('chat-send').disabled = false;
                 return;
@@ -1221,7 +1288,7 @@
                 ...(shape() === 'cone' ? [] : [[t('sum_layers'), visual(layersPic(state.layers), t('layers_n', { n: state.layers }))]]),
                 [t('sum_flavor'), state.flavor ? visual(imgPic(flavorPic(state.flavor), '🍰'), itemName(state.flavor)) : '—'],
                 [t('sum_filling'), state.filling ? visual(imgPic(fillingPic(state.filling, state.flavor), '🍓'), itemName(state.filling)) : '—'],
-                ...(state.aiApproved && $('ai-note').value.trim() ? [[t('sum_edit'), esc($('ai-note').value.trim())]] : []),
+                ...($('ai-note').value.trim() ? [[t('sum_edit'), esc($('ai-note').value.trim())]] : []),
             ];
             box.innerHTML = `<dl>${rows.map(([k, v]) => `<div class="line"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
                 <div class="line"><dt>${t('sum_design')}</dt><dd class="design"><img src="${state.aiApproved ? state.aiImage : product.image}" alt=""></dd></div>
