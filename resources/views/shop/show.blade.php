@@ -251,9 +251,10 @@
         .product-head .sn { font-size: 13px; color: var(--pink-dark); }
         /* الجوال: صورة المنتج مربعة بعرض الشاشة مثل صفحة جوماكيك (مو ثابتة فوق حتى تاخذ حجمها) */
         @media (max-width: 859px) {
-            .visual { position: static; box-shadow: none; padding: 12px 16px 0; }
+            /* صورة المنتج ثابتة فوق وقت النزول (مثل الكعكة الخاصة) */
+            .visual { position: sticky; top: 0; box-shadow: 0 4px 8px -6px rgba(75,21,40,0.18); padding: 8px 16px 0; }
             .visual .viewer-wrap { border-radius: 16px; overflow: hidden; }
-            .visual model-viewer { height: auto; aspect-ratio: 1; max-height: none; }
+            .visual model-viewer { height: 34vh; min-height: 220px; max-height: 320px; aspect-ratio: auto; }
             .visual .photo-view img { object-fit: cover; }
             .visual .spec-bar { border-top: none; padding: 10px 0; }
         }
@@ -430,7 +431,6 @@
         @if (\App\Services\ShopProducts::localName($product))<h1>{{ \App\Services\ShopProducts::localName($product) }}</h1>@endif
         <div class="sn">{{ __('cake_ar.shop.serial') }} <b>{{ $product['id'] }}</b></div>
         {{-- المقاس والسعر في جهة الطلب مثل صفحة جوماكيك --}}
-        <div class="sn">{{ __('cake_ar.shop.size_label') }} <b id="size-label"></b></div>
         <div class="sn">{{ __('cake_ar.shop.price_label') }}</div>
         <div class="price-line">
             <span class="amount" id="price-amount">—</span>
@@ -474,7 +474,6 @@
 
         <section class="panel" data-panel="2">
             <div class="ai-box">
-                <h3>{{ __('cake_ar.shop.ai_heading') }}</h3>
                 <div class="ai-result" id="ai-result">
                     <img id="ai-image" alt="{{ __('cake_ar.shop.ai_after_alt') }}">
                     <a class="download-btn" id="ai-download" href="#" download>⬇️ {{ __('cake_ar.common.download') }}</a>
@@ -488,7 +487,7 @@
                     <div class="hint">{{ __('cake_ar.shop.history') }}</div>
                     <div class="thumbs" id="ai-history-thumbs"></div>
                 </div>
-                <div class="ai-chat" id="ai-chat" hidden>
+                <div class="ai-chat" id="ai-chat">
                     <h4>{{ __('cake_ar.shop.chat_title') }}</h4>
                     <div class="hint" style="margin-top:0">{{ __('cake_ar.shop.chat_hint') }}</div>
                     <div class="chat-thread" id="chat-thread"></div>
@@ -504,7 +503,8 @@
                     </div>
                     <div class="message error" id="chat-message"></div>
                 </div>
-                <div class="ai-start" id="ai-start">
+                {{-- الصندوق القديم (وصف + صور + زر) مخفي: صار كل شي من المحادثة مثل الكعكة الخاصة --}}
+                <div class="ai-start" id="ai-start" hidden>
                 <div class="hint" style="margin-top:0">{{ __('cake_ar.shop.note_hint') }}</div>
                 <textarea id="ai-note" maxlength="500" placeholder="{{ __('cake_ar.shop.note_placeholder') }}" style="margin-top:10px"></textarea>
                 <div class="writing-count"><span id="ai-note-count">0</span>/500</div>
@@ -740,7 +740,6 @@
             $('price-off').textContent = offLabel(state.size.discount);
             $('spec-layers').textContent = shape() === 'cone' ? '—' : t('layer_n', { n: state.layers });
             $('spec-size').textContent = t('inch', { n: state.size.inch });
-            $('size-label').textContent = t('inch', { n: state.size.inch });
             $('spec-people').textContent = t('people', { n: state.size.people });
         }
 
@@ -896,7 +895,8 @@
             $('ai-download').href = url;
             $('ai-download').download = `jomacake-${product.id}-${aiImages.indexOf(url) + 1}.png`;
             $('ai-result').className = 'ai-result show';
-            setPhoto(product.image);
+            // الصورة المولّدة تصير الصورة الرئيسية فوق (وتبقى في الخطوات اللي بعدها)
+            setPhoto(url);
             $('ai-history').hidden = aiImages.length < 2;
             $('ai-chat').hidden = false;
             $('ai-history-thumbs').innerHTML = '';
@@ -928,7 +928,10 @@
         }
 
         $('ai-cancel').addEventListener('click', () => aiAbort?.abort());
-        $('ai-generate').addEventListener('click', async () => {
+        // أول صورة: من أول رسالة في المحادثة (الوصف في ai-note والصور في refFiles)
+        $('ai-generate').addEventListener('click', () => generateFirst());
+        async function generateFirst() {
+            let done = false;
             const abort = aiAbort = new AbortController();
             const started = Date.now();
             const tick = () => { $('ai-wait-time').textContent = countdown(started); };
@@ -981,7 +984,7 @@
                 showAiImage(data.image);
                 bubble('assistant', t('here_is_cake'), data.image);
                 $('ai-generate').textContent = t('try_again');
-                aiMessage(t('here_is_shape'));
+                done = true;
             } catch (e) {
                 aiMessage(abort.signal.aborted ? t('cancelled') : e.message, abort.signal.aborted ? 'info' : 'error');
             } finally {
@@ -991,7 +994,8 @@
                 renderRemaining();
                 renderSummary($('summary'));
             }
-        });
+            return done;
+        }
 
         // ===== المحادثة: الزبون يكتب، الذكاء يرد أو يسأل، والتعديل على الصورة اللي فوق =====
         const chatUrl = "{{ route('shop.ai.chat', $product['id']) }}";
@@ -1129,6 +1133,21 @@
             }
             // الموديل النصي ما يشوف الصور: نقول له إن فيه صور مرفقة، وتنرسل مع التعديل
             const content = files.length ? `${text} ${t('attached_n', { n: files.length })}` : text;
+            // ما فيه صورة لسا: أول رسالة تطلع الكيكة بالتعديل (صورة المنتج + كلام الزبون + صوره)
+            if (!aiImages.length) {
+                if (!canGenerate()) { await thinking(); bubble('assistant', t('no_more_tries')); return; }
+                $('ai-note').value = text === t('edit_by_refs') ? '' : text;
+                refFiles = files.slice(0, MAX_REFERENCES);
+                renderRefs();
+                $('chat-send').disabled = true;
+                if (await generateFirst()) {
+                    chatMessages.push({ role: 'user', content }, { role: 'assistant', content: t('made_it') });
+                } else {
+                    bubble('assistant', ($('ai-message').textContent || t('error_retry')) + ' ' + t('retry_send'));
+                }
+                $('chat-send').disabled = false;
+                return;
+            }
             chatMessages.push({ role: 'user', content });
             const typing = bubble('assistant typing', '');
             const started = Date.now();
